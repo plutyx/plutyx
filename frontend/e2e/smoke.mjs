@@ -19,7 +19,6 @@ try {
   await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
 
   // Regressão visual: o workspace operacional deve começar no topo da viewport.
-  // Isso evita o antigo espaço morto que empurrava header e conteúdo centenas de pixels para baixo.
   const workspaceHeader = await page.locator('.workspace > header').boundingBox()
   if (!workspaceHeader || workspaceHeader.y > 4) {
     throw new Error(`workspace header not top anchored: ${JSON.stringify(workspaceHeader)}`)
@@ -29,7 +28,7 @@ try {
     throw new Error(`primary operator heading too low: ${JSON.stringify(todayHeading)}`)
   }
 
-  // Estoque: ingrediente + configuração do mínimo/alvo.
+  // Estoque: ingrediente + configuração do mínimo/alvo em drawer touch-friendly.
   await page.getByRole('button', { name: 'Custos', exact: true }).click()
   await page.getByPlaceholder('Ingrediente').fill('Frango E2E')
   await page.getByPlaceholder('Preço pacote R$').fill('10.00')
@@ -37,14 +36,18 @@ try {
   await page.getByRole('button', { name: 'Ingrediente', exact: true }).click()
   await page.getByText('Frango E2E').waitFor()
 
-  let dialogStep = 0
-  page.on('dialog', async dialog => {
-    const values = ['1000', '300', '1000']
-    await dialog.accept(values[dialogStep++] || '0')
-  })
   const ingredientRow = page.locator('.row').filter({ hasText: 'Frango E2E' })
   await ingredientRow.getByRole('button', { name: 'Estoque', exact: true }).click()
-  await page.getByText('Estoque configurado.').waitFor()
+  const stockDialog=page.getByRole('dialog')
+  await stockDialog.waitFor()
+  await stockDialog.getByRole('heading', { name: 'Frango E2E', exact: true }).waitFor()
+  await stockDialog.getByLabel(/Estoque atual/).fill('1000')
+  await stockDialog.getByLabel(/Nível mínimo/).fill('300')
+  await stockDialog.getByLabel(/Alvo de reposição/).fill('1000')
+  await page.screenshot({ path: '/tmp/cozinha360-inventory-drawer.png', fullPage: true })
+  await stockDialog.getByRole('button', { name: 'Salvar estoque', exact: true }).click()
+  await page.getByText('Estoque configurado.', { exact: true }).waitFor()
+  await ingredientRow.getByText(/1000 g em estoque · mínimo 300/).waitFor()
 
   // Produto + ficha técnica.
   await page.getByRole('button', { name: 'Produtos', exact: true }).click()
@@ -63,13 +66,13 @@ try {
   await page.getByRole('link', { name: '+ Pedido rápido', exact: true }).click()
   await page.getByText('PEDIDO RÁPIDO').waitFor()
   await page.getByLabel('Produto').selectOption({ label: 'Wrap E2E' })
-  await page.getByText(/R\$\s*2,00/).first().waitFor() // 200 g de R$10/kg no setup atual.
+  await page.getByText(/R\$\s*2,00/).first().waitFor()
   await page.getByLabel('Quantidade').fill('2')
   await page.getByLabel('Preço por unidade').fill('20.00')
   await page.getByLabel('Origem').selectOption('whatsapp')
   await page.getByRole('button', { name: 'Registrar no KDS', exact: true }).click()
   await page.getByText(/Pedido #\d+ registrado/).waitFor()
-  await page.getByText(/R\$\s*36,00/).first().waitFor() // contribuição: R$40 - R$4 de ingredientes no produto padrão.
+  await page.getByText(/R\$\s*36,00/).first().waitFor()
 
   // Volta para a operação e atravessa o KDS até conclusão.
   await page.getByRole('link', { name: 'Abrir KDS', exact: true }).click()
