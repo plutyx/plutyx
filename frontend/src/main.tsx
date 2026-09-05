@@ -7,8 +7,9 @@ import './market.css'
 import './account.css'
 
 function Root(){
-  const accountRoute=<AccountRoute/>
-  if(accountRoute)return accountRoute
+  const params=new URLSearchParams(window.location.search)
+  const hasAccountRoute=Boolean(params.get('reset_token')||params.get('verify_token')||params.get('forgot')==='1')
+  if(hasAccountRoute)return <AccountRoute/>
   const hasSession=Boolean(localStorage.getItem('c360_token'))
   return <>
     <App/>
