@@ -63,6 +63,9 @@ jobs:
       - name: Run operating-memory journey
         run: node frontend/e2e/operating-memory.mjs
 
+      - name: Run kitchen-intelligence journey
+        run: node frontend/e2e/kitchen-intelligence.mjs
+
       - name: Upload E2E evidence and logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,6 +77,8 @@ jobs:
             /tmp/cozinha360-e2e-failure.png
             /tmp/cozinha360-inventory-drawer.png
             /tmp/cozinha360-kitchen-batch.png
+            /tmp/cozinha360-kitchen-components.png
+            /tmp/cozinha360-kitchen-components-failure.png
             /tmp/cozinha360-system360.png
             /tmp/cozinha360-operating-memory.png
             /tmp/cozinha360-operating-memory-failure.png
