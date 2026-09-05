@@ -274,7 +274,16 @@ def inventory_variance(
             Order.business_id == business_id,
             Order.status == "completed",
         )).all()
-        period_orders = [o for o in orders if start < _aware(o.created_at) <= end]
+        # Inventory is consumed on completion, not when the order was created.
+        # Legacy rows without completed_at keep a documented created_at fallback.
+        period_orders = []
+        legacy_timing_orders = 0
+        for order in orders:
+            consumption_at = order.completed_at or order.created_at
+            if start < _aware(consumption_at) <= end:
+                period_orders.append(order)
+                if order.completed_at is None:
+                    legacy_timing_orders += 1
         usage = theoretical_usage_for_orders(
             db,
             business_id,
@@ -293,6 +302,8 @@ def inventory_variance(
             )
         else:
             method_note = "Uso teórico reconstruído pelos snapshots imutáveis da ficha técnica capturados na conclusão de cada pedido."
+        if legacy_timing_orders:
+            method_note += f" {legacy_timing_orders} pedido(s) legado(s) sem completed_at usam created_at apenas para posicionamento temporal."
         result.append({
             "ingredient_id": ingredient.id,
             "name": ingredient.name,
@@ -310,6 +321,8 @@ def inventory_variance(
             "confidence": usage["confidence"],
             "snapshot_orders": usage["snapshot_orders"],
             "legacy_orders": usage["legacy_orders"],
+            "legacy_timing_orders": legacy_timing_orders,
+            "timing_basis": "completed_at" if not legacy_timing_orders else "completed_at_plus_legacy_created_at_fallback",
             "method": usage["method"],
             "method_note": method_note,
         })
