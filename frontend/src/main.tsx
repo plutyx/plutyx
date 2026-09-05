@@ -16,6 +16,7 @@ import './crm-lifecycle.css'
 import './direct-order.css'
 import './kitchen-alerts.css'
 import './super-flow.css'
+import './flow-v18.css'
 
 function Root(){
   const params=new URLSearchParams(window.location.search)
