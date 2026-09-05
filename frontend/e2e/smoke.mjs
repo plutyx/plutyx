@@ -74,6 +74,16 @@ try {
   await page.getByText(/Pedido #\d+ registrado/).waitFor()
   await page.getByText(/R\$\s*36,00/).first().waitFor()
 
+  // Cozinha de Bolso 360 virou uma camada viva: diagnóstico, marco 30 e CPA Guard.
+  await page.goto('http://127.0.0.1:5173/?system360=1', { waitUntil: 'networkidle' })
+  await page.getByRole('heading', { name: 'O manual agora lê a sua operação.', exact: true }).waitFor({ timeout: 15000 })
+  await page.getByText('OS 5 MOTORES', { exact: true }).waitFor()
+  await page.getByText('30 pedidos pagos antes de ampliar no escuro.', { exact: true }).waitFor()
+  await page.getByText('Teste que cabe no caixa.', { exact: true }).waitFor()
+  await page.screenshot({ path: '/tmp/cozinha360-system360.png', fullPage: true })
+  await page.getByRole('link', { name: 'Operação', exact: true }).click()
+  await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
+
   // Modo cozinha: o mesmo pedido vira uma lista de produção agrupada por produto.
   await page.goto('http://127.0.0.1:5173/?kitchen=1', { waitUntil: 'networkidle' })
   await page.getByRole('heading', { name: 'Produção agrupada.', exact: true }).waitFor({ timeout: 15000 })
