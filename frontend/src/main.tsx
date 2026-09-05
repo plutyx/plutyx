@@ -7,6 +7,7 @@ import { ChannelMarginRoute } from './channel-margin'
 import { CrmLifecycleRoute } from './crm-lifecycle'
 import { DirectCommerceAdminRoute, PublicStorefrontRoute } from './direct-order'
 import { KitchenAlerts } from './kitchen-alerts'
+import { InventoryStockEditor } from './inventory-editor'
 import './styles.css'
 import './market.css'
 import './account.css'
@@ -18,6 +19,7 @@ import './kitchen-alerts.css'
 import './super-flow.css'
 import './flow-v18.css'
 import './flow-v181.css'
+import './inventory-editor.css'
 
 function Root(){
   const params=new URLSearchParams(window.location.search)
@@ -32,6 +34,7 @@ function Root(){
   return <>
     <App/>
     <KitchenAlerts/>
+    <InventoryStockEditor/>
     <a className="account-helper-link" href="/?forgot=1">Esqueci minha senha</a>
     <div className="command-dock" aria-label="Ações rápidas">
       <span className="command-dock-label">AÇÕES</span>
