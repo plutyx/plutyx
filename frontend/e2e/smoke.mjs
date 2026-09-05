@@ -18,6 +18,17 @@ try {
   await page.getByRole('button', { name: 'Criar negócio', exact: true }).click()
   await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
 
+  // Regressão visual: o workspace operacional deve começar no topo da viewport.
+  // Isso evita o antigo espaço morto que empurrava header e conteúdo centenas de pixels para baixo.
+  const workspaceHeader = await page.locator('.workspace > header').boundingBox()
+  if (!workspaceHeader || workspaceHeader.y > 4) {
+    throw new Error(`workspace header not top anchored: ${JSON.stringify(workspaceHeader)}`)
+  }
+  const todayHeading = await page.locator('.today-head h1').boundingBox()
+  if (!todayHeading || todayHeading.y > 180) {
+    throw new Error(`primary operator heading too low: ${JSON.stringify(todayHeading)}`)
+  }
+
   // Estoque: ingrediente + configuração do mínimo/alvo.
   await page.getByRole('button', { name: 'Custos', exact: true }).click()
   await page.getByPlaceholder('Ingrediente').fill('Frango E2E')
