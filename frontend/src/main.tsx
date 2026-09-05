@@ -10,6 +10,7 @@ import { KitchenAlerts } from './kitchen-alerts'
 import { InventoryStockEditor } from './inventory-editor'
 import { KitchenBatchRoute } from './kitchen-batch'
 import { System360Route } from './system360'
+import { PlaybookLabRoute } from './playbook-lab'
 import './styles.css'
 import './market.css'
 import './account.css'
@@ -26,6 +27,8 @@ import './module-flow-v183.css'
 import './kitchen-batch.css'
 import './system360.css'
 import './shell-v20.css'
+import './playbook-lab.css'
+import './playbook-nav.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -56,6 +59,7 @@ function Root(){
   if(params.get('direct')==='1')return <DirectCommerceAdminRoute/>
   if(params.get('kitchen')==='1')return <><KitchenBatchRoute/><KitchenAlerts/></>
   if(params.get('system360')==='1')return <><System360Route/><KitchenAlerts/></>
+  if(params.get('playbook')==='1')return <><PlaybookLabRoute/><KitchenAlerts/></>
   return <>
     <App/>
     <TabHashBridge/>
@@ -65,6 +69,7 @@ function Root(){
     <div className="command-dock" aria-label="Ações rápidas">
       <span className="command-dock-label">AÇÕES</span>
       <a className="command-link system360" href="/?system360=1">Sistema 360</a>
+      <a className="command-link lab" href="/?playbook=1">Laboratório 360</a>
       <a className="command-link kitchen" href="/?kitchen=1">Modo cozinha</a>
       <a className="command-link crm" href="/?crm=1">CRM de recompra</a>
       <a className="command-link margin" href="/?margin=1">Margens & canais</a>
