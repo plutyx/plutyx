@@ -31,11 +31,14 @@ function Root(){
     <App/>
     <KitchenAlerts/>
     <a className="account-helper-link" href="/?forgot=1">Esqueci minha senha</a>
-    <a className="account-security-link" href="/?security=1">Segurança da conta</a>
-    <a className="global-crm-link" href="/?crm=1">CRM de recompra</a>
-    <a className="global-margin-link" href="/?margin=1">Margens & canais</a>
-    <a className="global-direct-link" href="/?direct=1">Venda direta</a>
-    <a className="global-quick-link" href="/?quick=1">+ Pedido rápido</a>
+    <div className="command-dock" aria-label="Ações rápidas">
+      <span className="command-dock-label">AÇÕES</span>
+      <a className="command-link crm" href="/?crm=1">CRM de recompra</a>
+      <a className="command-link margin" href="/?margin=1">Margens & canais</a>
+      <a className="command-link direct" href="/?direct=1">Venda direta</a>
+      <a className="command-link security" href="/?security=1">Segurança</a>
+      <a className="command-link primary" href="/?quick=1">+ Pedido rápido</a>
+    </div>
   </>
 }
 
