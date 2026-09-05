@@ -15,6 +15,7 @@ import { VitrineStudioRoute } from './vitrine-studio'
 import { GrowthLabRoute } from './growth-lab'
 import { ControlTowerRoute } from './control-tower'
 import { ExecutionHubRoute } from './execution-hub'
+import { prepareOperatingMemory } from './operating-memory'
 import './styles.css'
 import './market.css'
 import './account.css'
@@ -100,8 +101,13 @@ function Root(){
   </>
 }
 
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <Root />
-  </React.StrictMode>,
-)
+async function boot(){
+  await prepareOperatingMemory()
+  createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <Root />
+    </React.StrictMode>,
+  )
+}
+
+void boot()
