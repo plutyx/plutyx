@@ -18,7 +18,7 @@ try {
   await page.getByRole('button', { name: 'Criar negócio', exact: true }).click()
   await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
 
-  // Estoque: ingrediente + configuração de par/target usando a UI atual.
+  // Estoque: ingrediente + configuração do mínimo/alvo.
   await page.getByRole('button', { name: 'Custos', exact: true }).click()
   await page.getByPlaceholder('Ingrediente').fill('Frango E2E')
   await page.getByPlaceholder('Preço pacote R$').fill('10.00')
@@ -48,17 +48,22 @@ try {
   await page.getByRole('button', { name: 'Salvar ingrediente', exact: true }).click()
   await page.getByText('Ficha técnica atualizada.').waitFor()
 
-  // Pedido real atravessando o KDS até conclusão.
-  await page.getByRole('button', { name: 'Pedidos', exact: true }).click()
-  await page.getByRole('button', { name: 'Pedido', exact: true }).click()
-  await page.locator('.inline-form select').selectOption({ label: 'Wrap E2E' })
-  const orderInputs = page.locator('.inline-form input')
-  await orderInputs.nth(0).fill('2')
-  await orderInputs.nth(1).fill('20.00')
-  await orderInputs.nth(2).fill('8.00')
-  await page.getByRole('button', { name: 'Registrar', exact: true }).click()
-  await page.getByText('Pedido registrado no KDS.').waitFor()
+  // O cliente não digita custo variável. O atalho usa a ficha técnica e envia o pedido ao KDS.
+  await page.getByRole('link', { name: '+ Pedido rápido', exact: true }).click()
+  await page.getByText('PEDIDO RÁPIDO').waitFor()
+  await page.getByLabel('Produto').selectOption({ label: 'Wrap E2E' })
+  await page.getByText(/R\$\s*2,00/).first().waitFor() // 200 g de R$10/kg no setup atual.
+  await page.getByLabel('Quantidade').fill('2')
+  await page.getByLabel('Preço por unidade').fill('20.00')
+  await page.getByLabel('Origem').selectOption('whatsapp')
+  await page.getByRole('button', { name: 'Registrar no KDS', exact: true }).click()
+  await page.getByText(/Pedido #\d+ registrado/).waitFor()
+  await page.getByText(/R\$\s*36,00/).first().waitFor() // contribuição: R$40 - R$4 de ingredientes no produto padrão.
 
+  // Volta para a operação e atravessa o KDS até conclusão.
+  await page.getByRole('link', { name: 'Abrir KDS', exact: true }).click()
+  await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
+  await page.getByRole('button', { name: 'Pedidos', exact: true }).click()
   for (const label of ['Confirmado', 'Produção', 'Conferência', 'Entrega', 'Concluído']) {
     const ticket = page.locator('.ticket').first()
     await ticket.waitFor()
@@ -67,16 +72,30 @@ try {
   }
   await page.getByText('Pedido concluído e estoque teórico atualizado.').waitFor()
 
-  // Como cliente, espero ver a venda no financeiro e o estoque consumido.
+  // Como cliente, espero ver venda, contribuição derivada e estoque consumido.
   await page.getByRole('button', { name: 'Financeiro', exact: true }).click()
   await page.getByText(/R\$\s*40,00/).first().waitFor()
-  await page.getByText(/R\$\s*24,00/).first().waitFor()
+  await page.getByText(/R\$\s*36,00/).first().waitFor()
 
   await page.getByRole('button', { name: 'Custos', exact: true }).click()
   await page.locator('.row').filter({ hasText: 'Frango E2E' }).getByText(/600 g em estoque/).waitFor()
 
-  // Readiness é uma condição de infraestrutura, não apenas uma tela carregada.
-  const api = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:8000' })
+  // Readiness e onboarding são condições do produto, não apenas uma tela carregada.
+  const token = await page.evaluate(() => localStorage.getItem('c360_token'))
+  if (!token) throw new Error('missing browser auth token')
+  const api = await playwrightRequest.newContext({
+    baseURL: 'http://127.0.0.1:8000',
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+  })
+  const me = await api.get('/me')
+  if (!me.ok()) throw new Error(`me returned ${me.status()}`)
+  const businessId = (await me.json()).businesses[0].id
+  const onboarding = await api.get(`/businesses/${businessId}/onboarding`)
+  if (!onboarding.ok()) throw new Error(`onboarding returned ${onboarding.status()}`)
+  const onboardingBody = await onboarding.json()
+  if (!onboardingBody.setup_complete || onboardingBody.progress_percent !== 100) {
+    throw new Error(`unexpected onboarding: ${JSON.stringify(onboardingBody)}`)
+  }
   const ready = await api.get('/readyz')
   if (!ready.ok()) throw new Error(`readyz returned ${ready.status()}`)
   const readyBody = await ready.json()
