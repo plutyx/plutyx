@@ -37,31 +37,44 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements.txt
-      - name: Apply production migration to PostgreSQL
+      - name: Apply all production migrations to PostgreSQL
         run: |
           python - <<'PY'
           from pathlib import Path
           import psycopg
-          sql = Path('../supabase/migrations/202609050001_init.sql').read_text(encoding='utf-8')
+          migration_dir = Path('../supabase/migrations')
+          files = sorted(migration_dir.glob('*.sql'))
+          assert files, 'no migrations found'
           with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
               with conn.cursor() as cur:
-                  cur.execute(sql)
+                  for path in files:
+                      print('applying', path.name)
+                      cur.execute(path.read_text(encoding='utf-8'))
               conn.commit()
-          print('migration applied')
+          print(f'{len(files)} migrations applied')
           PY
       - name: Verify schema invariants
         run: |
           python - <<'PY'
           import psycopg
+          expected = {
+              'users','businesses','memberships','ingredients','products','orders','customers','purchases',
+              'audit_logs','outbox_events','order_items','production_batches','recipe_items'
+          }
           with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
               with conn.cursor() as cur:
-                  cur.execute("select count(*) from information_schema.tables where table_schema='public' and table_name in ('users','businesses','memberships','ingredients','products','orders','customers','purchases','audit_logs','outbox_events')")
-                  assert cur.fetchone()[0] == 10
+                  cur.execute("select table_name from information_schema.tables where table_schema='public'")
+                  present = {row[0] for row in cur.fetchall()}
+                  missing = expected - present
+                  assert not missing, f'missing tables: {sorted(missing)}'
                   cur.execute("select count(*) from pg_indexes where tablename='orders' and indexname='ix_orders_business_status'")
                   assert cur.fetchone()[0] == 1
+                  for table, column in [('ingredients','on_hand_milliunits'),('products','category'),('orders','inventory_consumed')]:
+                      cur.execute("select count(*) from information_schema.columns where table_schema='public' and table_name=%s and column_name=%s", (table,column))
+                      assert cur.fetchone()[0] == 1, f'missing {table}.{column}'
           print('schema invariants ok')
           PY
       - name: Run production-mode tests against PostgreSQL
         run: python -m pytest -q
       - name: Import application with production guards enabled
-        run: python -c "from app.main import app; assert app.title == 'Cozinha 360 OS'; print('production import ok')"
+        run: python -c "from app.main import app; assert app.title == 'Cozinha 360 OS'; assert app.version == '0.6.0'; print('production import ok')"
