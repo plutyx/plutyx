@@ -31,6 +31,7 @@ jobs:
       DATABASE_URL: postgresql+psycopg://cozinha360@localhost:5432/cozinha360
       SECRET_KEY: ci-only-readable-value-not-for-real-production-0123456789abcdef
       CORS_ORIGINS: https://app.cozinha360.example
+      PUBLIC_APP_URL: https://app.cozinha360.example
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -60,7 +61,8 @@ jobs:
           expected = {
               'users','businesses','memberships','ingredients','products','orders','customers','purchases',
               'audit_logs','outbox_events','order_items','production_batches','recipe_items','team_invites',
-              'inventory_counts','order_completion_snapshots','order_recipe_snapshots'
+              'inventory_counts','order_completion_snapshots','order_recipe_snapshots',
+              'user_security_states','auth_action_tokens'
           }
           with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
               with conn.cursor() as cur:
@@ -72,10 +74,13 @@ jobs:
                   assert cur.fetchone()[0] == 1
                   cur.execute("select count(*) from pg_indexes where tablename='order_recipe_snapshots' and indexname='ix_order_recipe_snapshots_order_ingredient'")
                   assert cur.fetchone()[0] == 1
+                  cur.execute("select count(*) from pg_indexes where tablename='auth_action_tokens' and indexname='ix_auth_action_tokens_user_purpose_created'")
+                  assert cur.fetchone()[0] == 1
                   required_columns = [
                       ('ingredients','on_hand_milliunits'),('products','category'),('orders','inventory_consumed'),
                       ('users','auth_version'),('users','failed_login_attempts'),('users','locked_until'),
-                      ('order_recipe_snapshots','total_qty_milliunits')
+                      ('order_recipe_snapshots','total_qty_milliunits'),
+                      ('user_security_states','email_verified_at'),('auth_action_tokens','token_hash')
                   ]
                   for table, column in required_columns:
                       cur.execute("select count(*) from information_schema.columns where table_schema='public' and table_name=%s and column_name=%s", (table,column))
