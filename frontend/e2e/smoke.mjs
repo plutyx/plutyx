@@ -80,7 +80,8 @@ try {
   const batchCard=page.locator('.batch-card').filter({ hasText: 'Wrap E2E' })
   await batchCard.waitFor()
   await batchCard.locator('.batch-qty strong').getByText('2', { exact: true }).waitFor()
-  await batchCard.getByText(/1 novo/).waitFor()
+  // Status chips expressam unidades do produto, não quantidade de pedidos.
+  await batchCard.getByText(/2 novo/).waitFor()
   await page.screenshot({ path: '/tmp/cozinha360-kitchen-batch.png', fullPage: true })
   await page.getByRole('link', { name: 'Voltar à operação', exact: true }).click()
   await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
