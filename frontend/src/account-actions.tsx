@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { CheckCircle2, ChefHat, KeyRound, MailCheck } from 'lucide-react'
+import { CheckCircle2, ChefHat, KeyRound, LogOut, MailCheck, ShieldCheck } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || '/api'
 
@@ -14,7 +14,7 @@ function AccountFrame({children}:{children:React.ReactNode}){
   return <main className="account-action-shell">
     <section className="account-action-brand">
       <div className="brand"><ChefHat size={28}/><span>COZINHA 360</span></div>
-      <div><span className="eyebrow">SEGURANÇA DA CONTA</span><h1>Seu acesso também faz parte da operação.</h1><p>Recupere a conta sem expor se um e-mail existe na base e sem reutilizar links antigos.</p></div>
+      <div><span className="eyebrow">SEGURANÇA DA CONTA</span><h1>Seu acesso também faz parte da operação.</h1><p>Recupere a conta sem expor se um e-mail existe na base, confirme seu endereço e revogue sessões antigas quando precisar.</p></div>
     </section>
     <section className="account-action-card">{children}</section>
   </main>
@@ -38,6 +38,19 @@ export function VerifyEmail({token}:{token:string}){
   return <AccountFrame><div className={`account-result ${state}`}><MailCheck size={34}/><h2>{state==='busy'?'Confirmando e-mail':state==='done'?'E-mail confirmado':'Link não confirmado'}</h2><p>{message}</p>{state!=='busy'&&<a className="primary account-link" href="/">Ir para o Cozinha 360</a>}</div></AccountFrame>
 }
 
+type SecurityStatus={email:string;email_verified:boolean;email_verified_at:string|null;transactional_email_configured:boolean}
+
+export function SecurityCenter(){
+  const token=localStorage.getItem('c360_token')||''
+  const[status,setStatus]=useState<SecurityStatus|null>(null);const[busy,setBusy]=useState(false);const[error,setError]=useState('');const[message,setMessage]=useState('');const[debugLink,setDebugLink]=useState('')
+  const headers=token?{Authorization:`Bearer ${token}`}:{ }
+  useEffect(()=>{if(!token)return;request('/auth/security-status',{headers}).then(setStatus).catch(err=>setError(err instanceof Error?err.message:'Erro'))},[])
+  async function verify(){setBusy(true);setError('');setMessage('');setDebugLink('');try{const body=await request('/auth/email-verification/request',{method:'POST',headers});if(body.already_verified){setMessage('Seu e-mail já está confirmado.')}else{setMessage(body.delivery==='smtp'?'Enviamos o link de confirmação para seu e-mail.':'Link de confirmação criado para o ambiente de teste.');if(body.debug_link)setDebugLink(body.debug_link)}}catch(err){setError(err instanceof Error?err.message:'Erro')}finally{setBusy(false)}}
+  async function logoutAll(){setBusy(true);setError('');try{await request('/auth/logout-all',{method:'POST',headers});localStorage.removeItem('c360_token');window.location.href='/'}catch(err){setError(err instanceof Error?err.message:'Erro');setBusy(false)}}
+  if(!token)return <AccountFrame><div className="account-result"><ShieldCheck size={34}/><h2>Sessão necessária</h2><p>Entre na sua conta antes de abrir as configurações de segurança.</p><a className="primary account-link" href="/">Entrar</a></div></AccountFrame>
+  return <AccountFrame><ShieldCheck size={32}/><h2>Segurança da conta</h2><p>Controle confirmação de e-mail e sessões ativas sem misturar esses dados com a operação da cozinha.</p>{error&&<div className="error">{error}</div>}{message&&<div className="notice">{message}</div>}{debugLink&&<a className="account-back" href={debugLink}>Abrir link de confirmação do ambiente de teste</a>}{status?<div className="security-summary"><div><span>E-mail</span><b>{status.email}</b></div><div><span>Confirmação</span><b>{status.email_verified?'Confirmado':'Pendente'}</b></div><div><span>Entrega transacional</span><b>{status.transactional_email_configured?'Configurada':'Ainda não configurada'}</b></div></div>:<div className="empty-inline">Carregando status...</div>}<div className="security-actions">{status&&!status.email_verified&&<button className="primary" disabled={busy} onClick={verify}><MailCheck size={17}/> Enviar confirmação</button>}<button className="secondary danger-action" disabled={busy} onClick={logoutAll}><LogOut size={17}/> Encerrar todas as sessões</button></div><a className="account-back" href="/">Voltar para a operação</a></AccountFrame>
+}
+
 export function AccountRoute(){
   const params=new URLSearchParams(window.location.search)
   const reset=params.get('reset_token')
@@ -45,5 +58,6 @@ export function AccountRoute(){
   if(reset)return <ResetPassword token={reset}/>
   if(verify)return <VerifyEmail token={verify}/>
   if(params.get('forgot')==='1')return <ForgotPassword/>
+  if(params.get('security')==='1')return <SecurityCenter/>
   return null
 }
