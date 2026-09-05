@@ -17,12 +17,14 @@ def test_readiness_checks_current_schema():
     with TestClient(app) as client:
         live = client.get('/livez')
         assert live.status_code == 200
-        assert live.json()['release'] == '0.9.0'
+        assert live.json()['release'] == '1.0.0'
 
         ready = client.get('/readyz')
         assert ready.status_code == 200, ready.text
         assert ready.json()['schema'] == 'current'
         assert ready.json()['database'] == 'reachable'
+        assert ready.json()['capabilities']['password_recovery'] is True
+        assert ready.json()['capabilities']['email_verification'] is True
 
 
 def test_data_quality_exposes_bad_inputs_before_more_automation():

@@ -6,6 +6,7 @@
 from . import market as market_module
 from .market import router as market_router
 from .security import router as security_router
+from .account_security import router as account_security_router
 from .snapshots import snapshot_order_recipe
 
 # Freeze the recipe at the same transaction boundary used to consume inventory.
@@ -26,5 +27,6 @@ from .insights import router as insights_router
 from .ops import router as ops_router
 
 market_router.include_router(security_router)
+market_router.include_router(account_security_router)
 market_router.include_router(insights_router)
 market_router.include_router(ops_router)
