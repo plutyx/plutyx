@@ -2,97 +2,95 @@
 
 Updated: 2026-09-05
 
-## Cloud-validated
+## Current release classification
 
-- Backend: FastAPI + SQLAlchemy.
-- Frontend: React + TypeScript + Vite, mobile-first.
-- Authentication: account creation/login with Argon2 password hashing and signed, versioned JWTs.
-- Account security v1.0: e-mail verification, secure password recovery, one-time hashed action tokens, expiry/revocation, reset-driven session invalidation and account-security screens.
-- Session controls: server-side token revocation, password-change invalidation and temporary login lockout.
-- Multi-tenant model: users, businesses and memberships with owner/admin/member roles.
-- Individual workspace: preferences are stored per membership; production, finance and sales members can use different module views in the same business.
-- Team onboarding: direct member association plus shareable invite codes/links.
-- Core economic engine: contribution, channel pricing, CPA guard and capacity guard.
-- Orders: idempotency key, optimistic concurrency/versioning, status workflow, browser KDS and outbox event.
-- Products: product catalog, recipes/fichas técnicas and automatic availability derived from ingredient stock.
-- Costs: ingredients, on-hand/par/reorder inventory, purchases, landed cost and price-change alerts.
-- Inventory intelligence: physical count snapshots, theoretical-versus-physical variance and shrink/surplus signal.
-- Historical recipe integrity: every newly completed order freezes the ingredient quantities used at completion, so later recipe edits do not rewrite historical theoretical usage. Legacy pre-v0.9 orders are explicitly identified and use a lower-confidence fallback.
-- Inventory timing integrity: stock consumption is assigned to the physical-count interval by `completed_at`, matching the moment inventory is actually consumed; legacy completed rows without that timestamp retain an explicit `created_at` fallback.
-- Market intelligence: ingredient price movers, menu engineering using popularity x item contribution, and an owner brief that prioritizes next actions instead of adding dashboards indiscriminately.
-- Production: production batches, responsible member, planned/produced/waste quantities.
-- Demand: deterministic weighted moving average based on the business's own order history, with confidence level and no paid AI dependency.
-- Customers: consent-aware customer records.
-- Finance: revenue, variable cost, contribution, losses, landed purchases and daily controllable operating view. This view is intentionally not presented as statutory accounting P&L.
-- Audit log and outbox tables are part of the production schema; owner/admin audit retrieval is available.
-- Data-quality gate detects active products without recipes, ingredients without pars, negative stock, paid orders without item detail and completed legacy orders without recipe snapshots before downstream automation is trusted.
+The product is a **public production candidate**, not yet a commercial live-production release.
 
-## Persistent production-preparation database
+Public frontend: `https://cozinha-360-os.netlify.app`
 
-A persistent Supabase PostgreSQL project is provisioned and contains all application migrations through account security v1.0, including:
+Current cloud topology:
+
+`browser -> Netlify public frontend -> Supabase Edge API -> persistent Supabase PostgreSQL`
+
+The public frontend has been deployed without password/SSO protection and independently verified with HTTP 200, `text/html; charset=UTF-8`, valid HTML and security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`). The public API exposes healthy `/livez` and `/readyz` endpoints.
+
+## Cloud-validated application
+
+- Frontend: mobile-first operation interface covering Today, Orders/KDS, Products/Ficha Técnica, Costs/Inventory, Production, Finance, Customers, Team and individual workspace preferences.
+- Authentication: Supabase Auth bridge plus the existing application user/membership domain model.
+- Multi-tenant authorization: users, businesses and memberships with owner/admin/member roles.
+- Individual workspace preferences per membership.
+- Team onboarding with shareable invite codes.
+- Product/recipe costing, inventory/par/reorder controls and price-change signals.
+- Orders with idempotency, optimistic concurrency and browser KDS.
+- Atomic order creation, atomic recipe replacement and atomic order completion in PostgreSQL.
+- Order completion freezes recipe quantities, records completion snapshots and consumes inventory exactly once.
+- Production planning and deterministic demand forecast using the operation's own history.
+- Contribution-first finance view, losses and landed purchases.
+- Consent-aware customers.
+- Physical inventory counts, theoretical-versus-physical variance, price movers, menu engineering and owner brief.
+- Audit/outbox and data-quality controls.
+
+## Persistent database
+
+The production-preparation Supabase PostgreSQL project contains the full application migration chain, including:
 
 - `inventory_counts`
 - `order_completion_snapshots`
 - `order_recipe_snapshots`
 - `user_security_states`
 - `auth_action_tokens`
+- `users.auth_user_id` bridge to Supabase Auth
+- transaction RPCs `c360_create_order`, `c360_set_recipe` and `c360_complete_order`
 
-The `account_security_v10` migration was applied successfully to the persistent project after the same eight-migration chain, schema invariants and production-mode tests passed on vanilla PostgreSQL in CI.
+A real transaction smoke was executed against the persistent database inside a rollback: recipe -> order -> completion -> paid -> stock decrement -> recipe snapshot -> completion snapshot -> audit/outbox. The test stock moved from 5000 to 4800 as expected and the rollback left zero test users, businesses and orders.
 
-Security hardening on the persistent database:
+Security posture:
 
-- Row Level Security is enabled on every application table in `public`, including the account-security tables.
-- Direct PostgREST DML privileges for `anon` and `authenticated` are revoked; the browser cannot bypass FastAPI business authorization.
-- The account-security token table stores only SHA-256 token hashes, not the raw reset/verification token.
-- The trigger helper has an explicit `search_path`.
-- Supabase security advisor does not report the previous RLS-disabled or mutable-search-path findings. Remaining no-policy notices are informational and intentional for this server-only data architecture: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
-- Foreign keys identified by the performance advisor have covering indexes. Remaining unused-index notices on the new database must be evaluated after meaningful traffic rather than removed pre-emptively: https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index
+- RLS is enabled on application tables.
+- Direct browser PostgREST DML for `anon` and `authenticated` is intentionally unavailable for application data.
+- Privileged transaction functions are not exposed as general public write APIs.
+- Remaining `rls_enabled_no_policy` notices are intentional for the server-controlled data architecture: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+- Unused-index notices on the new database are not a reason to remove indexes before representative traffic exists: https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index
 
-## Automated cloud gates
+## Automated release gates
 
-The repository has five independent CI gates:
+The repository now has seven independent gates:
 
-1. `backend-ci`: unit/API tests, simulated customer journeys, security flows, inventory intelligence and application import.
-2. `frontend-ci`: strict TypeScript typecheck and production Vite build.
-3. `backend-postgres-production-ci`: vanilla PostgreSQL service, every versioned migration, schema invariant checks, production-mode API tests and production application import.
-4. `container-ci`: builds both production Docker images so deployment cannot rely on an untested Dockerfile.
-5. `browser-e2e`: real Chromium journey covering signup, business creation, ingredient/stock, product/recipe, order creation, KDS completion, finance, stock consumption and schema-aware readiness.
+1. `backend-ci` — unit/API/security/domain tests.
+2. `frontend-ci` — strict TypeScript and production Vite build.
+3. `backend-postgres-production-ci` — full migration chain, schema invariants, cloud-native transaction smoke and production-mode tests on PostgreSQL.
+4. `container-ci` — production backend/frontend image builds.
+5. `browser-e2e` — real Chromium local customer journey.
+6. `cloud-edge-smoke` — live Supabase Edge API liveness/readiness validation.
+7. `public-web-smoke` — live Netlify HTML, security headers, public API readiness, browser-origin CORS and non-mutating signup validation.
 
-Account security v1.0 was merged only after all five gates passed. Production-mode account-security tests additionally verify that a missing SMTP provider never exposes debug tokens or debug links, while token hashing/replay protection is tested independently of the delivery transport.
+## Public-hosting result
 
-## Railway deployment preparation
+Netlify site ID: `90508832-a343-4223-98d5-9f7ac45adc79`
 
-The repository contains production Config-as-Code for the selected Railway architecture:
+Validated deployment:
+- deploy ID `6a9c54b5b9b112a7042392f0`
+- HTTPS public host reachable without authentication
+- HTTP 200
+- browser-renderable HTML
+- expected security response headers
 
-- `/backend/railway.toml` -> `/readyz` health gate.
-- `/frontend/railway.toml` -> `/healthz` health gate.
-- `RAILWAY_DEPLOY.md` -> two-service monorepo layout, private API networking, environment variables and post-deploy customer smoke test.
+Railway and Vercel remain deployment alternatives, but they are no longer required for the current public-candidate topology.
 
-Target topology:
+## Remaining release blockers
 
-`browser -> public web service -> same-origin /api proxy -> private api service -> persistent Supabase PostgreSQL`
+The public-hosting blocker is resolved. The remaining blockers before calling the product a **commercial live-production SaaS** are:
 
-This intentionally avoids exposing the API directly for normal browser traffic. The frontend runtime can reference the Railway private `api` service while the browser sees only the public web origin.
+1. **Transactional e-mail delivery** — public signup correctly requires e-mail confirmation, but an actual confirmation message has not yet been observed in the connected Gmail inbox. Production SMTP/provider delivery must be verified, including password recovery.
+2. **Authenticated public browser smoke** — after real e-mail confirmation works, run the full customer journey on the public Netlify origin: signup/confirm/login -> business -> ingredient -> product/recipe -> paid order -> KDS completion -> finance -> stock decrement -> inventory count/variance -> second-account tenant isolation -> account recovery.
+3. **Billing/entitlements** — verified subscription checkout/webhook signature handling, event idempotency, entitlement state and cancellation/recovery before charging customers.
+4. **Operations** — basic production monitoring/error review and documented backup/recovery expectations before broad launch.
 
-## Remaining accuracy boundary
+## Accuracy boundary
 
-Post-v0.9 recipe quantities are historically stable because they are frozen at order completion, and physical-count intervals are aligned to the order completion timestamp rather than the order creation timestamp. Legacy orders completed before recipe snapshots still require the documented current-recipe fallback and are reported with lower confidence. Legacy completed rows without `completed_at` use `created_at` only as a temporal fallback and are explicitly counted in the variance response.
-
-The inventory-variance feature remains an operational control, not statutory inventory valuation or accounting P&L. Accounting-grade inventory would additionally require formal costing policy, period close/reopen controls, purchase/production valuation rules and jurisdiction-specific accounting treatment.
-
-## Still blocking a public “live production” label
-
-The application code, five automated gates, production containers and persistent database are production candidates, but the public release is not yet labeled live until the hosting runtime is created and validated:
-
-1. Create/deploy Railway `api` and `web` services from this repository.
-2. Bind `api` to the intended persistent Supabase `DATABASE_URL`, a strong `SECRET_KEY`, explicit `CORS_ORIGINS` and the public application URL without committing credentials.
-3. Configure a production transactional e-mail provider/SMTP and verify real e-mail verification + password-reset delivery.
-4. Bind `web` `API_UPSTREAM` to the Railway private `api` endpoint.
-5. Expose `web` on HTTPS and verify `/healthz`, `/api/livez` and `/api/readyz` return 200.
-6. Run the full public customer smoke test documented in `RAILWAY_DEPLOY.md`, including tenant isolation and account recovery.
-7. Verify runtime logs, uptime/error monitoring, TLS and database backup/recovery expectations.
-8. Add verified subscription billing/webhooks before charging SaaS subscriptions.
+Inventory variance is an operational control, not statutory inventory valuation or accounting P&L. Legacy orders completed before recipe snapshots or without `completed_at` retain explicit lower-confidence fallbacks.
 
 ## Release rule
 
-Do not label the application “live production” merely because builds and the real database pass. A release is considered public production only after the application is reachable on a public URL, connected to the intended persistent database, `/api/readyz` is healthy through the public frontend, production e-mail delivery is verified, and the post-deploy smoke test passes end-to-end.
+Do not call the product commercial live production until the remaining blockers above pass. A public URL by itself is not sufficient; confirmed-user authentication, the full public customer journey and billing integrity must also be proven.
