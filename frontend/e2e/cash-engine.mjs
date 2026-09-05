@@ -29,7 +29,7 @@ try{
   await capacity.getByText('234',{exact:true}).waitFor()
   await capacity.getByText('9',{exact:true}).waitFor()
   const runway=page.locator('.cash-result').filter({hasText:'Runway de caixa'})
-  await runway.locator('strong').getByText('2,3 meses',{exact:true}).waitFor()
+  await runway.locator('strong').getByText('2.3 meses',{exact:true}).waitFor()
   await page.screenshot({path:'/tmp/cozinha360-cash-engine.png',fullPage:true})
   console.log('cash and margin monthly model ok')
 }catch(error){
