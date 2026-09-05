@@ -1,0 +1,67 @@
+name: backend-postgres-production-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  production-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cozinha360
+          POSTGRES_DB: cozinha360
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cozinha360 -d cozinha360"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      PYTHONPATH: .
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+psycopg://cozinha360@localhost:5432/cozinha360
+      SECRET_KEY: ci-only-readable-value-not-for-real-production-0123456789abcdef
+      CORS_ORIGINS: https://app.cozinha360.example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - name: Apply production migration to PostgreSQL
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import psycopg
+          sql = Path('../supabase/migrations/202609050001_init.sql').read_text(encoding='utf-8')
+          with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
+              with conn.cursor() as cur:
+                  cur.execute(sql)
+              conn.commit()
+          print('migration applied')
+          PY
+      - name: Verify schema invariants
+        run: |
+          python - <<'PY'
+          import psycopg
+          with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
+              with conn.cursor() as cur:
+                  cur.execute("select count(*) from information_schema.tables where table_schema='public' and table_name in ('users','businesses','memberships','ingredients','products','orders','customers','purchases','audit_logs','outbox_events')")
+                  assert cur.fetchone()[0] == 10
+                  cur.execute("select count(*) from pg_indexes where tablename='orders' and indexname='ix_orders_business_status'")
+                  assert cur.fetchone()[0] == 1
+          print('schema invariants ok')
+          PY
+      - name: Run production-mode tests against PostgreSQL
+        run: python -m pytest -q
+      - name: Import application with production guards enabled
+        run: python -c "from app.main import app; assert app.title == 'Cozinha 360 OS'; print('production import ok')"
