@@ -1,13 +1,15 @@
 from fastapi.testclient import TestClient
 
+import app.account_security as account_security
 from app.account_security import AuthActionToken, _token_hash
+from app.config import settings
 from app.db import SessionLocal
 from app.main import app
 
 
-def signup(client):
+def signup(client, email='recovery-owner@example.com'):
     response = client.post('/auth/signup', json={
-        'email': 'recovery-owner@example.com',
+        'email': email,
         'password': 'senha-inicial-segura-123',
         'full_name': 'Recovery Owner',
     })
@@ -16,19 +18,28 @@ def signup(client):
     return {'Authorization': f'Bearer {token}'}
 
 
-def test_email_verification_and_password_recovery_are_one_time_and_hashed():
+def test_email_verification_and_password_recovery_are_one_time_and_hashed(monkeypatch):
+    captured = {}
+
+    def capture_delivery(user, purpose, raw):
+        captured[purpose] = raw
+        return {'delivery': 'test-capture'}
+
+    monkeypatch.setattr(account_security, '_deliver_or_debug', capture_delivery)
+
     with TestClient(app) as client:
         headers = signup(client)
 
         status = client.get('/auth/security-status', headers=headers)
         assert status.status_code == 200, status.text
         assert status.json()['email_verified'] is False
-        assert status.json()['transactional_email_configured'] is False
+        assert status.json()['transactional_email_configured'] is settings.email_delivery_configured
 
         verification = client.post('/auth/email-verification/request', headers=headers)
         assert verification.status_code == 200, verification.text
-        assert verification.json()['delivery'] == 'debug'
-        verify_token = verification.json()['debug_token']
+        assert verification.json()['delivery'] == 'test-capture'
+        assert 'debug_token' not in verification.json()
+        verify_token = captured['verify_email']
 
         with SessionLocal() as db:
             row = db.query(AuthActionToken).filter(AuthActionToken.purpose == 'verify_email').order_by(AuthActionToken.id.desc()).first()
@@ -55,8 +66,9 @@ def test_email_verification_and_password_recovery_are_one_time_and_hashed():
 
         reset_request = client.post('/auth/password-reset/request', json={'email': 'recovery-owner@example.com'})
         assert reset_request.status_code == 200, reset_request.text
-        assert reset_request.json()['delivery'] == 'debug'
-        reset_token = reset_request.json()['debug_token']
+        reset_token = captured['password_reset']
+        # Public reset responses remain generic even though the test transport captured the token internally.
+        assert 'debug_token' not in reset_request.json()
 
         with SessionLocal() as db:
             row = db.query(AuthActionToken).filter(AuthActionToken.purpose == 'password_reset').order_by(AuthActionToken.id.desc()).first()
@@ -92,3 +104,21 @@ def test_email_verification_and_password_recovery_are_one_time_and_hashed():
             'new_password': 'outra-senha-super-segura-789',
         })
         assert replay_reset.status_code == 410
+
+
+def test_delivery_never_exposes_debug_tokens_in_production_without_smtp():
+    if settings.environment.lower() != 'production' or settings.email_delivery_configured:
+        return
+
+    with TestClient(app) as client:
+        headers = signup(client, 'production-delivery@example.com')
+        verification = client.post('/auth/email-verification/request', headers=headers)
+        assert verification.status_code == 200, verification.text
+        assert verification.json()['delivery'] == 'unavailable'
+        assert 'debug_token' not in verification.json()
+        assert 'debug_link' not in verification.json()
+
+        reset_request = client.post('/auth/password-reset/request', json={'email': 'production-delivery@example.com'})
+        assert reset_request.status_code == 200, reset_request.text
+        assert 'debug_token' not in reset_request.json()
+        assert 'debug_link' not in reset_request.json()
