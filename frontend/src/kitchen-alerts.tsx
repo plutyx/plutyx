@@ -52,5 +52,5 @@ export function KitchenAlerts(){
   },[enabled])
   useEffect(()=>()=>{ctxRef.current?.close()},[])
   if(!token)return null
-  return <div className="kitchen-alert-wrap"><button className={`kitchen-alert-toggle ${enabled?'on':''}`} onClick={toggle} title="Alertas sonoros de pedidos"><span>{enabled?<Volume2 size={17}/>:<VolumeX size={17}/>}</span><span>{label}</span></button>{error?<div className="kitchen-alert-error">{error}</div>:null}</div>
+  return <div className="kitchen-alert-wrap"><button className={`kitchen-alert-toggle ${enabled?'on':''}`} onClick={toggle} title="Alertas sonoros de pedidos"><span>{enabled?<Volume2 size={17}/>:<VolumeX size={17}/>}</span><label>{label}</label></button>{error&&<div className="kitchen-alert-error">{error}</div>}</div>
 }
