@@ -11,14 +11,16 @@ from .config import settings
 from .db import get_db
 from .market import member_or_403
 from .models import AuditLog, Ingredient, Membership, Order, OrderItem, Product, RecipeItem, User
+from .snapshots import OrderCompletionSnapshot
 
 
-router = APIRouter(tags=["production-readiness-v081"])
-RELEASE = "0.8.1"
+router = APIRouter(tags=["production-readiness-v09"])
+RELEASE = "0.9.0"
 REQUIRED_TABLES = {
     "users", "businesses", "memberships", "ingredients", "products", "recipe_items",
     "orders", "order_items", "customers", "purchases", "losses", "production_batches",
     "team_invites", "audit_logs", "outbox_events", "inventory_counts",
+    "order_completion_snapshots", "order_recipe_snapshots",
 }
 
 
@@ -65,6 +67,9 @@ def data_quality(
         select(RecipeItem.product_id).join(Product, Product.id == RecipeItem.product_id).where(Product.business_id == business_id)
     ).all())
     item_orders = set(db.scalars(select(OrderItem.order_id).where(OrderItem.business_id == business_id)).all())
+    snapped_orders = set(db.scalars(select(OrderCompletionSnapshot.order_id).where(
+        OrderCompletionSnapshot.business_id == business_id
+    )).all())
 
     issues = []
     missing_par = [x for x in ingredients if x.par_level_milliunits <= 0]
@@ -99,6 +104,14 @@ def data_quality(
             "count": len(negative_stock),
             "message": "Estoque negativo indica consumo não reconciliado ou contagem física pendente.",
         })
+    legacy_completed = [x for x in orders if x.status == "completed" and x.id not in snapped_orders]
+    if legacy_completed:
+        issues.append({
+            "code": "completed_order_without_recipe_snapshot",
+            "severity": "warning",
+            "count": len(legacy_completed),
+            "message": "Pedidos concluídos antes dos snapshots de receita reduzem a precisão histórica da variação teórica de estoque.",
+        })
 
     critical = sum(1 for x in issues if x["severity"] == "critical")
     warning = sum(1 for x in issues if x["severity"] == "warning")
@@ -111,6 +124,7 @@ def data_quality(
             "ingredients": len(ingredients),
             "active_products": len(products),
             "orders": len(orders),
+            "completed_orders_with_recipe_snapshot": len(snapped_orders),
         },
         "principle": "Dados incompletos geram decisões precisas sobre a coisa errada; corrija a base antes de automatizar mais.",
     }

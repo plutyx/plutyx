@@ -96,6 +96,17 @@ def test_market_intelligence_customer_journey():
         })
         assert completed.status_code == 200, completed.text
         assert completed.json()['inventory']['consumed'] is True
+        assert completed.json()['inventory']['recipe_snapshot']['captured'] is True
+        assert completed.json()['inventory']['recipe_snapshot']['recipe_rows'] == 1
+
+        # A ficha técnica muda depois da venda. A variação histórica deve continuar
+        # usando os 200 g/unidade congelados no momento da conclusão, não os 350 g atuais.
+        recipe_changed = client.put(
+            f'/businesses/{business_id}/products/{product_id}/recipe/{ingredient_id}',
+            headers=owner,
+            json={'ingredient_id': ingredient_id, 'qty_used_milliunits': 350},
+        )
+        assert recipe_changed.status_code == 200, recipe_changed.text
 
         second_count = client.post(f'/businesses/{business_id}/inventory/counts', headers=owner, json={
             'ingredient_id': ingredient_id,
@@ -113,6 +124,16 @@ def test_market_intelligence_customer_journey():
         assert row['theoretical_usage_milliunits'] == 400
         assert row['variance_milliunits'] == -50
         assert row['signal'] == 'shrink'
+        assert row['confidence'] == 'high'
+        assert row['snapshot_orders'] == 1
+        assert row['legacy_orders'] == 0
+        assert row['method'] == 'completion_recipe_snapshots'
+
+        quality = client.get(f'/businesses/{business_id}/data-quality', headers=owner)
+        assert quality.status_code == 200, quality.text
+        codes = {issue['code'] for issue in quality.json()['issues']}
+        assert 'completed_order_without_recipe_snapshot' not in codes
+        assert quality.json()['counts']['completed_orders_with_recipe_snapshot'] == 1
 
         menu = client.get(f'/businesses/{business_id}/insights/menu-engineering?days=30', headers=owner)
         assert menu.status_code == 200, menu.text
@@ -140,3 +161,7 @@ def test_market_intelligence_customer_journey():
         ready = client.get('/ready')
         assert ready.status_code == 200
         assert ready.json()['database'] == 'reachable'
+
+        readyz = client.get('/readyz')
+        assert readyz.status_code == 200, readyz.text
+        assert readyz.json()['release'] == '0.9.0'

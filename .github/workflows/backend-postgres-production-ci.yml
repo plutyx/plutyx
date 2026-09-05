@@ -60,7 +60,7 @@ jobs:
           expected = {
               'users','businesses','memberships','ingredients','products','orders','customers','purchases',
               'audit_logs','outbox_events','order_items','production_batches','recipe_items','team_invites',
-              'inventory_counts'
+              'inventory_counts','order_completion_snapshots','order_recipe_snapshots'
           }
           with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
               with conn.cursor() as cur:
@@ -70,9 +70,12 @@ jobs:
                   assert not missing, f'missing tables: {sorted(missing)}'
                   cur.execute("select count(*) from pg_indexes where tablename='orders' and indexname='ix_orders_business_status'")
                   assert cur.fetchone()[0] == 1
+                  cur.execute("select count(*) from pg_indexes where tablename='order_recipe_snapshots' and indexname='ix_order_recipe_snapshots_order_ingredient'")
+                  assert cur.fetchone()[0] == 1
                   required_columns = [
                       ('ingredients','on_hand_milliunits'),('products','category'),('orders','inventory_consumed'),
-                      ('users','auth_version'),('users','failed_login_attempts'),('users','locked_until')
+                      ('users','auth_version'),('users','failed_login_attempts'),('users','locked_until'),
+                      ('order_recipe_snapshots','total_qty_milliunits')
                   ]
                   for table, column in required_columns:
                       cur.execute("select count(*) from information_schema.columns where table_schema='public' and table_name=%s and column_name=%s", (table,column))
