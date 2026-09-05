@@ -20,6 +20,9 @@ class User(Base, TS):
     password_hash: Mapped[str]=mapped_column(String(255))
     full_name: Mapped[str]=mapped_column(String(120),default="")
     is_active: Mapped[bool]=mapped_column(Boolean,default=True)
+    auth_version: Mapped[int]=mapped_column(Integer,default=1)
+    failed_login_attempts: Mapped[int]=mapped_column(Integer,default=0)
+    locked_until: Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True)
 
 
 class Business(Base, TS):
@@ -42,6 +45,19 @@ class Membership(Base, TS):
     business_id: Mapped[int]=mapped_column(ForeignKey("businesses.id",ondelete="CASCADE"),index=True)
     role: Mapped[str]=mapped_column(String(20),default="member")
     preferences_json: Mapped[str]=mapped_column(Text,default="{}")
+
+
+class TeamInvite(Base, TS):
+    __tablename__="team_invites"; __table_args__=(UniqueConstraint("code",name="uq_team_invite_code"),Index("ix_team_invite_business_active","business_id","revoked"))
+    id: Mapped[int]=mapped_column(primary_key=True)
+    business_id: Mapped[int]=mapped_column(ForeignKey("businesses.id",ondelete="CASCADE"),index=True)
+    code: Mapped[str]=mapped_column(String(80),unique=True,index=True)
+    role: Mapped[str]=mapped_column(String(20),default="member")
+    created_by_user_id: Mapped[int|None]=mapped_column(ForeignKey("users.id",ondelete="SET NULL"),nullable=True)
+    expires_at: Mapped[datetime]=mapped_column(DateTime(timezone=True))
+    max_uses: Mapped[int]=mapped_column(Integer,default=1)
+    uses: Mapped[int]=mapped_column(Integer,default=0)
+    revoked: Mapped[bool]=mapped_column(Boolean,default=False)
 
 
 class Ingredient(Base, TS):
