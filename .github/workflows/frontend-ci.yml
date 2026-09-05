@@ -18,7 +18,10 @@ jobs:
           node-version: '22'
       - run: npm install
       - run: npm run typecheck
-      - run: npm run build
+      - name: Build production frontend bundle
+        env:
+          VITE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
+        run: npm run build
       - name: Upload production frontend bundle
         uses: actions/upload-artifact@v4
         with:
