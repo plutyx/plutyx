@@ -1,0 +1,11 @@
+{
+  "name": "Cozinha 360 OS",
+  "short_name": "Cozinha360",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#17100f",
+  "theme_color": "#241716",
+  "lang": "pt-BR",
+  "description": "Sistema operacional simples para pequenos negócios de alimentação.",
+  "icons": []
+}
