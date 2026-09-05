@@ -64,7 +64,7 @@ class BusinessMemoryRevision(Base):
 
 
 class MemoryWrite(BaseModel):
-    data: dict[str, Any] = Field(default_factory=dict)
+    data: Any = Field(default_factory=dict)
     expected_version: int | None = Field(default=None, ge=0)
 
 
@@ -87,7 +87,7 @@ def _validate_namespace(namespace: str) -> str:
     return namespace
 
 
-def _encode_payload(data: dict[str, Any]) -> str:
+def _encode_payload(data: Any) -> str:
     try:
         raw = json.dumps(data, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
     except (TypeError, ValueError) as exc:
@@ -97,12 +97,11 @@ def _encode_payload(data: dict[str, Any]) -> str:
     return raw
 
 
-def _decode_payload(raw: str) -> dict[str, Any]:
+def _decode_payload(raw: str) -> Any:
     try:
-        parsed = json.loads(raw or "{}")
+        return json.loads(raw or "{}")
     except json.JSONDecodeError:
         return {}
-    return parsed if isinstance(parsed, dict) else {}
 
 
 def _snapshot(memory: BusinessMemory) -> dict[str, Any]:
