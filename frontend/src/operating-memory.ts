@@ -10,6 +10,7 @@ const descriptors:Descriptor[]=[
   {namespace:'playbook',prefix:'c360-playbook-v21-'},
   {namespace:'vitrine',prefix:'c360-vitrine-v22-'},
   {namespace:'growth',prefix:'c360-growth-v23-'},
+  {namespace:'cash',prefix:'c360-cash-v28-'},
   {namespace:'control-incidents',prefix:'c360-incidents-v24-'},
   {namespace:'control-contingency',prefix:'c360-contingency-v24-'},
   {namespace:'execution',prefix:'c360-execution-v25-'},
