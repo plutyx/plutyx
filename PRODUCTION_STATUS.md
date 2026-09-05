@@ -17,6 +17,7 @@ Updated: 2026-09-05
 - Costs: ingredients, on-hand/par/reorder inventory, purchases, landed cost and price-change alerts.
 - Inventory intelligence: physical count snapshots, theoretical-versus-physical variance and shrink/surplus signal.
 - Historical recipe integrity: every newly completed order freezes the ingredient quantities used at completion, so later recipe edits do not rewrite historical theoretical usage. Legacy pre-v0.9 orders are explicitly identified and use a lower-confidence fallback.
+- Inventory timing integrity: stock consumption is assigned to the physical-count interval by `completed_at`, matching the moment inventory is actually consumed; legacy completed rows without that timestamp retain an explicit `created_at` fallback.
 - Market intelligence: ingredient price movers, menu engineering using popularity x item contribution, and an owner brief that prioritizes next actions instead of adding dashboards indiscriminately.
 - Production: production batches, responsible member, planned/produced/waste quantities.
 - Demand: deterministic weighted moving average based on the business's own order history, with confidence level and no paid AI dependency.
@@ -47,7 +48,7 @@ The repository has five independent CI gates:
 4. `container-ci`: builds both production Docker images so deployment cannot rely on an untested Dockerfile.
 5. `browser-e2e`: real Chromium journey covering signup, business creation, ingredient/stock, product/recipe, order creation, KDS completion, finance, stock consumption and schema-aware readiness.
 
-The browser E2E gate initially caught a real selector ambiguity that unit/API tests could not detect; it was corrected and the full five-gate matrix passed before v0.8.2 was merged. v0.8.1 added separate liveness/readiness endpoints and the backend container becomes unhealthy if the database is unreachable or required migrations are missing. The v0.9 snapshot release also passed all five gates, including a regression test that changes a recipe after a completed sale and proves the historical inventory calculation remains tied to the frozen recipe.
+The browser E2E gate initially caught a real selector ambiguity that unit/API tests could not detect; it was corrected and the full five-gate matrix passed before v0.8.2 was merged. v0.8.1 added separate liveness/readiness endpoints and the backend container becomes unhealthy if the database is unreachable or required migrations are missing. The v0.9 snapshot release also passed all five gates, including a regression test that changes a recipe after a completed sale and proves the historical inventory calculation remains tied to the frozen recipe. The completion-timing correction adds a second regression: an order created before the opening count but completed afterward must be included in that count interval because completion is when stock is decremented.
 
 ## Railway deployment preparation
 
@@ -65,9 +66,9 @@ This intentionally avoids exposing the API directly for normal browser traffic. 
 
 ## Remaining accuracy boundary
 
-Post-v0.9 recipe quantities are historically stable because they are frozen at order completion. Legacy orders completed before the snapshot release still require the documented current-recipe fallback and are reported with lower confidence. The next timing correction is to classify stock consumption into a physical-count interval by `completed_at` rather than by the order's original `created_at`, because inventory is consumed when the order is completed.
+Post-v0.9 recipe quantities are historically stable because they are frozen at order completion, and physical-count intervals are aligned to the order completion timestamp rather than the order creation timestamp. Legacy orders completed before recipe snapshots still require the documented current-recipe fallback and are reported with lower confidence. Legacy completed rows without `completed_at` use `created_at` only as a temporal fallback and are explicitly counted in the variance response.
 
-The inventory-variance feature remains an operational control, not statutory inventory valuation or accounting P&L.
+The inventory-variance feature remains an operational control, not statutory inventory valuation or accounting P&L. Accounting-grade inventory would additionally require formal costing policy, period close/reopen controls, purchase/production valuation rules and jurisdiction-specific accounting treatment.
 
 ## Still blocking a public “live production” label
 
