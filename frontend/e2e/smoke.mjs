@@ -74,9 +74,19 @@ try {
   await page.getByText(/Pedido #\d+ registrado/).waitFor()
   await page.getByText(/R\$\s*36,00/).first().waitFor()
 
-  // Volta para a operação e atravessa o KDS até conclusão.
-  await page.getByRole('link', { name: 'Abrir KDS', exact: true }).click()
+  // Modo cozinha: o mesmo pedido vira uma lista de produção agrupada por produto.
+  await page.goto('http://127.0.0.1:5173/?kitchen=1', { waitUntil: 'networkidle' })
+  await page.getByRole('heading', { name: 'Produção agrupada.', exact: true }).waitFor({ timeout: 15000 })
+  const batchCard=page.locator('.batch-card').filter({ hasText: 'Wrap E2E' })
+  await batchCard.waitFor()
+  await batchCard.locator('.batch-qty strong').getByText('2', { exact: true }).waitFor()
+  // Status chips expressam unidades do produto, não quantidade de pedidos.
+  await batchCard.getByText(/2 novo/).waitFor()
+  await page.screenshot({ path: '/tmp/cozinha360-kitchen-batch.png', fullPage: true })
+  await page.getByRole('link', { name: 'Voltar à operação', exact: true }).click()
   await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
+
+  // Atravessa o KDS até conclusão.
   await page.getByRole('button', { name: 'Pedidos', exact: true }).click()
   for (const label of ['Confirmado', 'Produção', 'Conferência', 'Entrega', 'Concluído']) {
     const ticket = page.locator('.ticket').first()

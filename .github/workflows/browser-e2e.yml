@@ -70,5 +70,6 @@ jobs:
             /tmp/cozinha360-e2e-success.png
             /tmp/cozinha360-e2e-failure.png
             /tmp/cozinha360-inventory-drawer.png
+            /tmp/cozinha360-kitchen-batch.png
             /tmp/cozinha360-api.log
             /tmp/cozinha360-web.log

@@ -8,6 +8,7 @@ import { CrmLifecycleRoute } from './crm-lifecycle'
 import { DirectCommerceAdminRoute, PublicStorefrontRoute } from './direct-order'
 import { KitchenAlerts } from './kitchen-alerts'
 import { InventoryStockEditor } from './inventory-editor'
+import { KitchenBatchRoute } from './kitchen-batch'
 import './styles.css'
 import './market.css'
 import './account.css'
@@ -21,6 +22,7 @@ import './flow-v18.css'
 import './flow-v181.css'
 import './inventory-editor.css'
 import './module-flow-v183.css'
+import './kitchen-batch.css'
 
 function Root(){
   const params=new URLSearchParams(window.location.search)
@@ -32,6 +34,7 @@ function Root(){
   if(params.get('margin')==='1')return <ChannelMarginRoute/>
   if(params.get('crm')==='1')return <CrmLifecycleRoute/>
   if(params.get('direct')==='1')return <DirectCommerceAdminRoute/>
+  if(params.get('kitchen')==='1')return <><KitchenBatchRoute/><KitchenAlerts/></>
   return <>
     <App/>
     <KitchenAlerts/>
@@ -39,6 +42,7 @@ function Root(){
     <a className="account-helper-link" href="/?forgot=1">Esqueci minha senha</a>
     <div className="command-dock" aria-label="Ações rápidas">
       <span className="command-dock-label">AÇÕES</span>
+      <a className="command-link kitchen" href="/?kitchen=1">Modo cozinha</a>
       <a className="command-link crm" href="/?crm=1">CRM de recompra</a>
       <a className="command-link margin" href="/?margin=1">Margens & canais</a>
       <a className="command-link direct" href="/?direct=1">Venda direta</a>
