@@ -14,6 +14,7 @@ from .auth import hash_password, verify_password, create_token, current_user
 from .models import User,Business,Membership,Ingredient,Product,Channel,Customer,Order,Loss,Purchase,Supplier,AuditLog,OutboxEvent,utcnow
 from .domain import minimum_price_cents,channel_contribution_cents,cpa_max_cents,capacity,capacity_signal,decide_next_action
 from .market import router as market_router, consume_order_inventory
+from .operating_memory import router as operating_memory_router
 
 
 @asynccontextmanager
@@ -26,6 +27,7 @@ async def lifespan(_: FastAPI):
 app=FastAPI(title=settings.app_name,version="0.6.0",lifespan=lifespan)
 app.add_middleware(CORSMiddleware,allow_origins=settings.cors_list,allow_credentials=True,allow_methods=["*"],allow_headers=["*"])
 app.include_router(market_router)
+app.include_router(operating_memory_router)
 
 
 @app.middleware("http")
