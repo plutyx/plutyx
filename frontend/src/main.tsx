@@ -4,12 +4,14 @@ import App from './app'
 import { AccountRoute } from './account-actions'
 import { QuickOrderRoute } from './quick-order'
 import { ChannelMarginRoute } from './channel-margin'
+import { CrmLifecycleRoute } from './crm-lifecycle'
 import { KitchenAlerts } from './kitchen-alerts'
 import './styles.css'
 import './market.css'
 import './account.css'
 import './quick-order.css'
 import './channel-margin.css'
+import './crm-lifecycle.css'
 import './kitchen-alerts.css'
 
 function Root(){
@@ -18,11 +20,13 @@ function Root(){
   if(hasAccountRoute)return <AccountRoute/>
   if(params.get('quick')==='1')return <QuickOrderRoute/>
   if(params.get('margin')==='1')return <ChannelMarginRoute/>
+  if(params.get('crm')==='1')return <CrmLifecycleRoute/>
   return <>
     <App/>
     <KitchenAlerts/>
     <a className="account-helper-link" href="/?forgot=1">Esqueci minha senha</a>
     <a className="account-security-link" href="/?security=1">Segurança da conta</a>
+    <a className="global-crm-link" href="/?crm=1">CRM de recompra</a>
     <a className="global-margin-link" href="/?margin=1">Margens & canais</a>
     <a className="global-quick-link" href="/?quick=1">+ Pedido rápido</a>
   </>
