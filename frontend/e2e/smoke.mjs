@@ -58,7 +58,7 @@ try {
   await page.getByLabel('Origem').selectOption('whatsapp')
   await page.getByRole('button', { name: 'Registrar no KDS', exact: true }).click()
   await page.getByText(/Pedido #\d+ registrado/).waitFor()
-  await page.getByText(/R\$\s*36,00/).waitFor() // contribuição: R$40 - R$4 de ingredientes no produto padrão.
+  await page.getByText(/R\$\s*36,00/).first().waitFor() // contribuição: R$40 - R$4 de ingredientes no produto padrão.
 
   // Volta para a operação e atravessa o KDS até conclusão.
   await page.getByRole('link', { name: 'Abrir KDS', exact: true }).click()
