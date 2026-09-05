@@ -21,6 +21,7 @@ ALLOWED_NAMESPACES = {
     "playbook",
     "vitrine",
     "growth",
+    "cash",
     "control-incidents",
     "control-contingency",
     "execution",
