@@ -13,6 +13,7 @@ import { System360Route } from './system360'
 import { PlaybookLabRoute } from './playbook-lab'
 import { VitrineStudioRoute } from './vitrine-studio'
 import { GrowthLabRoute } from './growth-lab'
+import { ControlTowerRoute } from './control-tower'
 import './styles.css'
 import './market.css'
 import './account.css'
@@ -35,6 +36,8 @@ import './vitrine-studio.css'
 import './vitrine-nav.css'
 import './growth-lab.css'
 import './growth-nav.css'
+import './control-tower.css'
+import './control-nav.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -68,6 +71,7 @@ function Root(){
   if(params.get('playbook')==='1')return <><PlaybookLabRoute/><KitchenAlerts/></>
   if(params.get('vitrine')==='1')return <><VitrineStudioRoute/><KitchenAlerts/></>
   if(params.get('growth')==='1')return <><GrowthLabRoute/><KitchenAlerts/></>
+  if(params.get('control')==='1')return <><ControlTowerRoute/><KitchenAlerts/></>
   return <>
     <App/>
     <TabHashBridge/>
@@ -77,6 +81,7 @@ function Root(){
     <div className="command-dock" aria-label="Ações rápidas">
       <span className="command-dock-label">AÇÕES</span>
       <a className="command-link system360" href="/?system360=1">Sistema 360</a>
+      <a className="command-link control" href="/?control=1">Control Tower</a>
       <a className="command-link lab" href="/?playbook=1">Laboratório 360</a>
       <a className="command-link vitrine" href="/?vitrine=1">Vitrine Studio</a>
       <a className="command-link growth" href="/?growth=1">Growth Lab</a>
