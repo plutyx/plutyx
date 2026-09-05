@@ -6,16 +6,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func, select, text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, select, text
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from .auth import current_user
 from .db import Base, get_db
 from .market import audit, finance_summary, inventory_alert_rows, member_or_403
-from .models import Ingredient, Loss, Order, OrderItem, Product, Purchase, RecipeItem, User, utcnow
+from .models import Ingredient, Loss, Order, OrderItem, Product, Purchase, User, utcnow
+from .snapshots import theoretical_usage_for_orders
 
 
-router = APIRouter(tags=["market-intelligence-v08"])
+router = APIRouter(tags=["market-intelligence-v09"])
 
 
 class InventoryCount(Base):
@@ -274,21 +275,24 @@ def inventory_variance(
             Order.status == "completed",
         )).all()
         period_orders = [o for o in orders if start < _aware(o.created_at) <= end]
-        theoretical = 0
-        if period_orders:
-            ids = tuple(o.id for o in period_orders)
-            items = db.scalars(select(OrderItem).where(OrderItem.business_id == business_id, OrderItem.order_id.in_(ids))).all()
-            recipe_qty_by_product = {}
-            for item in items:
-                key = (item.product_id, ingredient.id)
-                if key not in recipe_qty_by_product:
-                    recipe = db.scalar(select(RecipeItem).where(RecipeItem.product_id == item.product_id, RecipeItem.ingredient_id == ingredient.id))
-                    recipe_qty_by_product[key] = recipe.qty_used_milliunits if recipe else 0
-                theoretical += recipe_qty_by_product[key] * item.quantity
+        usage = theoretical_usage_for_orders(
+            db,
+            business_id,
+            tuple(o.id for o in period_orders),
+            ingredient.id,
+        )
+        theoretical = usage["qty_milliunits"]
 
         expected_closing = opening.counted_milliunits + purchased_qty - theoretical - recorded_loss
         variance = closing.counted_milliunits - expected_closing
         estimated_value_cents = round(abs(variance) * ingredient.last_purchase_price_cents / max(1, ingredient.usable_qty_milliunits))
+        if usage["legacy_orders"]:
+            method_note = (
+                "Pedidos concluídos após v0.9 usam snapshots imutáveis da ficha técnica. "
+                f"{usage['legacy_orders']} pedido(s) legado(s) ainda usam a receita atual como fallback."
+            )
+        else:
+            method_note = "Uso teórico reconstruído pelos snapshots imutáveis da ficha técnica capturados na conclusão de cada pedido."
         result.append({
             "ingredient_id": ingredient.id,
             "name": ingredient.name,
@@ -303,8 +307,11 @@ def inventory_variance(
             "variance_milliunits": variance,
             "variance_estimated_value_cents": estimated_value_cents,
             "signal": "shrink" if variance < 0 else "surplus" if variance > 0 else "balanced",
-            "confidence": "medium",
-            "method_note": "Theoretical usage is reconstructed with the current recipe. Recipe-version snapshots are a future accuracy upgrade.",
+            "confidence": usage["confidence"],
+            "snapshot_orders": usage["snapshot_orders"],
+            "legacy_orders": usage["legacy_orders"],
+            "method": usage["method"],
+            "method_note": method_note,
         })
     result.sort(key=lambda x: x["variance_estimated_value_cents"], reverse=True)
     return {"ingredients": result, "count": len(result)}
