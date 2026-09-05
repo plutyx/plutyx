@@ -4,6 +4,7 @@ import App from './app'
 import { AccountRoute } from './account-actions'
 import './styles.css'
 import './market.css'
+import './account.css'
 
 function Root(){
   const accountRoute=<AccountRoute/>
