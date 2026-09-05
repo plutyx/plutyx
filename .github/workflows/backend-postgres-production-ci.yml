@@ -59,7 +59,8 @@ jobs:
           import psycopg
           expected = {
               'users','businesses','memberships','ingredients','products','orders','customers','purchases',
-              'audit_logs','outbox_events','order_items','production_batches','recipe_items','team_invites'
+              'audit_logs','outbox_events','order_items','production_batches','recipe_items','team_invites',
+              'inventory_counts'
           }
           with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
               with conn.cursor() as cur:
