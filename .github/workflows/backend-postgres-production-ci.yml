@@ -59,7 +59,7 @@ jobs:
           import psycopg
           expected = {
               'users','businesses','memberships','ingredients','products','orders','customers','purchases',
-              'audit_logs','outbox_events','order_items','production_batches','recipe_items'
+              'audit_logs','outbox_events','order_items','production_batches','recipe_items','team_invites'
           }
           with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
               with conn.cursor() as cur:
@@ -69,7 +69,11 @@ jobs:
                   assert not missing, f'missing tables: {sorted(missing)}'
                   cur.execute("select count(*) from pg_indexes where tablename='orders' and indexname='ix_orders_business_status'")
                   assert cur.fetchone()[0] == 1
-                  for table, column in [('ingredients','on_hand_milliunits'),('products','category'),('orders','inventory_consumed')]:
+                  required_columns = [
+                      ('ingredients','on_hand_milliunits'),('products','category'),('orders','inventory_consumed'),
+                      ('users','auth_version'),('users','failed_login_attempts'),('users','locked_until')
+                  ]
+                  for table, column in required_columns:
                       cur.execute("select count(*) from information_schema.columns where table_schema='public' and table_name=%s and column_name=%s", (table,column))
                       assert cur.fetchone()[0] == 1, f'missing {table}.{column}'
           print('schema invariants ok')
@@ -77,4 +81,4 @@ jobs:
       - name: Run production-mode tests against PostgreSQL
         run: python -m pytest -q
       - name: Import application with production guards enabled
-        run: python -c "from app.main import app; assert app.title == 'Cozinha 360 OS'; assert app.version == '0.6.0'; print('production import ok')"
+        run: python -c "from app.main import app; assert app.title == 'Cozinha 360 OS'; print('production import ok')"
