@@ -17,7 +17,7 @@ def test_readiness_checks_current_schema():
     with TestClient(app) as client:
         live = client.get('/livez')
         assert live.status_code == 200
-        assert live.json()['release'] == '0.8.1'
+        assert live.json()['release'] == '0.9.0'
 
         ready = client.get('/readyz')
         assert ready.status_code == 200, ready.text
