@@ -7,10 +7,11 @@ Updated: 2026-09-05
 - Backend: FastAPI + SQLAlchemy.
 - Frontend: React + TypeScript + Vite, mobile-first.
 - Authentication: account creation/login with Argon2 password hashing and signed, versioned JWTs.
+- Account security v1.0: e-mail verification, secure password recovery, one-time hashed action tokens, expiry/revocation, reset-driven session invalidation and account-security screens.
 - Session controls: server-side token revocation, password-change invalidation and temporary login lockout.
 - Multi-tenant model: users, businesses and memberships with owner/admin/member roles.
 - Individual workspace: preferences are stored per membership; production, finance and sales members can use different module views in the same business.
-- Team onboarding: direct member association plus shareable invite codes/links that do not require a paid e-mail provider.
+- Team onboarding: direct member association plus shareable invite codes/links.
 - Core economic engine: contribution, channel pricing, CPA guard and capacity guard.
 - Orders: idempotency key, optimistic concurrency/versioning, status workflow, browser KDS and outbox event.
 - Products: product catalog, recipes/fichas técnicas and automatic availability derived from ingredient stock.
@@ -28,15 +29,24 @@ Updated: 2026-09-05
 
 ## Persistent production-preparation database
 
-A real persistent Supabase PostgreSQL project is provisioned and contains all application migrations through the v0.9 recipe-snapshot release, including `inventory_counts`, `order_completion_snapshots` and `order_recipe_snapshots`. The snapshot migration was applied successfully to the persistent project after the same migration chain and schema invariants passed production-mode CI on vanilla PostgreSQL.
+A persistent Supabase PostgreSQL project is provisioned and contains all application migrations through account security v1.0, including:
+
+- `inventory_counts`
+- `order_completion_snapshots`
+- `order_recipe_snapshots`
+- `user_security_states`
+- `auth_action_tokens`
+
+The `account_security_v10` migration was applied successfully to the persistent project after the same eight-migration chain, schema invariants and production-mode tests passed on vanilla PostgreSQL in CI.
 
 Security hardening on the persistent database:
 
-- Row Level Security is enabled on every application table in `public`, including physical inventory counts and both recipe-snapshot tables.
-- Direct PostgREST privileges for `anon` and `authenticated` are revoked; the browser cannot bypass FastAPI business authorization.
+- Row Level Security is enabled on every application table in `public`, including the account-security tables.
+- Direct PostgREST DML privileges for `anon` and `authenticated` are revoked; the browser cannot bypass FastAPI business authorization.
+- The account-security token table stores only SHA-256 token hashes, not the raw reset/verification token.
 - The trigger helper has an explicit `search_path`.
-- Supabase security advisor does not report the previous RLS-disabled or mutable-search-path findings. Remaining no-policy notices are informational and intentional for this server-only data architecture. See the Supabase database linter remediation reference for this notice: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
-- Foreign keys identified by the performance advisor have covering indexes. Remaining unused-index notices are expected on a newly provisioned database without meaningful production traffic and must be evaluated after real usage rather than removed pre-emptively. Reference: https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index
+- Supabase security advisor does not report the previous RLS-disabled or mutable-search-path findings. Remaining no-policy notices are informational and intentional for this server-only data architecture: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+- Foreign keys identified by the performance advisor have covering indexes. Remaining unused-index notices on the new database must be evaluated after meaningful traffic rather than removed pre-emptively: https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index
 
 ## Automated cloud gates
 
@@ -48,7 +58,7 @@ The repository has five independent CI gates:
 4. `container-ci`: builds both production Docker images so deployment cannot rely on an untested Dockerfile.
 5. `browser-e2e`: real Chromium journey covering signup, business creation, ingredient/stock, product/recipe, order creation, KDS completion, finance, stock consumption and schema-aware readiness.
 
-The browser E2E gate initially caught a real selector ambiguity that unit/API tests could not detect; it was corrected and the full five-gate matrix passed before v0.8.2 was merged. v0.8.1 added separate liveness/readiness endpoints and the backend container becomes unhealthy if the database is unreachable or required migrations are missing. The v0.9 snapshot release also passed all five gates, including a regression test that changes a recipe after a completed sale and proves the historical inventory calculation remains tied to the frozen recipe. The completion-timing correction adds a second regression: an order created before the opening count but completed afterward must be included in that count interval because completion is when stock is decremented.
+Account security v1.0 was merged only after all five gates passed. Production-mode account-security tests additionally verify that a missing SMTP provider never exposes debug tokens or debug links, while token hashing/replay protection is tested independently of the delivery transport.
 
 ## Railway deployment preparation
 
@@ -56,13 +66,13 @@ The repository contains production Config-as-Code for the selected Railway archi
 
 - `/backend/railway.toml` -> `/readyz` health gate.
 - `/frontend/railway.toml` -> `/healthz` health gate.
-- `RAILWAY_DEPLOY.md` -> exact two-service monorepo layout, private API networking, variable references and post-deploy customer smoke test.
+- `RAILWAY_DEPLOY.md` -> two-service monorepo layout, private API networking, environment variables and post-deploy customer smoke test.
 
 Target topology:
 
 `browser -> public web service -> same-origin /api proxy -> private api service -> persistent Supabase PostgreSQL`
 
-This intentionally avoids exposing the API directly for normal browser traffic. The frontend runtime can reference `api.RAILWAY_PRIVATE_DOMAIN` while the browser sees only the public web origin.
+This intentionally avoids exposing the API directly for normal browser traffic. The frontend runtime can reference the Railway private `api` service while the browser sees only the public web origin.
 
 ## Remaining accuracy boundary
 
@@ -72,19 +82,17 @@ The inventory-variance feature remains an operational control, not statutory inv
 
 ## Still blocking a public “live production” label
 
-The application code, five automated gates, production containers, Railway deployment configuration and persistent database are production candidates, but the public release is not yet being labeled live until the hosting runtime is actually created and validated:
+The application code, five automated gates, production containers and persistent database are production candidates, but the public release is not yet labeled live until the hosting runtime is created and validated:
 
-1. Create/deploy the Railway `api` and `web` services from this repository.
-2. Bind `api` to the intended persistent Supabase `DATABASE_URL`, a strong `SECRET_KEY` and explicit `CORS_ORIGINS` without committing credentials.
-3. Bind `web` `API_UPSTREAM` to the Railway private `api` endpoint.
-4. Expose `web` on HTTPS and verify `/healthz`, `/api/livez` and `/api/readyz` return 200.
-5. Run the full public customer smoke test documented in `RAILWAY_DEPLOY.md`.
-6. Verify runtime logs, uptime/error monitoring, TLS and database backup/recovery expectations.
-7. Add e-mail verification and secure password recovery before broad public acquisition.
+1. Create/deploy Railway `api` and `web` services from this repository.
+2. Bind `api` to the intended persistent Supabase `DATABASE_URL`, a strong `SECRET_KEY`, explicit `CORS_ORIGINS` and the public application URL without committing credentials.
+3. Configure a production transactional e-mail provider/SMTP and verify real e-mail verification + password-reset delivery.
+4. Bind `web` `API_UPSTREAM` to the Railway private `api` endpoint.
+5. Expose `web` on HTTPS and verify `/healthz`, `/api/livez` and `/api/readyz` return 200.
+6. Run the full public customer smoke test documented in `RAILWAY_DEPLOY.md`, including tenant isolation and account recovery.
+7. Verify runtime logs, uptime/error monitoring, TLS and database backup/recovery expectations.
 8. Add verified subscription billing/webhooks before charging SaaS subscriptions.
-
-Railway is installed for this ChatGPT account, but its deploy actions are still not exposed in the current tool runtime. Vercel is connected at tool level but currently returns no usable team target. Therefore no public deployment is being claimed.
 
 ## Release rule
 
-Do not label the application “live production” merely because builds and the real database pass. A release is considered public production only after the application is reachable on a public URL, connected to the intended persistent database, `/api/readyz` is healthy through the public frontend, and the post-deploy smoke test passes end-to-end.
+Do not label the application “live production” merely because builds and the real database pass. A release is considered public production only after the application is reachable on a public URL, connected to the intended persistent database, `/api/readyz` is healthy through the public frontend, production e-mail delivery is verified, and the post-deploy smoke test passes end-to-end.
