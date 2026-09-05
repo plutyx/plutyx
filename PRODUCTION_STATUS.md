@@ -38,14 +38,29 @@ Security hardening on the persistent database:
 
 ## Automated cloud gates
 
-The repository has four independent CI gates:
+The repository has five independent CI gates:
 
 1. `backend-ci`: unit/API tests, simulated customer journeys, security flows, inventory intelligence and application import.
 2. `frontend-ci`: strict TypeScript typecheck and production Vite build.
 3. `backend-postgres-production-ci`: vanilla PostgreSQL service, every versioned migration, schema invariant checks, production-mode API tests and production application import.
 4. `container-ci`: builds both production Docker images so deployment cannot rely on an untested Dockerfile.
+5. `browser-e2e`: real Chromium journey covering signup, business creation, ingredient/stock, product/recipe, order creation, KDS completion, finance, stock consumption and schema-aware readiness.
 
-The v0.6 market workflow, v0.7 security workflow, v0.7.1 database hardening, v0.7.3 performance changes and v0.8 market-intelligence release were merged only after all applicable gates were green. v0.8.1 adds a separate process liveness check and a schema-aware readiness check; the backend container now becomes unhealthy if the database is unreachable or required migrations are missing.
+The browser E2E gate initially caught a real selector ambiguity that unit/API tests could not detect; it was corrected and the full five-gate matrix passed before v0.8.2 was merged. v0.8.1 added separate liveness/readiness endpoints and the backend container becomes unhealthy if the database is unreachable or required migrations are missing.
+
+## Railway deployment preparation
+
+The repository now contains production Config-as-Code for the selected Railway architecture:
+
+- `/backend/railway.toml` -> `/readyz` health gate.
+- `/frontend/railway.toml` -> `/healthz` health gate.
+- `RAILWAY_DEPLOY.md` -> exact two-service monorepo layout, private API networking, variable references and post-deploy customer smoke test.
+
+Target topology:
+
+`browser -> public web service -> same-origin /api proxy -> private api service -> persistent Supabase PostgreSQL`
+
+This intentionally avoids exposing the API directly for normal browser traffic. The frontend runtime can reference `api.RAILWAY_PRIVATE_DOMAIN` while the browser sees only the public web origin.
 
 ## Known accuracy boundary
 
@@ -53,18 +68,17 @@ Inventory variance currently reconstructs theoretical usage from the current rec
 
 ## Still blocking a public “live production” label
 
-The application code, production containers and persistent database are production candidates, but the public release remains blocked by the application-hosting layer:
+The application code, five automated gates, production containers, Railway deployment configuration and persistent database are production candidates, but the public release is not yet being labeled live until the hosting runtime is actually created and validated:
 
-1. Deploy FastAPI and the React frontend to a real public hosting account.
-2. Bind the production backend to the persistent PostgreSQL `DATABASE_URL`, a strong application `SECRET_KEY` and explicit production `CORS_ORIGINS` without exposing credentials in Git.
-3. Bind the frontend runtime `API_UPSTREAM` to the backend internal/public service endpoint. Browser traffic continues to use same-origin `/api`, reducing CORS complexity.
-4. Run the post-deploy smoke test through the public URL: `/livez`, `/readyz`, signup/login, workspace creation, tenant isolation, product/recipe, physical count, order completion, stock decrement, variance, demand, owner brief and finance.
-5. Verify runtime logs, uptime/error monitoring, TLS and database backups.
-6. Add e-mail verification and secure password recovery before broad public acquisition. Shareable team invites already work without e-mail infrastructure.
-7. Add verified subscription billing/webhooks before charging customers inside the SaaS.
-
-Vercel is connected at tool level but currently exposes no team/project account to deploy into. Railway remains the selected low-cost hosting path; the Railway integration is discoverable but is not yet authorized in this conversation, so no public deployment is being claimed.
+1. Create/deploy the Railway `api` and `web` services from this repository.
+2. Bind `api` to the intended persistent Supabase `DATABASE_URL`, a strong `SECRET_KEY` and explicit `CORS_ORIGINS` without committing credentials.
+3. Bind `web` `API_UPSTREAM` to the Railway private `api` endpoint.
+4. Expose `web` on HTTPS and verify `/healthz`, `/api/livez` and `/api/readyz` return 200.
+5. Run the full public customer smoke test documented in `RAILWAY_DEPLOY.md`.
+6. Verify runtime logs, uptime/error monitoring, TLS and database backup/recovery expectations.
+7. Add e-mail verification and secure password recovery before broad public acquisition.
+8. Add verified subscription billing/webhooks before charging SaaS subscriptions.
 
 ## Release rule
 
-Do not label the application “live production” merely because builds and the real database pass. A release is considered public production only after the application is reachable on a public URL, connected to the persistent database, `/readyz` is healthy, and the post-deploy smoke test passes end-to-end.
+Do not label the application “live production” merely because builds and the real database pass. A release is considered public production only after the application is reachable on a public URL, connected to the intended persistent database, `/api/readyz` is healthy through the public frontend, and the post-deploy smoke test passes end-to-end.
