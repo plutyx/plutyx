@@ -30,15 +30,15 @@ This checklist converts the current dark-kitchen/home-delivery market guide into
 ## CRM / data
 - [x] consent-aware customer records
 - [x] lifecycle segments: new / repeat / dormant (+ prospect)
-- [ ] first-party direct-order attribution
-- [ ] campaign attribution with contribution after media, not revenue-only ROAS
+- [x] first-party direct-order attribution preserving UTM/referrer/click IDs
+- [x] campaign attribution using contribution after media, not revenue-only ROAS
 
 ## Marketing engine
-- [ ] first-party storefront event model
+- [x] first-party storefront event model
 - [ ] Meta CAPI adapter
 - [ ] TikTok Events/API adapter
 - [ ] GA4 server/client event mapping
-- [ ] source-of-truth order conversion event with deduplication
+- [x] source-of-truth purchase conversion event with deterministic deduplication
 
 ## Logistics / purchasing
 - [x] supplier/purchase records
@@ -49,6 +49,8 @@ This checklist converts the current dark-kitchen/home-delivery market guide into
 ## Product guardrails
 - Integrations are adapters behind the Cozinha 360 canonical model; they must not leak provider-specific state into core tables.
 - Webhook ingestion must verify signatures where available, persist provider event IDs, acknowledge fast, and process idempotently.
+- Public storefront prices are server-authoritative; the browser never decides sale price or unit cost.
 - Financial decisions use contribution after variable/channel/media costs.
 - CRM campaign suggestions never override consent/opt-out state.
+- Conversion adapters must deduplicate with the Cozinha 360 event ID before sending to ad platforms.
 - No claim of fiscal, labor or marketplace compliance without provider/jurisdiction validation.
