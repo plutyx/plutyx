@@ -164,4 +164,4 @@ def test_market_intelligence_customer_journey():
 
         readyz = client.get('/readyz')
         assert readyz.status_code == 200, readyz.text
-        assert readyz.json()['release'] == '0.9.0'
+        assert readyz.json()['release'] == '1.0.0'
