@@ -34,15 +34,15 @@ function safeObject(raw:string|null):Record<string,unknown>|null{
   if(!raw)return null
   try{const value=JSON.parse(raw);return value&&typeof value==='object'&&!Array.isArray(value)?value:null}catch{return null}
 }
-async function api(path:string,options:RequestInit={}){
+async function api(path:string,options:RequestInit={},signal?:AbortSignal){
   const auth=token();if(!auth)throw new Error('not authenticated')
-  const response=await fetch(`${API}${path}`,{...options,headers:{'Content-Type':'application/json',Authorization:`Bearer ${auth}`,...(options.headers||{})}})
+  const response=await fetch(`${API}${path}`,{...options,signal:signal||options.signal,headers:{'Content-Type':'application/json',Authorization:`Bearer ${auth}`,...(options.headers||{})}})
   const body=await response.json().catch(()=>({detail:'Resposta inválida'}))
   if(!response.ok)throw new Error(typeof body.detail==='string'?body.detail:'Falha ao sincronizar memória operacional')
   return body
 }
-async function writeRemote(businessId:number,namespace:string,data:Record<string,unknown>){
-  await api(`/businesses/${businessId}/memory/${namespace}`,{method:'PUT',body:JSON.stringify({data})})
+async function writeRemote(businessId:number,namespace:string,data:Record<string,unknown>,signal?:AbortSignal){
+  await api(`/businesses/${businessId}/memory/${namespace}`,{method:'PUT',body:JSON.stringify({data})},signal)
   window.dispatchEvent(new CustomEvent('c360-memory-synced',{detail:{businessId,namespace}}))
 }
 function schedule(key:string,value:string){
@@ -67,8 +67,8 @@ export function installOperatingMemoryAutosave(){
   }
 }
 
-async function hydrateBusiness(businessId:number){
-  const listing=await api(`/businesses/${businessId}/memory`) as MemoryList
+async function hydrateBusiness(businessId:number,signal:AbortSignal){
+  const listing=await api(`/businesses/${businessId}/memory`,{},signal) as MemoryList
   for(const d of descriptors){
     const localKey=keyFor(d,businessId)
     const remote=listing.states?.[d.namespace]
@@ -77,7 +77,7 @@ async function hydrateBusiness(businessId:number){
       continue
     }
     const local=safeObject(nativeGet.call(localStorage,localKey))
-    if(local)await writeRemote(businessId,d.namespace,local).catch(()=>{})
+    if(local)await writeRemote(businessId,d.namespace,local,signal).catch(()=>{})
   }
 }
 
@@ -91,7 +91,7 @@ export async function prepareOperatingMemory(){
     if(!response.ok)return
     const body=await response.json().catch(()=>({businesses:[]})) as {businesses?:BusinessRef[]}
     const businesses=body.businesses||[]
-    await Promise.allSettled(businesses.map(b=>hydrateBusiness(Number(b.id))))
+    await Promise.allSettled(businesses.map(b=>hydrateBusiness(Number(b.id),controller.signal)))
   }catch(error){
     if(!(error instanceof DOMException&&error.name==='AbortError'))console.warn('[Cozinha360] operating memory hydration skipped',error)
   }finally{window.clearTimeout(timeout)}
