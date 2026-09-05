@@ -99,7 +99,8 @@ export function KitchenBatchRoute(){
       const shortage=Math.max(0,-projected)
       const belowPar=c.par>0&&projected<c.par
       const suggestedPurchase=c.target>0&&projected<c.target?Math.max(0,c.target-projected):shortage
-      return{ingredient_id:c.ingredient_id,name:c.name,unit:c.unit,required:c.required,onHand:c.onHand,projected,par:c.par,target:c.target,shortage,suggestedPurchase,status:shortage?'shortage':belowPar?'below_par':'covered',orderIds:[...c.orderIds].sort((a,b)=>a-b),products:[...c.products.values()].sort((a,b)=>b.required-a.required||a.name.localeCompare(b.name))}
+      const status:ComponentGroup['status']=shortage?'shortage':belowPar?'below_par':'covered'
+      return{ingredient_id:c.ingredient_id,name:c.name,unit:c.unit,required:c.required,onHand:c.onHand,projected,par:c.par,target:c.target,shortage,suggestedPurchase,status,orderIds:[...c.orderIds].sort((a,b)=>a-b),products:[...c.products.values()].sort((a,b)=>b.required-a.required||a.name.localeCompare(b.name))}
     }).sort((a,b)=>severity(a.status)-severity(b.status)||b.required-a.required||a.name.localeCompare(b.name))
     return{components,unmapped,mappedUnits}
   },[groups,recipeMap,ingredientMap])
@@ -127,7 +128,7 @@ export function KitchenBatchRoute(){
       {view==='products'&&(groups.length?<div className="batch-grid">{groups.map(group=><article className={`batch-card ${group.delayed?'late':''}`} key={group.product_id}>
         <div className="batch-card-head"><div className="batch-qty"><strong>{group.quantity}</strong><span>un</span></div>{group.delayed&&<span className="batch-late"><TriangleAlert size={14}/> ATRASO</span>}</div>
         <h2>{group.name}</h2>
-        <div className="batch-statuses">{Object.entries(group.statuses).map(([status,qty])=><span key={status}>{qty} {labels[status]||status}</span>)}</div>
+        <div className="batch-statuses">{Object.entries(group.statuses).map(([statusName,qtyValue])=><span key={statusName}>{qtyValue} {labels[statusName]||statusName}</span>)}</div>
         <div className="batch-orders"><span>Pedidos</span><div>{group.orderIds.map(id=><b key={id}>#{id}</b>)}</div></div>
         <footer><span>mais antigo</span><b>{group.oldest} min</b></footer>
       </article>)}</div>:<Empty/>)}
