@@ -1,0 +1,65 @@
+name: public-web-smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  public-web:
+    runs-on: ubuntu-latest
+    env:
+      WEB_URL: https://cozinha-360-os.netlify.app
+      API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
+    steps:
+      - name: Public frontend is real HTML
+        run: |
+          set -euo pipefail
+          headers="$(mktemp)"
+          body="$(mktemp)"
+          code="$(curl --fail-with-body --silent --show-error --location --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$WEB_URL")"
+          test "$code" = "200"
+          grep -Eiq '^content-type: *text/html' "$headers"
+          grep -Fq 'COZINHA 360' "$body"
+          grep -Fq 'cozinha360-api-v2' "$body"
+          grep -Eiq '^x-content-type-options: *nosniff' "$headers"
+          grep -Eiq '^x-frame-options: *DENY' "$headers"
+          grep -Eiq '^referrer-policy: *strict-origin-when-cross-origin' "$headers"
+          grep -Eiq '^permissions-policy:.*camera=\(\).*microphone=\(\).*geolocation=\(\)' "$headers"
+          echo 'public frontend smoke ok'
+
+      - name: Public cloud API liveness and readiness
+        run: |
+          set -euo pipefail
+          test "$(curl --fail-with-body --silent --show-error --output /tmp/livez.json --write-out '%{http_code}' "$API_URL/livez")" = "200"
+          test "$(curl --fail-with-body --silent --show-error --output /tmp/readyz.json --write-out '%{http_code}' "$API_URL/readyz")" = "200"
+          grep -q '"ok":true' /tmp/livez.json
+          grep -q '"ok":true' /tmp/readyz.json
+          echo 'public API readiness smoke ok'
+
+      - name: Browser-origin CORS preflight
+        run: |
+          set -euo pipefail
+          headers="$(mktemp)"
+          code="$(curl --silent --show-error --output /dev/null --dump-header "$headers" --write-out '%{http_code}' \
+            -X OPTIONS "$API_URL/me" \
+            -H "Origin: $WEB_URL" \
+            -H 'Access-Control-Request-Method: GET' \
+            -H 'Access-Control-Request-Headers: authorization,content-type')"
+          test "$code" = "204"
+          grep -Eiq '^access-control-allow-origin: *(\*|https://cozinha-360-os\.netlify\.app)' "$headers"
+          grep -Eiq '^access-control-allow-headers:.*authorization' "$headers"
+          echo 'browser CORS smoke ok'
+
+      - name: Signup validation does not create a user
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl --silent --show-error --output "$body" --write-out '%{http_code}' \
+            -X POST "$API_URL/auth/signup" \
+            -H 'content-type: application/json' \
+            --data '{"email":"not-an-email","password":"short"}')"
+          test "$code" = "422"
+          grep -q 'mínimo de 10 caracteres' "$body"
+          echo 'signup validation smoke ok'
