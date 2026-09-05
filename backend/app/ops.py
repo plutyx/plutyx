@@ -14,13 +14,14 @@ from .models import AuditLog, Ingredient, Membership, Order, OrderItem, Product,
 from .snapshots import OrderCompletionSnapshot
 
 
-router = APIRouter(tags=["production-readiness-v09"])
-RELEASE = "0.9.0"
+router = APIRouter(tags=["production-readiness-v10"])
+RELEASE = "1.0.0"
 REQUIRED_TABLES = {
     "users", "businesses", "memberships", "ingredients", "products", "recipe_items",
     "orders", "order_items", "customers", "purchases", "losses", "production_batches",
     "team_invites", "audit_logs", "outbox_events", "inventory_counts",
     "order_completion_snapshots", "order_recipe_snapshots",
+    "user_security_states", "auth_action_tokens",
 }
 
 
@@ -42,7 +43,17 @@ def readyz(db: Annotated[Session, Depends(get_db)]):
     if missing:
         detail = "Schema incompleto" if settings.environment.lower() == "production" else {"message": "Schema incompleto", "missing": missing}
         raise HTTPException(503, detail)
-    return {"ok": True, "database": "reachable", "schema": "current", "release": RELEASE}
+    return {
+        "ok": True,
+        "database": "reachable",
+        "schema": "current",
+        "release": RELEASE,
+        "capabilities": {
+            "transactional_email": settings.email_delivery_configured,
+            "password_recovery": True,
+            "email_verification": True,
+        },
+    }
 
 
 @router.get("/businesses/{business_id}/data-quality")
