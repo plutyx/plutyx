@@ -13,13 +13,11 @@ function Root(){
   const hasAccountRoute=Boolean(params.get('reset_token')||params.get('verify_token')||params.get('forgot')==='1'||params.get('security')==='1')
   if(hasAccountRoute)return <AccountRoute/>
   if(params.get('quick')==='1')return <QuickOrderRoute/>
-  const hasSession=Boolean(localStorage.getItem('c360_token'))
   return <>
     <App/>
-    {hasSession?<>
-      <a className="account-security-link" href="/?security=1">Segurança da conta</a>
-      <a className="global-quick-link" href="/?quick=1">+ Pedido rápido</a>
-    </>:<a className="account-helper-link" href="/?forgot=1">Esqueci minha senha</a>}
+    <a className="account-helper-link" href="/?forgot=1">Esqueci minha senha</a>
+    <a className="account-security-link" href="/?security=1">Segurança da conta</a>
+    <a className="global-quick-link" href="/?quick=1">+ Pedido rápido</a>
   </>
 }
 
