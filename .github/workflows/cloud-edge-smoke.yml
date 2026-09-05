@@ -1,0 +1,34 @@
+name: cloud-edge-smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/cloud-edge-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/cloud-edge-smoke.yml'
+
+jobs:
+  public-edge-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EDGE_BASE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
+    steps:
+      - name: Liveness
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$EDGE_BASE/livez")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-edge"' "$body"
+      - name: Readiness includes persistent database
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$EDGE_BASE/readyz")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["database"]=="ready"' "$body"
+      - name: Auth endpoint rejects invalid payload safely
+        run: |
+          status="$(curl --silent --output /tmp/auth.json --write-out '%{http_code}' -H 'Content-Type: application/json' -d '{}' "$EDGE_BASE/auth/signup")"
+          test "$status" = "422"
+          python -c 'import json; x=json.load(open("/tmp/auth.json")); assert "detail" in x'

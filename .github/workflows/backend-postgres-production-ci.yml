@@ -76,16 +76,90 @@ jobs:
                   assert cur.fetchone()[0] == 1
                   cur.execute("select count(*) from pg_indexes where tablename='auth_action_tokens' and indexname='ix_auth_action_tokens_user_purpose_created'")
                   assert cur.fetchone()[0] == 1
+                  cur.execute("select count(*) from pg_indexes where tablename='users' and indexname='ux_users_auth_user_id'")
+                  assert cur.fetchone()[0] == 1
                   required_columns = [
                       ('ingredients','on_hand_milliunits'),('products','category'),('orders','inventory_consumed'),
-                      ('users','auth_version'),('users','failed_login_attempts'),('users','locked_until'),
+                      ('users','auth_version'),('users','failed_login_attempts'),('users','locked_until'),('users','auth_user_id'),
                       ('order_recipe_snapshots','total_qty_milliunits'),
                       ('user_security_states','email_verified_at'),('auth_action_tokens','token_hash')
                   ]
                   for table, column in required_columns:
                       cur.execute("select count(*) from information_schema.columns where table_schema='public' and table_name=%s and column_name=%s", (table,column))
                       assert cur.fetchone()[0] == 1, f'missing {table}.{column}'
+                  for fn in ('c360_create_order','c360_set_recipe','c360_complete_order'):
+                      cur.execute("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname=%s", (fn,))
+                      assert cur.fetchone()[0] == 1, f'missing function {fn}'
           print('schema invariants ok')
+          PY
+      - name: Cloud-native transaction smoke
+        run: |
+          python - <<'PY'
+          import json
+          import psycopg
+
+          dsn = 'postgresql://cozinha360@localhost:5432/cozinha360'
+          with psycopg.connect(dsn, autocommit=False) as conn:
+              try:
+                  with conn.cursor() as cur:
+                      cur.execute("insert into public.users(email,password_hash,full_name) values (%s,%s,%s) returning id", ('ci-cloud-smoke@example.com','ci-smoke','CI Cloud Smoke'))
+                      user_id = cur.fetchone()[0]
+                      cur.execute("insert into public.businesses(name,city) values (%s,%s) returning id", ('CI Cloud Smoke Kitchen','Mogi das Cruzes'))
+                      business_id = cur.fetchone()[0]
+                      cur.execute("insert into public.memberships(user_id,business_id,role) values (%s,%s,'owner')", (user_id,business_id))
+                      cur.execute("""
+                        insert into public.ingredients(
+                          business_id,name,unit,last_purchase_price_cents,last_purchase_qty_milliunits,
+                          usable_qty_milliunits,on_hand_milliunits,par_level_milliunits,reorder_target_milliunits
+                        ) values (%s,'Carne','g',2000,1000,1000,5000,1000,3000) returning id
+                      """, (business_id,))
+                      ingredient_id = cur.fetchone()[0]
+                      cur.execute("""
+                        insert into public.products(
+                          business_id,name,category,active,units_per_batch,packaging_cents_per_unit,
+                          energy_cents_per_batch,labor_cents_per_batch
+                        ) values (%s,'Smash CI','hamburguer',true,10,150,500,1000) returning id
+                      """, (business_id,))
+                      product_id = cur.fetchone()[0]
+
+                      recipe_items = json.dumps([{'ingredient_id': ingredient_id, 'qty_used_milliunits': 1000}])
+                      cur.execute("select public.c360_set_recipe(%s,%s,%s::jsonb,%s)", (business_id,product_id,recipe_items,user_id))
+                      recipe_result = cur.fetchone()[0]
+                      assert recipe_result['items'] == 1
+
+                      order_items = json.dumps([{
+                          'product_id': product_id,
+                          'quantity': 2,
+                          'unit_price_cents': 2500,
+                          'unit_variable_cost_cents': 500,
+                      }])
+                      cur.execute("select public.c360_create_order(%s,%s,%s,%s,%s,%s::jsonb,%s)", (business_id,'ci',False,None,None,order_items,'ci-cloud-smoke-order'))
+                      created = cur.fetchone()[0]
+                      assert created['total_cents'] == 5000
+                      assert created['variable_cost_cents'] == 1000
+                      assert created['contribution_cents'] == 4000
+                      order_id = int(created['id'])
+
+                      cur.execute("select public.c360_complete_order(%s,%s,%s,%s)", (business_id,order_id,int(created['version']),user_id))
+                      completed = cur.fetchone()[0]
+                      assert completed['status'] == 'completed'
+
+                      cur.execute("select status,paid,inventory_consumed from public.orders where id=%s", (order_id,))
+                      status, paid, consumed = cur.fetchone()
+                      assert status == 'completed' and paid is True and consumed is True
+                      cur.execute("select on_hand_milliunits from public.ingredients where id=%s", (ingredient_id,))
+                      assert cur.fetchone()[0] == 4800
+                      cur.execute("select count(*) from public.order_recipe_snapshots where order_id=%s", (order_id,))
+                      assert cur.fetchone()[0] == 1
+                      cur.execute("select count(*) from public.order_completion_snapshots where order_id=%s", (order_id,))
+                      assert cur.fetchone()[0] == 1
+                      cur.execute("select count(*) from public.outbox_events where business_id=%s", (business_id,))
+                      assert cur.fetchone()[0] >= 2
+                      cur.execute("select count(*) from public.audit_logs where business_id=%s", (business_id,))
+                      assert cur.fetchone()[0] >= 2
+                  print('cloud-native transaction smoke ok')
+              finally:
+                  conn.rollback()
           PY
       - name: Run production-mode tests against PostgreSQL
         run: python -m pytest -q
