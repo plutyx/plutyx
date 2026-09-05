@@ -1,7 +1,7 @@
 const API = import.meta.env.VITE_API_URL || '/api'
 
 type BusinessRef={id:number}
-type MemoryState={namespace:string;data:Record<string,unknown>;version:number;updated_at:string|null}
+type MemoryState={namespace:string;data:unknown;version:number;updated_at:string|null}
 type MemoryList={business_id:number;states:Record<string,MemoryState>}
 type Descriptor={namespace:string;prefix:string}
 
@@ -30,9 +30,9 @@ function parseKey(key:string){
   }
   return null
 }
-function safeObject(raw:string|null):Record<string,unknown>|null{
+function safeValue(raw:string|null):unknown{
   if(!raw)return null
-  try{const value=JSON.parse(raw);return value&&typeof value==='object'&&!Array.isArray(value)?value:null}catch{return null}
+  try{return JSON.parse(raw)}catch{return null}
 }
 async function api(path:string,options:RequestInit={},signal?:AbortSignal){
   const auth=token();if(!auth)throw new Error('not authenticated')
@@ -41,13 +41,13 @@ async function api(path:string,options:RequestInit={},signal?:AbortSignal){
   if(!response.ok)throw new Error(typeof body.detail==='string'?body.detail:'Falha ao sincronizar memória operacional')
   return body
 }
-async function writeRemote(businessId:number,namespace:string,data:Record<string,unknown>,signal?:AbortSignal){
+async function writeRemote(businessId:number,namespace:string,data:unknown,signal?:AbortSignal){
   await api(`/businesses/${businessId}/memory/${namespace}`,{method:'PUT',body:JSON.stringify({data})},signal)
   window.dispatchEvent(new CustomEvent('c360-memory-synced',{detail:{businessId,namespace}}))
 }
 function schedule(key:string,value:string){
   const parsed=parseKey(key);if(!parsed)return
-  const data=safeObject(value);if(!data)return
+  const data=safeValue(value);if(data===null||data===undefined)return
   const previous=timers.get(key);if(previous)window.clearTimeout(previous)
   timers.set(key,window.setTimeout(()=>{
     timers.delete(key)
@@ -73,11 +73,11 @@ async function hydrateBusiness(businessId:number,signal:AbortSignal){
     const localKey=keyFor(d,businessId)
     const remote=listing.states?.[d.namespace]
     if(remote?.version>0){
-      nativeSet.call(localStorage,localKey,JSON.stringify(remote.data||{}))
+      nativeSet.call(localStorage,localKey,JSON.stringify(remote.data??{}))
       continue
     }
-    const local=safeObject(nativeGet.call(localStorage,localKey))
-    if(local)await writeRemote(businessId,d.namespace,local,signal).catch(()=>{})
+    const local=safeValue(nativeGet.call(localStorage,localKey))
+    if(local!==null&&local!==undefined)await writeRemote(businessId,d.namespace,local,signal).catch(()=>{})
   }
 }
 
