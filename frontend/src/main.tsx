@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BarChart3, ChefHat, CircleDollarSign, ClipboardList, LogOut, Package, Plus, RefreshCcw, ShoppingBag, Users } from 'lucide-react'
 import './styles.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API = import.meta.env.VITE_API_URL || '/api'
 
 type User = { id:number; email:string; full_name:string }
 type Business = { id:number; name:string; city:string; role:string; preferences:Record<string,unknown> }
@@ -34,7 +34,7 @@ function App(){
  async function loadBusiness(id:number,t=token){const [d,i]=await Promise.all([request(`/businesses/${id}/dashboard`,{},t),request(`/businesses/${id}/ingredients`,{},t)]);setDashboard(d);setIngredients(i)}
  useEffect(()=>{loadMe()},[token])
  function logout(){localStorage.removeItem('c360_token');setToken('');setUser(null);setBusinesses([]);setBusinessId(null)}
- async function quick(kind:string){if(!businessId)return;setModal(kind)}
+ function quick(kind:string){if(!businessId)return;setModal(kind)}
  if(loading)return <main className="center"><div className="loader">COZINHA 360</div></main>
  if(!token)return <Auth onAuth={setToken}/>
  if(!businesses.length)return <EmptyBusiness token={token} onCreated={()=>loadMe()}/>
