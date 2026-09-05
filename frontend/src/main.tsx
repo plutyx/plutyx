@@ -28,6 +28,7 @@ import './kitchen-batch.css'
 import './system360.css'
 import './shell-v20.css'
 import './playbook-lab.css'
+import './playbook-nav.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
