@@ -66,6 +66,9 @@ jobs:
       - name: Run kitchen-intelligence journey
         run: node frontend/e2e/kitchen-intelligence.mjs
 
+      - name: Run cash-engine journey
+        run: node frontend/e2e/cash-engine.mjs
+
       - name: Upload E2E evidence and logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,5 +85,7 @@ jobs:
             /tmp/cozinha360-system360.png
             /tmp/cozinha360-operating-memory.png
             /tmp/cozinha360-operating-memory-failure.png
+            /tmp/cozinha360-cash-engine.png
+            /tmp/cozinha360-cash-engine-failure.png
             /tmp/cozinha360-api.log
             /tmp/cozinha360-web.log
