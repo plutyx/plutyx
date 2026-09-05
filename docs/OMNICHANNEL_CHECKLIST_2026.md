@@ -9,7 +9,7 @@ This checklist converts the current dark-kitchen/home-delivery market guide into
 - [ ] official iFood adapter + webhook signature/idempotency
 - [ ] official WhatsApp Business adapter
 - [ ] Rappi/Keeta adapters only where official access is available
-- [ ] channel event normalization and replay/dead-letter handling
+- [x] channel event normalization contract and replay/dead-letter core
 
 ## KDS
 - [x] Kanban-style status flow
@@ -29,7 +29,7 @@ This checklist converts the current dark-kitchen/home-delivery market guide into
 
 ## CRM / data
 - [x] consent-aware customer records
-- [ ] lifecycle segments: new / repeat / dormant
+- [x] lifecycle segments: new / repeat / dormant (+ prospect)
 - [ ] first-party direct-order attribution
 - [ ] campaign attribution with contribution after media, not revenue-only ROAS
 
@@ -50,4 +50,5 @@ This checklist converts the current dark-kitchen/home-delivery market guide into
 - Integrations are adapters behind the Cozinha 360 canonical model; they must not leak provider-specific state into core tables.
 - Webhook ingestion must verify signatures where available, persist provider event IDs, acknowledge fast, and process idempotently.
 - Financial decisions use contribution after variable/channel/media costs.
+- CRM campaign suggestions never override consent/opt-out state.
 - No claim of fiscal, labor or marketplace compliance without provider/jurisdiction validation.
