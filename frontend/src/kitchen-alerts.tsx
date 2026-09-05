@@ -28,7 +28,7 @@ export function KitchenAlerts(){
   const ctxRef=useRef<AudioContext|null>(null)
   const knownRef=useRef<Map<number,string>>(new Map())
   const businessRef=useRef<number>(0)
-  const timerRef=useRef<number|undefined>()
+  const timerRef=useRef<number|undefined>(undefined)
 
   async function resolveBusiness(){
     if(businessRef.current)return businessRef.current
