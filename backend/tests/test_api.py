@@ -10,7 +10,7 @@ def auth(client,email,name):
 
 def test_real_user_journey_and_tenant_isolation():
     with TestClient(app) as client:
-        alice=auth(client,'alice@cozinha360.test','Alice')
+        alice=auth(client,'alice@example.com','Alice')
         r=client.post('/businesses',headers=alice,json={'name':'Cozinha da Alice','city':'Mogi das Cruzes'})
         assert r.status_code==201, r.text
         business_id=r.json()['id']
@@ -49,14 +49,14 @@ def test_real_user_journey_and_tenant_isolation():
         assert dashboard.status_code==200
         assert dashboard.json()['pulse']['revenue_cents']==3490
 
-        bob=auth(client,'bob@cozinha360.test','Bob')
+        bob=auth(client,'bob@example.com','Bob')
         denied=client.get(f'/businesses/{business_id}/ingredients',headers=bob)
         assert denied.status_code==403
 
 
 def test_capacity_guard_behaves_like_operation_gate():
     with TestClient(app) as client:
-        headers=auth(client,'capacity@cozinha360.test','Capacidade')
+        headers=auth(client,'capacity@example.com','Capacidade')
         b=client.post('/businesses',headers=headers,json={'name':'Cozinha Capacidade'}).json()['id']
         r=client.post(f'/businesses/{b}/capacity',headers=headers,json={'steps':[[6,2],[4,1],[5,1]],'safety_margin_bps':2500,'open_orders':7})
         assert r.status_code==200
