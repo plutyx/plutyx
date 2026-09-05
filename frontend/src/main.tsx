@@ -20,6 +20,7 @@ import './super-flow.css'
 import './flow-v18.css'
 import './flow-v181.css'
 import './inventory-editor.css'
+import './module-flow-v183.css'
 
 function Root(){
   const params=new URLSearchParams(window.location.search)
