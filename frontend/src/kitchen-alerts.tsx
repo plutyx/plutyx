@@ -25,7 +25,10 @@ function playDelivery(ctx:AudioContext){
 export function KitchenAlerts(){
   const token=localStorage.getItem('c360_token')||''
   const[enabled,setEnabled]=useState(false),[label,setLabel]=useState('Som da cozinha'),[error,setError]=useState('')
-  const ctxRef=useRef<AudioContext|null>(null),knownRef=useRef<Map<number,string>>(new Map()),businessRef=useRef<number>(0),timerRef=useRef<number|undefined>()
+  const ctxRef=useRef<AudioContext|null>(null)
+  const knownRef=useRef<Map<number,string>>(new Map())
+  const businessRef=useRef<number>(0)
+  const timerRef=useRef<number|undefined>()
 
   async function resolveBusiness(){
     if(businessRef.current)return businessRef.current
