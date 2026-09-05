@@ -53,9 +53,22 @@ def test_operating_memory_is_versioned_and_tenant_scoped():
         assert second.status_code == 200, second.text
         assert second.json()["version"] == 2
 
+        incidents = [
+            {"id": "inc-1", "severity": "critical", "cause": "alérgeno", "resolved": False},
+            {"id": "inc-2", "severity": "low", "cause": "embalagem", "resolved": True},
+        ]
+        incident_memory = client.put(
+            f"/businesses/{business_id}/memory/control-incidents",
+            headers=owner,
+            json={"data": incidents},
+        )
+        assert incident_memory.status_code == 200, incident_memory.text
+        assert incident_memory.json()["data"] == incidents
+
         listing = client.get(f"/businesses/{business_id}/memory", headers=owner)
         assert listing.status_code == 200
         assert listing.json()["states"]["system360"]["version"] == 2
+        assert listing.json()["states"]["control-incidents"]["data"][0]["severity"] == "critical"
 
         history = client.get(f"/businesses/{business_id}/memory/system360/history", headers=owner)
         assert history.status_code == 200
