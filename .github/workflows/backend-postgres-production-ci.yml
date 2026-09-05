@@ -76,15 +76,20 @@ jobs:
                   assert cur.fetchone()[0] == 1
                   cur.execute("select count(*) from pg_indexes where tablename='auth_action_tokens' and indexname='ix_auth_action_tokens_user_purpose_created'")
                   assert cur.fetchone()[0] == 1
+                  cur.execute("select count(*) from pg_indexes where tablename='users' and indexname='ux_users_auth_user_id'")
+                  assert cur.fetchone()[0] == 1
                   required_columns = [
                       ('ingredients','on_hand_milliunits'),('products','category'),('orders','inventory_consumed'),
-                      ('users','auth_version'),('users','failed_login_attempts'),('users','locked_until'),
+                      ('users','auth_version'),('users','failed_login_attempts'),('users','locked_until'),('users','auth_user_id'),
                       ('order_recipe_snapshots','total_qty_milliunits'),
                       ('user_security_states','email_verified_at'),('auth_action_tokens','token_hash')
                   ]
                   for table, column in required_columns:
                       cur.execute("select count(*) from information_schema.columns where table_schema='public' and table_name=%s and column_name=%s", (table,column))
                       assert cur.fetchone()[0] == 1, f'missing {table}.{column}'
+                  for fn in ('c360_create_order','c360_set_recipe','c360_complete_order'):
+                      cur.execute("select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname=%s", (fn,))
+                      assert cur.fetchone()[0] == 1, f'missing function {fn}'
           print('schema invariants ok')
           PY
       - name: Run production-mode tests against PostgreSQL
