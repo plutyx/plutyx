@@ -43,7 +43,7 @@ type SecurityStatus={email:string;email_verified:boolean;email_verified_at:strin
 export function SecurityCenter(){
   const token=localStorage.getItem('c360_token')||''
   const[status,setStatus]=useState<SecurityStatus|null>(null);const[busy,setBusy]=useState(false);const[error,setError]=useState('');const[message,setMessage]=useState('');const[debugLink,setDebugLink]=useState('')
-  const headers=token?{Authorization:`Bearer ${token}`}:{ }
+  const headers:Record<string,string>=token?{Authorization:`Bearer ${token}`}:{ }
   useEffect(()=>{if(!token)return;request('/auth/security-status',{headers}).then(setStatus).catch(err=>setError(err instanceof Error?err.message:'Erro'))},[])
   async function verify(){setBusy(true);setError('');setMessage('');setDebugLink('');try{const body=await request('/auth/email-verification/request',{method:'POST',headers});if(body.already_verified){setMessage('Seu e-mail já está confirmado.')}else{setMessage(body.delivery==='smtp'?'Enviamos o link de confirmação para seu e-mail.':'Link de confirmação criado para o ambiente de teste.');if(body.debug_link)setDebugLink(body.debug_link)}}catch(err){setError(err instanceof Error?err.message:'Erro')}finally{setBusy(false)}}
   async function logoutAll(){setBusy(true);setError('');try{await request('/auth/logout-all',{method:'POST',headers});localStorage.removeItem('c360_token');window.location.href='/'}catch(err){setError(err instanceof Error?err.message:'Erro');setBusy(false)}}
