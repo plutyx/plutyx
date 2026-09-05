@@ -24,10 +24,10 @@ BEGIN
   END LOOP;
 
   IF has_anon THEN
-    revoke all privileges on all sequences in schema public from anon;
+    EXECUTE 'revoke all privileges on all sequences in schema public from anon';
   END IF;
   IF has_authenticated THEN
-    revoke all privileges on all sequences in schema public from authenticated;
+    EXECUTE 'revoke all privileges on all sequences in schema public from authenticated';
   END IF;
 END $$;
 
