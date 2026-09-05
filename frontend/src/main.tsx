@@ -5,6 +5,7 @@ import { AccountRoute } from './account-actions'
 import { QuickOrderRoute } from './quick-order'
 import { ChannelMarginRoute } from './channel-margin'
 import { CrmLifecycleRoute } from './crm-lifecycle'
+import { DirectCommerceAdminRoute, PublicStorefrontRoute } from './direct-order'
 import { KitchenAlerts } from './kitchen-alerts'
 import './styles.css'
 import './market.css'
@@ -12,15 +13,19 @@ import './account.css'
 import './quick-order.css'
 import './channel-margin.css'
 import './crm-lifecycle.css'
+import './direct-order.css'
 import './kitchen-alerts.css'
 
 function Root(){
   const params=new URLSearchParams(window.location.search)
   const hasAccountRoute=Boolean(params.get('reset_token')||params.get('verify_token')||params.get('forgot')==='1'||params.get('security')==='1')
+  const storeSlug=params.get('loja')||''
+  if(storeSlug)return <PublicStorefrontRoute slug={storeSlug}/>
   if(hasAccountRoute)return <AccountRoute/>
   if(params.get('quick')==='1')return <QuickOrderRoute/>
   if(params.get('margin')==='1')return <ChannelMarginRoute/>
   if(params.get('crm')==='1')return <CrmLifecycleRoute/>
+  if(params.get('direct')==='1')return <DirectCommerceAdminRoute/>
   return <>
     <App/>
     <KitchenAlerts/>
@@ -28,6 +33,7 @@ function Root(){
     <a className="account-security-link" href="/?security=1">Segurança da conta</a>
     <a className="global-crm-link" href="/?crm=1">CRM de recompra</a>
     <a className="global-margin-link" href="/?margin=1">Margens & canais</a>
+    <a className="global-direct-link" href="/?direct=1">Venda direta</a>
     <a className="global-quick-link" href="/?quick=1">+ Pedido rápido</a>
   </>
 }
