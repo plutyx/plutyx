@@ -15,7 +15,8 @@ This checklist converts the current dark-kitchen/home-delivery market guide into
 - [x] Kanban-style status flow
 - [x] elapsed-time calculation
 - [x] distinct browser audio for new order and delivery state
-- [ ] grouped prep view by identical recipe components
+- [x] live grouped prep view by identical menu product across open kitchen orders
+- [ ] explode grouped prep into identical recipe/pre-prep components (e.g. total buns, patties, sauces)
 - [ ] configurable SLA per product/channel
 - [ ] optional printer bridge; never block core workflow on hardware
 
