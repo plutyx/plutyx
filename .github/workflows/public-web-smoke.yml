@@ -15,14 +15,15 @@ jobs:
       API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
       GATEWAY_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42
       SETUP_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-setup-v42
-      EXPECTED_RELEASE: '4.2.0'
+      INTELLIGENCE_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50
+      EXPECTED_RELEASE: '5.0.0'
     steps:
       - name: Public frontend serves exact current release
         run: |
           set -euo pipefail
           headers="$(mktemp)"
           body="$(mktemp)"
-          for i in $(seq 1 35); do
+          for i in $(seq 1 55); do
             code="$(curl --silent --show-error --location --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$WEB_URL")" || true
             marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
             if [ "$code" = "200" ] && grep -Fq "$marker" "$body"; then break; fi
@@ -40,6 +41,8 @@ jobs:
           grep -Fq 'cozinha360-gateway-v42' "$bundle"
           grep -Fq 'cozinha360-delivery-v40' "$bundle"
           grep -Fq 'cozinha360-setup-v42' "$bundle"
+          grep -Fq 'cozinha360-intelligence-v50' "$bundle"
+          grep -Fq 'Conte o estoque. O 360 explica a diferença.' "$bundle"
           grep -Fq 'Configuração inteligente' "$bundle"
           echo 'public frontend smoke ok'
 
@@ -56,12 +59,15 @@ jobs:
           grep -q '"status":"ok"' /tmp/setup.json
           grep -q '"version":"4.2.0"' /tmp/setup.json
           grep -q '"route_setup"' /tmp/setup.json
+          test "$(curl --fail-with-body --silent --show-error --output /tmp/intelligence.json --write-out '%{http_code}' "$INTELLIGENCE_URL/health")" = "200"
+          grep -q '"status":"ok"' /tmp/intelligence.json
+          grep -q '"version":"5.0.0"' /tmp/intelligence.json
           echo 'public API readiness smoke ok'
 
       - name: Browser-origin CORS preflight
         run: |
           set -euo pipefail
-          for target in "$GATEWAY_URL/cozinha360-delivery-v40/health" "$SETUP_URL/health"; do
+          for target in "$GATEWAY_URL/cozinha360-delivery-v40/health" "$SETUP_URL/health" "$INTELLIGENCE_URL/health"; do
             headers="$(mktemp)"
             code="$(curl --silent --show-error --output /dev/null --dump-header "$headers" --write-out '%{http_code}' \
               -X OPTIONS "$target" \
@@ -73,6 +79,15 @@ jobs:
             grep -Eiq '^access-control-allow-headers:.*authorization' "$headers"
           done
           echo 'browser CORS smoke ok'
+
+      - name: Intelligence auth boundary is closed
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          code="$(curl --silent --show-error --output "$body" --write-out '%{http_code}' "$INTELLIGENCE_URL/portfolio/overview")"
+          test "$code" = "401"
+          grep -q 'Sessão inválida' "$body"
+          echo 'intelligence auth boundary ok'
 
       - name: Signup validation does not create a user
         run: |
