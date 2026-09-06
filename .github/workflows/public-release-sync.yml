@@ -7,9 +7,14 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/public-release-sync.yml'
+  workflow_run:
+    workflows: ['netlify-production-deploy']
+    types: [completed]
+    branches: [main]
 
 jobs:
   release-identity:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
