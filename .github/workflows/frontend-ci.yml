@@ -30,7 +30,7 @@ jobs:
           VITE_AUTOPILOT_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-autopilot-v37
         run: npm run build
       - name: Verify production release marker
-        run: grep -F '<meta name="c360-release" content="3.7.0"' dist/index.html
+        run: grep -F '<meta name="c360-release" content="3.8.0"' dist/index.html
       - name: Verify Autopilot production endpoint is bundled
         run: grep -R -F 'cozinha360-autopilot-v37' dist/assets/*.js >/dev/null
       - name: Upload production frontend bundle

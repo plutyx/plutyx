@@ -13,7 +13,7 @@ jobs:
       WEB_URL: https://cozinha-360-os.netlify.app
       API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
     steps:
-      - name: Public frontend is real HTML
+      - name: Public frontend is real HTML and built bundle
         run: |
           set -euo pipefail
           headers="$(mktemp)"
@@ -21,8 +21,13 @@ jobs:
           code="$(curl --fail-with-body --silent --show-error --location --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$WEB_URL")"
           test "$code" = "200"
           grep -Eiq '^content-type: *text/html' "$headers"
-          grep -Fq 'COZINHA 360' "$body"
-          grep -Fq 'cozinha360-api-v2' "$body"
+          grep -Fq 'Cozinha 360 OS' "$body"
+          grep -Eq 'name="c360-release" content="[0-9]+\.[0-9]+\.[0-9]+"' "$body"
+          asset="$(grep -Eo 'src="/assets/index-[^"]+\.js"' "$body" | head -1 | cut -d'"' -f2)"
+          test -n "$asset"
+          bundle="$(mktemp)"
+          test "$(curl --fail-with-body --silent --show-error --output "$bundle" --write-out '%{http_code}' "$WEB_URL$asset")" = "200"
+          grep -Fq 'cozinha360-api-v2' "$bundle"
           grep -Eiq '^x-content-type-options: *nosniff' "$headers"
           grep -Eiq '^x-frame-options: *DENY' "$headers"
           grep -Eiq '^referrer-policy: *strict-origin-when-cross-origin' "$headers"

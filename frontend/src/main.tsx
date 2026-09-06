@@ -19,6 +19,7 @@ import { CashEngineRoute } from './cash-engine'
 import { ConnectionsHubRoute } from './connections-hub'
 import { SubscriptionStatusRoute } from './subscription-status'
 import { Autopilot360Route } from './autopilot-360'
+import { SessionAwareControls } from './operator-launcher-v38'
 import { prepareOperatingMemory } from './operating-memory'
 import './styles.css'
 import './market.css'
@@ -53,6 +54,7 @@ import './subscription-status.css'
 import './subscription-nav.css'
 import './autopilot-360.css'
 import './dock-v37.css'
+import './operator-launcher-v38.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -97,26 +99,7 @@ function Root(){
     <TabHashBridge/>
     <KitchenAlerts/>
     <InventoryStockEditor/>
-    <a className="account-helper-link" href="/?forgot=1">Esqueci minha senha</a>
-    <div className="command-dock" aria-label="Ações rápidas">
-      <span className="command-dock-label">AÇÕES</span>
-      <a className="command-link autopilot" href="/?autopilot=1">Autopilot 360</a>
-      <a className="command-link system360" href="/?system360=1">Sistema 360</a>
-      <a className="command-link cash" href="/?cash=1">Cash & Margin</a>
-      <a className="command-link connections" href="/?connections=1">Conexões</a>
-      <a className="command-link plan" href="/?plan=1">Plano & acesso</a>
-      <a className="command-link control" href="/?control=1">Control Tower</a>
-      <a className="command-link execution" href="/?execution=1">Execution Hub</a>
-      <a className="command-link lab" href="/?playbook=1">Laboratório 360</a>
-      <a className="command-link vitrine" href="/?vitrine=1">Vitrine Studio</a>
-      <a className="command-link growth" href="/?growth=1">Growth Lab</a>
-      <a className="command-link kitchen" href="/?kitchen=1">Modo cozinha</a>
-      <a className="command-link crm" href="/?crm=1">CRM de recompra</a>
-      <a className="command-link margin" href="/?margin=1">Margens & canais</a>
-      <a className="command-link direct" href="/?direct=1">Venda direta</a>
-      <a className="command-link security" href="/?security=1">Segurança</a>
-      <a className="command-link primary" href="/?quick=1">+ Pedido rápido</a>
-    </div>
+    <SessionAwareControls/>
   </>
 }
 
