@@ -1,0 +1,44 @@
+name: one-time-v422-multibrand-safety
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-v422-multibrand-safety.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make Setup 360 refuse ambiguous multi-brand auto binding
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p=Path('frontend/src/integration-setup-v42.tsx')
+          s=p.read_text()
+
+          anchor=" async function saveRoute(){await mutate('route','PUT',{route_mode:routeMode,route_provider:routeMode==='manual'?'manual':routeProvider,customer_tracking_enabled:tracking,whatsapp_status_updates:whatsappStatus},routeMode==='manual'?'Roteamento manual salvo. Nenhuma API de mapas será cobrada.':'Configuração de logística salva.')}\n"
+          replacement=anchor+" async function autoConfigure(){if(!businessId)return;setBusy('auto-configure');setError('');setNotice('');try{const r=await sreq(`/businesses/${businessId}/auto-configure`,token,{method:'POST',body:JSON.stringify({})});if(r.requires_review)setNotice('Operação multi-marca detectada. O 360 não distribuiu contas automaticamente para evitar pedidos, pagamentos ou clientes na marca errada. Escolha abaixo qual conta atende cada marca.');else if(Number(r.created_count||0)>0)setNotice(`${r.created_count} ${Number(r.created_count)===1?'vínculo configurado':'vínculos configurados'} automaticamente com segurança.`);else setNotice('Tudo que pode ser configurado automaticamente já está organizado.');await load(businessId)}catch(e){setError(e instanceof Error?e.message:'Não foi possível configurar automaticamente.')}finally{setBusy('')}}\n"
+          if anchor not in s:
+              raise SystemExit('saveRoute anchor not found')
+          s=s.replace(anchor,replacement,1)
+
+          old="<p>O 360 vincula iFood, WhatsApp e Mercado Pago ativos às marcas atuais. Não ativa sincronização de preços, aceite automático, emissão fiscal nem mapa sem sua escolha.</p></div><button disabled={Boolean(busy)||!bindable.length||!data.brands.length} onClick={()=>void mutate('auto-configure','POST',{},'Conexões ativas distribuídas entre as marcas.')}><Sparkles size={17}/>{busy==='auto-configure'?'Configurando…':'Configurar automaticamente'}</button>"
+          new="<p>Com uma única marca, o 360 liga iFood, WhatsApp e Mercado Pago ativos automaticamente. Em operações multi-marca ele não adivinha: você escolhe abaixo qual conta atende cada marca, evitando pedidos e pagamentos no negócio errado.</p></div><button disabled={Boolean(busy)||!bindable.length||!data.brands.length} onClick={()=>void autoConfigure()}><Sparkles size={17}/>{busy==='auto-configure'?'Configurando…':'Configurar automaticamente'}</button>"
+          if old not in s:
+              raise SystemExit('auto-configure callout anchor not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+      - name: Commit safe multi-brand UI
+        run: |
+          git config user.name 'cozinha360-release-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add frontend/src/integration-setup-v42.tsx
+          git commit -m 'Prevent ambiguous multi-brand auto binding in Setup 360 UI'
+          git push origin HEAD:main
