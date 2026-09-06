@@ -65,13 +65,31 @@ jobs:
         run: |
           npx --yes netlify-cli@27.5.0 deploy \
             --dir=dist \
+            --no-build \
             --allow-anonymous \
             --json > /tmp/netlify-canary.json
           node <<'NODE'
           const fs=require('fs')
           const x=JSON.parse(fs.readFileSync('/tmp/netlify-canary.json','utf8'))
-          const url=x.deploy_url||x.deployUrl||x.url
-          if(!url)throw new Error('Netlify anonymous deploy did not return a URL')
+          const seen=new Set()
+          const urls=[]
+          const walk=(v)=>{
+            if(v===null||v===undefined)return
+            if(typeof v==='string'){
+              if(/^https:\/\/[^\s/]+\.netlify\.app(?:\/.*)?$/i.test(v))urls.push(v)
+              return
+            }
+            if(typeof v!=='object'||seen.has(v))return
+            seen.add(v)
+            for(const value of Object.values(v))walk(value)
+          }
+          walk(x)
+          const preferred=[x.deploy_url,x.deployUrl,x.url,x.site_url,x.siteUrl].find(v=>typeof v==='string'&&v.includes('.netlify.app'))
+          const url=preferred||urls[0]
+          if(!url){
+            console.error('Anonymous deploy JSON keys:',Object.keys(x).sort().join(','))
+            throw new Error('Netlify anonymous deploy returned no public netlify.app URL')
+          }
           fs.appendFileSync(process.env.GITHUB_OUTPUT,`url=${url}\n`)
           console.log(`Canary URL: ${url}`)
           NODE
