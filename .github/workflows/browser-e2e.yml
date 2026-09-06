@@ -75,6 +75,9 @@ jobs:
       - name: Run entitlement journey
         run: node frontend/e2e/entitlements.mjs
 
+      - name: Run Autopilot 360 journey
+        run: node frontend/e2e/autopilot-360.mjs
+
       - name: Upload E2E evidence and logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -97,5 +100,7 @@ jobs:
             /tmp/cozinha360-connections-hub-failure.png
             /tmp/cozinha360-entitlements.png
             /tmp/cozinha360-entitlements-failure.png
+            /tmp/cozinha360-autopilot-360.png
+            /tmp/cozinha360-autopilot-360-failure.png
             /tmp/cozinha360-api.log
             /tmp/cozinha360-web.log

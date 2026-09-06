@@ -1,0 +1,12 @@
+@media (min-width:901px){
+  .app-shell .workspace{padding-right:212px!important}
+  .app-shell .workspace>header{margin-right:-212px!important;padding-right:212px!important}
+  .command-dock{right:14px!important;bottom:14px!important;width:178px!important;max-height:calc(100vh - 88px)!important;overflow-y:auto!important;overscroll-behavior:contain;scrollbar-width:thin;box-shadow:0 18px 50px rgba(0,0,0,.32)}
+  .command-dock::-webkit-scrollbar{width:5px}
+  .command-dock::-webkit-scrollbar-thumb{background:#3b4148;border-radius:999px}
+}
+@media (min-width:901px) and (max-width:1050px){
+  .app-shell .workspace{padding-left:18px!important;padding-right:194px!important}
+  .app-shell .workspace>header{margin-left:-18px!important;margin-right:-194px!important;padding-left:18px!important;padding-right:194px!important}
+  .command-dock{width:164px!important}
+}

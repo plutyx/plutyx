@@ -30,6 +30,7 @@ jobs:
       VITE_INTEGRATIONS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-integrations-v29
       VITE_PROFILE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-profile-v31
       VITE_ENTITLEMENTS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-entitlements-v34
+      VITE_AUTOPILOT_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-autopilot-v37
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -67,6 +68,10 @@ jobs:
           fi
           echo "value=$release" >> "$GITHUB_OUTPUT"
           echo "Deploying Cozinha 360 release $release from $GITHUB_SHA"
+
+      - name: Verify Autopilot production endpoint is bundled
+        working-directory: frontend
+        run: grep -R -F 'cozinha360-autopilot-v37' dist/assets/*.js >/dev/null
 
       - name: Deploy prebuilt bundle to production
         working-directory: frontend
