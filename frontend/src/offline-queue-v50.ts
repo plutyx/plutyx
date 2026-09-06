@@ -1,3 +1,5 @@
+import{INTELLIGENCE_API}from'./intelligence-api-v50'
+
 export type CachedBusiness={id:number;name:string;city?:string;role?:string}
 export type CachedProduct={id:number;name:string;category?:string;active:boolean}
 export type CachedCostPreview={product_id:number;product_name:string;ingredients_cents:number;packaging_cents:number;energy_cents:number;labor_cents:number;direct_cost_per_unit_cents:number;method:string}
@@ -7,7 +9,6 @@ export type OfflineQuickOrder={
  preview_total_cents:number;preview_contribution_cents:number;payload:OfflineQuickPayload
 }
 
-const API=import.meta.env.VITE_API_URL||'/api'
 const QUEUE_KEY='c360-offline-orders-v50'
 const BUSINESSES_KEY='c360-offline-businesses-v50'
 const CACHE_PREFIX='c360-offline-catalog-v50'
@@ -55,7 +56,7 @@ export async function flushOfflineOrders(token:string):Promise<FlushResult>{
  for(const item of [...rows]){
   if(item.state!=='pending')continue
   try{
-   const response=await fetch(`${API}/businesses/${item.business_id}/orders/quick`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(item.payload)})
+   const response=await fetch(`${INTELLIGENCE_API}/businesses/${item.business_id}/orders/quick`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(item.payload)})
    const body=await response.json().catch(()=>({detail:'Resposta inválida'}))
    if(response.ok){rows=rows.filter(x=>x.id!==item.id);synced+=1;writeQueue(rows);continue}
    if(response.status===401||response.status===403){authRequired=true;stopped=body.detail||'Entre novamente para sincronizar';rows=rows.map(x=>x.id===item.id?{...x,attempts:x.attempts+1,last_error:stopped}:x);writeQueue(rows);break}
