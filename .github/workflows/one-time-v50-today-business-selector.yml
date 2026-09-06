@@ -15,24 +15,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Honor an authorized business_id in Today briefing
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
           p=Path('frontend/src/today-attention-v39.tsx')
           s=p.read_text()
           old="""      const me=await request('/me',{},token)
-      const businessId=Number(me.businesses?.[0]?.id||0)
-      if(!businessId){window.location.replace('/');return}
-"""
+                const businessId=Number(me.businesses?.[0]?.id||0)
+                if(!businessId){window.location.replace('/');return}
+          """
           new="""      const me=await request('/me',{},token)
-      const requestedBusinessId=Number(new URLSearchParams(window.location.search).get('business_id')||0)
-      const requestedAllowed=requestedBusinessId>0&&(me.businesses||[]).some((business:{id:number})=>Number(business.id)===requestedBusinessId)
-      const businessId=requestedAllowed?requestedBusinessId:Number(me.businesses?.[0]?.id||0)
-      if(!businessId){window.location.replace('/');return}
-"""
+                const requestedBusinessId=Number(new URLSearchParams(window.location.search).get('business_id')||0)
+                const requestedAllowed=requestedBusinessId>0&&(me.businesses||[]).some((business:{id:number})=>Number(business.id)===requestedBusinessId)
+                const businessId=requestedAllowed?requestedBusinessId:Number(me.businesses?.[0]?.id||0)
+                if(!businessId){window.location.replace('/');return}
+          """
           if old not in s:
-              raise SystemExit('Today business selector anchor not found')
-          p.write_text(s.replace(old,new,1))
+              old="""      const me=await request('/me',{},token)
+                const businessId=Number(me.businesses?.[0]?.id||0)
+                if(!businessId){location.replace('/');return}
+          """
+              new=new.replace("window.location.replace('/')","location.replace('/')")
+          if old not in s:
+              import re
+              pattern=r"(\s*const me=await request\('/me',\{\},token\)\s*\n\s*)const businessId=Number\(me\.businesses\?\.\[0\]\?\.id\|\|0\)"
+              replacement=r"\1const requestedBusinessId=Number(new URLSearchParams(window.location.search).get('business_id')||0)\n      const requestedAllowed=requestedBusinessId>0&&(me.businesses||[]).some((business:{id:number})=>Number(business.id)===requestedBusinessId)\n      const businessId=requestedAllowed?requestedBusinessId:Number(me.businesses?.[0]?.id||0)"
+              s2,n=re.subn(pattern,replacement,s,count=1)
+              if n!=1:
+                  raise SystemExit('Today business selector anchor not found')
+              s=s2
+          else:
+              s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
       - name: Commit Network 360 drilldown safety
         shell: bash
         run: |
