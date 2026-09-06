@@ -18,6 +18,7 @@ import { ExecutionHubRoute } from './execution-hub'
 import { CashEngineRoute } from './cash-engine'
 import { ConnectionsHubRoute } from './connections-hub'
 import { SubscriptionStatusRoute } from './subscription-status'
+import { Autopilot360Route } from './autopilot-360'
 import { prepareOperatingMemory } from './operating-memory'
 import './styles.css'
 import './market.css'
@@ -50,6 +51,7 @@ import './cash-nav.css'
 import './connections-hub.css'
 import './subscription-status.css'
 import './subscription-nav.css'
+import './autopilot-360.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -88,6 +90,7 @@ function Root(){
   if(params.get('cash')==='1')return <><CashEngineRoute/><KitchenAlerts/></>
   if(params.get('connections')==='1')return <><ConnectionsHubRoute/><KitchenAlerts/></>
   if(params.get('plan')==='1')return <SubscriptionStatusRoute/>
+  if(params.get('autopilot')==='1')return <><Autopilot360Route/><KitchenAlerts/></>
   return <>
     <App/>
     <TabHashBridge/>
@@ -96,6 +99,7 @@ function Root(){
     <a className="account-helper-link" href="/?forgot=1">Esqueci minha senha</a>
     <div className="command-dock" aria-label="Ações rápidas">
       <span className="command-dock-label">AÇÕES</span>
+      <a className="command-link autopilot" href="/?autopilot=1">Autopilot 360</a>
       <a className="command-link system360" href="/?system360=1">Sistema 360</a>
       <a className="command-link cash" href="/?cash=1">Cash & Margin</a>
       <a className="command-link connections" href="/?connections=1">Conexões</a>
