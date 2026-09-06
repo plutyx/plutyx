@@ -1,14 +1,15 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react'
 import {
   BarChart3,BookOpen,Boxes,ChefHat,CircleDollarSign,Command,LayoutDashboard,
-  Network,Plus,Search,ShieldCheck,ShoppingBag,SlidersHorizontal,
-  Sparkles,Store,Sun,Users,WalletCards,X
+  Network,Plus,Search,ShieldCheck,ShoppingBag,SlidersHorizontal,Sparkles,Store,
+  Sun,Truck,Users,WalletCards,X
 } from 'lucide-react'
 
 type Action={label:string;href:string;group:'Operar'|'Controlar'|'Crescer'|'Administrar';description:string;keywords:string;icon:React.ElementType}
 
 const actions:Action[]=[
   {label:'Hoje',href:'/?today=1',group:'Operar',description:'prioridades, alertas e sequência de decisões do dia',keywords:'hoje atenção prioridade briefing decisão alertas',icon:Sun},
+  {label:'Delivery 360',href:'/?delivery=1',group:'Operar',description:'marcas, fila, entregadores, zonas e canais do delivery',keywords:'delivery dark kitchen marcas entregador zona despacho canais',icon:Truck},
   {label:'Sistema 360',href:'/?system360=1',group:'Operar',description:'diagnóstico, motores e marco dos 30 pedidos',keywords:'sistema operação diagnóstico 30 pedidos',icon:LayoutDashboard},
   {label:'Modo cozinha',href:'/?kitchen=1',group:'Operar',description:'fila, preparo, componentes e estoque projetado',keywords:'cozinha kds produção preparo componentes',icon:ChefHat},
   {label:'Execution Hub',href:'/?execution=1',group:'Operar',description:'execução de 72h, compras e checklists',keywords:'execução checklist compras 72h',icon:Boxes},
@@ -84,7 +85,7 @@ function OperatorLauncher(){
           <div><span className="operator-launcher-kicker">COZINHA 360 · COMANDO</span><h2>O que você precisa fazer agora?</h2></div>
           <button type="button" className="operator-launcher-close" onClick={()=>setOpen(false)} aria-label="Fechar launcher"><X size={18}/></button>
         </header>
-        <label className="operator-launcher-search"><Search size={18}/><input ref={inputRef} value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar caixa, CRM, cozinha, segurança…" aria-label="Buscar função"/><span>ESC</span></label>
+        <label className="operator-launcher-search"><Search size={18}/><input ref={inputRef} value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar delivery, caixa, CRM, cozinha, segurança…" aria-label="Buscar função"/><span>ESC</span></label>
         <div className="operator-launcher-groups">
           {groups.map(section=><div className="operator-launcher-group" key={section.group}><h3>{section.group}</h3><div className="operator-launcher-list">{section.items.map(item=>{const Icon=item.icon;return <a key={item.href} href={item.href} className="operator-launcher-item"><span className="operator-launcher-icon"><Icon size={18}/></span><span><b>{item.label}</b><small>{item.description}</small></span></a>})}</div></div>)}
           {!filtered.length&&<div className="operator-launcher-empty">Nenhuma função encontrada. Tente outro termo.</div>}
