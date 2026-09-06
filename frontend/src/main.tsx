@@ -23,6 +23,7 @@ import { Autopilot360Route } from './autopilot-360'
 import { SessionAwareControls } from './operator-launcher-v38'
 import { TodayAttentionRoute } from './today-attention-v39'
 import { DeliveryOSMarketRoute } from './delivery-os-market-v40'
+import { OfflineQueueStatus } from './offline-status-v50'
 import { prepareOperatingMemory } from './operating-memory'
 import './styles.css'
 import './market.css'
@@ -62,6 +63,7 @@ import './operator-launcher-v38.css'
 import './today-attention-v39.css'
 import './delivery-os-v40.css'
 import './delivery-os-market-v40.css'
+import './offline-status-v50.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -79,7 +81,7 @@ function TabHashBridge(){
   },[])
   return null
 }
-function OperatorRoute({children,alerts=true}:{children:React.ReactNode;alerts?:boolean}){return <>{children}{alerts&&<KitchenAlerts/>}<SessionAwareControls/></>}
+function OperatorRoute({children,alerts=true}:{children:React.ReactNode;alerts?:boolean}){return <>{children}{alerts&&<KitchenAlerts/>}<SessionAwareControls/><OfflineQueueStatus/></>}
 function Root(){
   const params=new URLSearchParams(window.location.search)
   const hasAccountRoute=Boolean(params.get('reset_token')||params.get('verify_token')||params.get('forgot')==='1'||params.get('security')==='1')
@@ -105,7 +107,8 @@ function Root(){
   if(params.get('connections')==='1')return <OperatorRoute><><ConnectionsHubRoute/><IntegrationSetupLauncher/></></OperatorRoute>
   if(params.get('plan')==='1')return <OperatorRoute alerts={false}><SubscriptionStatusRoute/></OperatorRoute>
   if(params.get('autopilot')==='1')return <OperatorRoute><Autopilot360Route/></OperatorRoute>
-  return <><App/><TabHashBridge/><KitchenAlerts/><InventoryStockEditor/><SessionAwareControls/></>
+  return <><App/><TabHashBridge/><KitchenAlerts/><InventoryStockEditor/><SessionAwareControls/><OfflineQueueStatus/></>
 }
-async function boot(){await prepareOperatingMemory();createRoot(document.getElementById('root')!).render(<React.StrictMode><Root /></React.StrictMode>)}
+function registerServiceWorker(){if(!('serviceWorker'in navigator)||!import.meta.env.PROD)return;window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{})},{once:true})}
+async function boot(){registerServiceWorker();await prepareOperatingMemory();createRoot(document.getElementById('root')!).render(<React.StrictMode><Root /></React.StrictMode>)}
 void boot()
