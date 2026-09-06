@@ -7,36 +7,30 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/public-release-sync.yml'
-  workflow_run:
-    workflows: ['netlify-production-deploy']
-    types: [completed]
-    branches: [main]
 
 jobs:
   release-identity:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      WEB_URL: https://cozinha-360-os.netlify.app
-      EXPECTED_RELEASE: '4.0.0'
+      WEB_URL: https://cozinha-360-os-v41.onrender.com
+      EXPECTED_RELEASE: '4.2.0'
     steps:
-      - name: Fetch public frontend
+      - name: Wait for public frontend
         run: |
-          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$WEB_URL/" -o /tmp/public-index.html
-          test -s /tmp/public-index.html
-      - name: Verify public release identity
-        run: |
-          marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
-          if ! grep -F "$marker" /tmp/public-index.html >/dev/null; then
-            echo "::error title=Public frontend is stale::Expected Cozinha 360 release $EXPECTED_RELEASE on $WEB_URL, but the public HTML does not carry that release marker. Deploy the latest frontend bundle before calling public production synchronized."
-            exit 1
-          fi
+          for i in $(seq 1 30); do
+            if curl --fail --silent --show-error --location "$WEB_URL/" -o /tmp/public-index.html; then
+              marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
+              if grep -F "$marker" /tmp/public-index.html >/dev/null; then
+                exit 0
+              fi
+            fi
+            sleep 4
+          done
+          echo "::error title=Public frontend is stale::Expected Cozinha 360 release $EXPECTED_RELEASE on $WEB_URL."
+          exit 1
       - name: Verify Vite production assets are referenced
         run: |
-          if ! grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null; then
-            echo "::error title=Unexpected public bundle::Release marker is present but the public HTML does not reference a Vite production JavaScript asset."
-            exit 1
-          fi
+          grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null
       - name: Public release is synchronized
-        run: echo "Public frontend matches release $EXPECTED_RELEASE."
+        run: echo "Public frontend matches release $EXPECTED_RELEASE on $WEB_URL."
