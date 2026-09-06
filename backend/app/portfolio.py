@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -20,6 +20,25 @@ def _pct(value: float) -> float:
 
 def _signal(score: int, code: str, tone: str, title: str, detail: str) -> dict:
     return {"score": score, "code": code, "tone": tone, "title": title, "detail": detail}
+
+
+def _compatible_now(value: datetime | None) -> datetime:
+    now = utcnow()
+    if value is not None and value.tzinfo is None:
+        return now.replace(tzinfo=None)
+    return now
+
+
+def _recent(value: datetime | None, days: int = 30) -> bool:
+    if value is None:
+        return False
+    return value >= _compatible_now(value) - timedelta(days=days)
+
+
+def _age_minutes(value: datetime | None) -> int:
+    if value is None:
+        return 0
+    return max(0, int((_compatible_now(value) - value).total_seconds() // 60))
 
 
 @router.get("/portfolio/overview")
@@ -53,7 +72,6 @@ def portfolio_overview(
         }
 
     business_ids = [business.id for _, business in memberships]
-    cutoff = utcnow() - timedelta(days=30)
     orders = db.scalars(select(Order).where(Order.business_id.in_(business_ids))).all()
     ingredients = db.scalars(
         select(Ingredient).where(
@@ -72,11 +90,7 @@ def portfolio_overview(
     rows: list[dict] = []
     for membership, business in memberships:
         all_orders = orders_by_business.get(business.id, [])
-        paid = [
-            order
-            for order in all_orders
-            if order.paid and order.created_at and order.created_at >= cutoff
-        ]
+        paid = [order for order in all_orders if order.paid and _recent(order.created_at)]
         open_orders = [
             order for order in all_orders if order.status not in ("completed", "cancelled")
         ]
@@ -97,7 +111,7 @@ def portfolio_overview(
         if contribution < 0 and order_count:
             signals.append(_signal(100, "negative_contribution", "critical", "Contribuição negativa", "Não acelere aquisição antes de corrigir preço, custo ou mix."))
         if delayed_open:
-            oldest = max((int((utcnow() - order.created_at).total_seconds() // 60) if order.created_at else 0) for order in delayed_open)
+            oldest = max(_age_minutes(order.created_at) for order in delayed_open)
             signals.append(_signal(96, "delayed_open", "critical", f"{len(delayed_open)} pedido(s) atrasado(s)", f"O mais antigo está aberto há aproximadamente {oldest} min."))
         if stock_alerts:
             signals.append(_signal(90, "stock", "critical", f"{len(stock_alerts)} item(ns) abaixo do mínimo", "Há risco de ruptura ou substituição na produção."))
