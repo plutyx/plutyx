@@ -18,7 +18,10 @@ try{
 
   const primaryLinks=page.locator('.operator-rail > a')
   if(await primaryLinks.count()!==4)throw new Error(`expected 4 persistent actions, got ${await primaryLinks.count()}`)
-  for(const label of ['Autopilot','Pedido','Cozinha','Caixa'])await page.getByRole('link',{name:label,exact:true}).waitFor()
+  await page.getByRole('link',{name:'Autopilot',exact:true}).waitFor()
+  await page.getByRole('link',{name:'+ Pedido rápido',exact:true}).waitFor()
+  await page.getByRole('link',{name:'Cozinha',exact:true}).waitFor()
+  await page.getByRole('link',{name:'Caixa',exact:true}).waitFor()
 
   await page.keyboard.press('Control+k')
   const dialog=page.getByRole('dialog',{name:'Launcher do Cozinha 360'})
