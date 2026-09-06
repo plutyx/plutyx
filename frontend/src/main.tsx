@@ -17,6 +17,7 @@ import { ControlTowerRoute } from './control-tower'
 import { ExecutionHubRoute } from './execution-hub'
 import { CashEngineRoute } from './cash-engine'
 import { ConnectionsHubRoute } from './connections-hub'
+import { SubscriptionStatusRoute } from './subscription-status'
 import { prepareOperatingMemory } from './operating-memory'
 import './styles.css'
 import './market.css'
@@ -47,6 +48,8 @@ import './execution-nav.css'
 import './cash-engine.css'
 import './cash-nav.css'
 import './connections-hub.css'
+import './subscription-status.css'
+import './subscription-nav.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -84,6 +87,7 @@ function Root(){
   if(params.get('execution')==='1')return <><ExecutionHubRoute/><KitchenAlerts/></>
   if(params.get('cash')==='1')return <><CashEngineRoute/><KitchenAlerts/></>
   if(params.get('connections')==='1')return <><ConnectionsHubRoute/><KitchenAlerts/></>
+  if(params.get('plan')==='1')return <SubscriptionStatusRoute/>
   return <>
     <App/>
     <TabHashBridge/>
@@ -95,6 +99,7 @@ function Root(){
       <a className="command-link system360" href="/?system360=1">Sistema 360</a>
       <a className="command-link cash" href="/?cash=1">Cash & Margin</a>
       <a className="command-link connections" href="/?connections=1">Conexões</a>
+      <a className="command-link plan" href="/?plan=1">Plano & acesso</a>
       <a className="command-link control" href="/?control=1">Control Tower</a>
       <a className="command-link execution" href="/?execution=1">Execution Hub</a>
       <a className="command-link lab" href="/?playbook=1">Laboratório 360</a>

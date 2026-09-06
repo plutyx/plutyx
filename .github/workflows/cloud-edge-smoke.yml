@@ -19,6 +19,7 @@ jobs:
     env:
       EDGE_BASE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
       PROFILE_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-profile-v31
+      ENTITLEMENTS_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-entitlements-v34
     steps:
       - name: Liveness
         run: |
@@ -46,3 +47,16 @@ jobs:
           status="$(curl --silent --output /tmp/profile-auth.json --write-out '%{http_code}' "$PROFILE_EDGE/businesses/1/profile")"
           test "$status" = "401"
           python -c 'import json; x=json.load(open("/tmp/profile-auth.json")); assert x.get("detail")=="Sessão inválida"'
+      - name: Entitlement service is live
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$ENTITLEMENTS_EDGE/livez")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-entitlements-v34" and x["version"]=="3.4.0"' "$body"
+      - name: Entitlement database and event ledger are ready
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$ENTITLEMENTS_EDGE/readyz")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["database"]=="ready" and x["event_ledger"]=="ready"' "$body"
+      - name: Entitlement tenant route requires auth
+        run: |
+          status="$(curl --silent --output /tmp/entitlements-auth.json --write-out '%{http_code}' "$ENTITLEMENTS_EDGE/businesses/1/entitlements")"
+          test "$status" = "401"
+          python -c 'import json; x=json.load(open("/tmp/entitlements-auth.json")); assert x.get("detail")=="Sessão inválida"'
