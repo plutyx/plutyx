@@ -1,0 +1,73 @@
+import { chromium } from 'playwright'
+
+const browser=await chromium.launch({headless:true})
+const context=await browser.newContext({viewport:{width:1440,height:1200}})
+const page=await context.newPage()
+await page.addInitScript(()=>localStorage.setItem('c360_token','purchases-v51-token'))
+const json=body=>({status:200,contentType:'application/json',body:JSON.stringify(body)})
+let purchasePosted=false,postCalls=0
+
+const me={user:{id:1,email:'compras@example.com',full_name:'Operador Compras'},businesses:[{id:1,name:'Cozinha Compras',city:'Mogi das Cruzes',role:'owner',preferences:{}}]}
+const ingredients=[
+ {id:11,name:'Frango',unit:'g',on_hand_milliunits:0,par_level_milliunits:2000,reorder_target_milliunits:5000,last_purchase_price_cents:5800,last_purchase_qty_milliunits:5000,usable_qty_milliunits:5000,version:3},
+ {id:12,name:'Tortilha',unit:'un',on_hand_milliunits:10,par_level_milliunits:20,reorder_target_milliunits:50,last_purchase_price_cents:2500,last_purchase_qty_milliunits:50,usable_qty_milliunits:50,version:2},
+]
+const plan=()=>({generated_at:'2026-09-06T19:15:00Z',method:'reorder_target_minus_on_hand',summary:{items_to_buy:purchasePosted?1:2,critical:purchasePosted?0:1,estimated_landed_cents:purchasePosted?2000:7800,missing_cost_reference:0},items:purchasePosted?[
+ {ingredient_id:12,name:'Tortilha',unit:'un',on_hand_milliunits:10,par_level_milliunits:20,reorder_target_milliunits:50,suggested_purchase_milliunits:40,last_purchase_price_cents:2500,last_purchase_qty_milliunits:50,estimated_landed_cents:2000,cost_confidence:'reference',tone:'warning'},
+]:[
+ {ingredient_id:11,name:'Frango',unit:'g',on_hand_milliunits:0,par_level_milliunits:2000,reorder_target_milliunits:5000,suggested_purchase_milliunits:5000,last_purchase_price_cents:5800,last_purchase_qty_milliunits:5000,estimated_landed_cents:5800,cost_confidence:'reference',tone:'critical'},
+ {ingredient_id:12,name:'Tortilha',unit:'un',on_hand_milliunits:10,par_level_milliunits:20,reorder_target_milliunits:50,suggested_purchase_milliunits:40,last_purchase_price_cents:2500,last_purchase_qty_milliunits:50,estimated_landed_cents:2000,cost_confidence:'reference',tone:'warning'},
+],safety_note:'Estimativas usam apenas o último custo registrado e não substituem cotação do fornecedor. A compra só altera estoque depois de confirmação explícita do usuário.'})
+const history=()=>({generated_at:'2026-09-06T19:15:00Z',rows:[
+ ...(purchasePosted?[{id:102,ingredient_id:11,ingredient_name:'Frango',unit:'g',supplier_name:'',quantity_milliunits:5000,total_cents:6000,freight_cents:500,tax_cents:0,landed_cents:6500,landed_per_1000_cents:1300,previous_landed_per_1000_cents:1160,change_bps:1207,created_at:'2026-09-06T19:15:00Z'}]:[]),
+ {id:101,ingredient_id:11,ingredient_name:'Frango',unit:'g',supplier_name:'Distribuidor A',quantity_milliunits:5000,total_cents:5800,freight_cents:0,tax_cents:0,landed_cents:5800,landed_per_1000_cents:1160,previous_landed_per_1000_cents:1050,change_bps:1048,created_at:'2026-09-01T10:00:00Z'},
+]})
+
+await page.route('**/api/me',route=>route.fulfill(json(me)))
+await page.route('**/api/businesses/1/ingredients',route=>route.fulfill(json(ingredients)))
+await page.route('**/api/businesses/1/purchase-plan',route=>route.fulfill(json(plan())))
+await page.route('**/api/businesses/1/purchases?limit=40',route=>route.fulfill(json(history())))
+await page.route('**/api/businesses/1/purchases',async route=>{
+ if(route.request().method()!=='POST')return route.continue()
+ postCalls+=1
+ const payload=route.request().postDataJSON()
+ if(payload.ingredient_id!==11||payload.quantity_milliunits!==5000||payload.total_cents!==6000||payload.freight_cents!==500)throw new Error(`unexpected purchase payload ${JSON.stringify(payload)}`)
+ purchasePosted=true
+ await route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({id:102,ingredient_id:11,old_reference_cents:5800,new_reference_cents:6500,increase_bps:1200,price_alert:true,on_hand_milliunits:5000,idempotency_key:payload.idempotency_key})})
+})
+
+try{
+ await page.goto('http://127.0.0.1:5173/?purchases=1',{waitUntil:'networkidle'})
+ const heading=page.getByRole('heading',{name:'Compre pelo alvo. Não pelo susto.',exact:true})
+ await heading.waitFor({timeout:15000})
+ const heroBox=await heading.boundingBox();if(!heroBox||heroBox.y>260)throw new Error(`Compras 360 hero below fold: ${JSON.stringify(heroBox)}`)
+ const statusBox=await page.locator('.buy51-hero aside').boundingBox();if(!statusBox||statusBox.height>240)throw new Error(`Compras 360 status card oversized: ${JSON.stringify(statusBox)}`)
+ await page.getByText('2', {exact:true}).first().waitFor()
+ await page.getByText('Frango',{exact:true}).first().waitFor()
+ await page.getByText('SEM ESTOQUE',{exact:true}).waitFor()
+ if(postCalls!==0)throw new Error('purchase must never happen before explicit confirmation')
+
+ const frango=page.locator('.buy51-plan-row').filter({hasText:'Frango'})
+ await frango.getByRole('button',{name:'Preparar',exact:true}).click()
+ await page.getByLabel('Quantidade').waitFor()
+ if(await page.getByLabel('Quantidade').inputValue()!=='5000')throw new Error('recommended quantity was not transferred to confirmation form')
+ await page.getByLabel('Valor dos itens').fill('60.00')
+ await page.getByLabel('Frete').fill('5.00')
+ await page.getByLabel('Tributos/outros').fill('0')
+ await page.getByText('R$ 65,00',{exact:true}).waitFor()
+ await page.getByRole('button',{name:'Confirmar compra e dar entrada no estoque',exact:true}).click()
+ await page.getByText(/referência de custo subiu 12/).waitFor()
+ if(postCalls!==1)throw new Error(`expected exactly one confirmed purchase, got ${postCalls}`)
+ await page.getByText('1',{exact:true}).first().waitFor()
+ await page.locator('.buy51-history-row').filter({hasText:'R$ 65,00'}).waitFor()
+ await page.screenshot({path:'/tmp/cozinha360-purchases-v51.png',fullPage:true})
+
+ await page.setViewportSize({width:390,height:844})
+ await heading.scrollIntoViewIfNeeded()
+ const mobileHeading=await heading.boundingBox();if(!mobileHeading||mobileHeading.width>380)throw new Error(`Compras 360 mobile hero overflow: ${JSON.stringify(mobileHeading)}`)
+ await page.screenshot({path:'/tmp/cozinha360-purchases-v51-mobile.png',fullPage:true})
+ console.log('Compras 360 explicit-confirmation journey ok')
+}catch(error){
+ await page.screenshot({path:'/tmp/cozinha360-purchases-v51-failure.png',fullPage:true}).catch(()=>{})
+ console.error(error);process.exitCode=1
+}finally{await context.close();await browser.close()}
