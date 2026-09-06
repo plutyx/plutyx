@@ -18,7 +18,7 @@ try{
 
   const primaryLinks=page.locator('.operator-rail > a')
   if(await primaryLinks.count()!==4)throw new Error(`expected 4 persistent actions, got ${await primaryLinks.count()}`)
-  await page.getByRole('link',{name:'Autopilot',exact:true}).waitFor()
+  await page.getByRole('link',{name:'Hoje',exact:true}).waitFor()
   await page.getByRole('link',{name:'+ Pedido rápido',exact:true}).waitFor()
   await page.getByRole('link',{name:'Cozinha',exact:true}).waitFor()
   await page.getByRole('link',{name:'Caixa',exact:true}).waitFor()
@@ -33,6 +33,8 @@ try{
   await search.fill('crm')
   await dialog.getByRole('link',{name:/CRM de recompra/}).waitFor()
   if(await dialog.getByRole('link',{name:/Sistema 360/}).count())throw new Error('search must progressively disclose only matching actions')
+  await search.fill('autopilot')
+  await dialog.getByRole('link',{name:/Autopilot 360/}).waitFor()
   await page.keyboard.press('Escape')
   await dialog.waitFor({state:'detached'})
 
@@ -53,7 +55,7 @@ try{
   if(!panelBox||panelBox.y<100||panelBox.width<380)throw new Error(`mobile launcher is not presented as a bottom sheet: ${JSON.stringify(panelBox)}`)
   await page.screenshot({path:'/tmp/cozinha360-operator-launcher-v38-mobile.png',fullPage:true})
 
-  console.log('operator launcher v3.8 journey ok')
+  console.log('operator launcher journey ok after v3.9 today-first navigation')
 }catch(error){
   await page.screenshot({path:'/tmp/cozinha360-operator-launcher-v38-failure.png',fullPage:true}).catch(()=>{})
   console.error(error)
