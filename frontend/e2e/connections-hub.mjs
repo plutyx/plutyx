@@ -1,14 +1,26 @@
 import { chromium } from 'playwright'
 
 const browser=await chromium.launch({headless:true})
-const page=await browser.newPage({viewport:{width:1440,height:1100}})
+const page=await browser.newPage({viewport:{width:1440,height:1200}})
 await page.addInitScript(()=>localStorage.setItem('c360_token','browser-test-token'))
 const json=body=>({status:200,contentType:'application/json',body:JSON.stringify(body)})
 await page.route('**/api/me',route=>route.fulfill(json({user:{id:1,email:'cliente@example.com',full_name:'Cliente Real'},businesses:[{id:1,name:'Cozinha Cliente',city:'Mogi das Cruzes',role:'owner',preferences:{}}]})))
 await page.route('**/api/businesses/1/memory',route=>route.fulfill(json({business_id:1,states:{}})))
 let ifoodActive=false
 let testCalls=0
+let savedPlan=null
+let profile={business_id:1,order_source:'direct',use_mercadopago:true,use_google:true,use_meta_ads:false,configured_at:null,updated_by_user_id:null}
+const recommended=()=>[...(profile.order_source==='whatsapp'?['whatsapp']:profile.order_source==='ifood'?['ifood']:profile.order_source==='mixed'?['whatsapp','ifood']:[]),...(profile.use_mercadopago?['mercadopago']:[]),...(profile.use_google?['google']:[]),...(profile.use_meta_ads?['meta_ads']:[])]
 const provider=(key,name,category,connection=null)=>({key,name,category,impact:'Impacto operacional explicado em linguagem simples.',why:'Conexão segura sem copiar token para o navegador.',mode:key==='ifood'?'device_code':'oauth',eta:'~2 min',platform_ready:true,missing:[],optional_missing:[],connection})
+await page.route('**/cozinha360-profile-v31/**',async route=>{
+ const req=route.request(),path=new URL(req.url()).pathname,method=req.method()
+ if(path.endsWith('/businesses/1/profile')&&method==='GET')return route.fulfill(json({profile,recommended_order:recommended(),internal_order_ready:profile.order_source==='direct'}))
+ if(path.endsWith('/businesses/1/profile')&&method==='PUT'){
+   savedPlan=req.postDataJSON();profile={...profile,...savedPlan,configured_at:'2026-09-06T02:20:00Z',updated_by_user_id:1}
+   return route.fulfill(json({profile,recommended_order:recommended(),internal_order_ready:profile.order_source==='direct'}))
+ }
+ return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:`profile mock route not found: ${method} ${path}`})})
+})
 await page.route('**/cozinha360-integrations-v29/**',async route=>{
  const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method()
  if(path.endsWith('/businesses/1/integrations/ifood/start')&&method==='POST')return route.fulfill(json({action:'device_code',connection_id:7,user_code:'ABCD-EFGH',authorization_url:'https://example.com/ifood-portal',expires_in:600,next:'Cole o código'}))
@@ -21,17 +33,26 @@ await page.route('**/cozinha360-integrations-v29/**',async route=>{
    provider('ifood','iFood','Marketplace',ifoodActive?{id:7,provider:'ifood',external_account_ref:'m-1',display_name:'Loja iFood Teste',status:'active',last_success_at:'2026-09-05T22:10:00Z',last_error:null}:null),
    provider('meta_ads','Meta Ads','Aquisição')
  ]}))
- return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:`mock route not found: ${method} ${path}`})})
+ return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:`integration mock route not found: ${method} ${path}`})})
 })
 try{
  await page.goto('http://127.0.0.1:5173/?connections=1',{waitUntil:'networkidle'})
- await page.getByRole('heading',{name:'Conecte uma vez. O 360 cuida da saúde.',exact:true}).waitFor({timeout:15000})
- await page.getByText('1/5',{exact:true}).waitFor()
- await page.getByText('Pedido → Pagamento → Descoberta → Escala',{exact:true}).waitFor()
- await page.getByRole('heading',{name:'Próximo passo: WhatsApp Business',exact:true}).waitFor()
- await page.getByText('COMECE PELO CANAL DE PEDIDOS',{exact:true}).waitFor()
+ await page.getByRole('heading',{name:'Use o que faz sentido para sua cozinha.',exact:true}).waitFor({timeout:15000})
+ await page.getByText('CONFIGURE EM 30 SEGUNDOS',{exact:true}).waitFor()
+ await page.getByRole('heading',{name:'Como sua cozinha realmente vende?',exact:true}).waitFor()
+ await page.getByRole('button',{name:/WhatsApp Conversa/}).click()
+ await page.getByRole('button',{name:/Loja própria Pedidos/}).click()
+ await page.getByRole('button',{name:'Montar meu plano'}).click()
+ await page.getByText('Plano de conexões salvo. O Autopilot reorganizou os próximos passos.',{exact:true}).waitFor()
+ if(!savedPlan||savedPlan.order_source!=='direct'||savedPlan.use_mercadopago!==true||savedPlan.use_google!==true||savedPlan.use_meta_ads!==false)throw new Error(`unexpected saved plan ${JSON.stringify(savedPlan)}`)
+ await page.getByText('Loja própria do Cozinha 360',{exact:true}).waitFor()
+ await page.getByRole('heading',{name:'Próximo passo: Mercado Pago / Pix',exact:true}).waitFor()
+ await page.getByText('Loja própria — sem API externa',{exact:true}).first().waitFor()
+ await page.getByText('1/2',{exact:true}).waitFor()
  const google=page.locator('.cx-card').filter({hasText:'Google Business + Ads'})
  await google.getByText('ATIVO',{exact:true}).waitFor()
+ const whatsapp=page.locator('.cx-card').filter({hasText:'WhatsApp Business'})
+ if(await whatsapp.getByText('NO SEU PLANO',{exact:true}).count())throw new Error('WhatsApp should not be recommended for a direct-order customer')
  const ifood=page.locator('.cx-card').filter({hasText:'iFood'})
  await ifood.getByRole('button',{name:/Conectar/}).click()
  await page.getByRole('heading',{name:'Autorize no Portal do Parceiro e cole o código.',exact:true}).waitFor()
@@ -39,12 +60,11 @@ try{
  await page.getByLabel('Código de autorização').fill('WXYZ-1234')
  await page.getByRole('button',{name:'Concluir conexão'}).click()
  await page.getByText('iFood conectado. A operação já pode validar a conta.',{exact:true}).waitFor()
- await page.getByText('2/5',{exact:true}).waitFor()
  await page.getByRole('button',{name:'Testar conexões'}).click()
  await page.getByText('2/2 conexões validadas. Tudo saudável.',{exact:true}).waitFor()
  if(testCalls!==2)throw new Error(`expected 2 connection tests, got ${testCalls}`)
  await page.screenshot({path:'/tmp/cozinha360-connections-hub.png',fullPage:true})
- console.log('connections autopilot real-customer journey ok')
+ console.log('smart setup direct-order customer journey ok')
 }catch(error){
  await page.screenshot({path:'/tmp/cozinha360-connections-hub-failure.png',fullPage:true}).catch(()=>{})
  console.error(error);process.exitCode=1
