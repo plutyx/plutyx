@@ -7,6 +7,7 @@
   NODE_VERSION = "22"
   NPM_FLAGS = "--no-audit --no-fund"
   VITE_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2"
+  VITE_INTELLIGENCE_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50"
   VITE_MARGIN_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-margin-v14"
   VITE_CRM_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-crm-v16"
   VITE_DIRECT_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-direct-v17"
