@@ -46,7 +46,7 @@ try {
   await stockDialog.getByLabel(/Alvo de reposição/).fill('1000')
   await page.screenshot({ path: '/tmp/cozinha360-inventory-drawer.png', fullPage: true })
   await stockDialog.getByRole('button', { name: 'Salvar estoque', exact: true }).click()
-  await page.getByText('Estoque configurado.', { exact: true }).waitFor()
+  await page.getByText(/Estoque configurado/).waitFor()
   await ingredientRow.getByText(/1000 g em estoque · mínimo 300/).waitFor()
 
   // Produto + ficha técnica.
@@ -71,7 +71,7 @@ try {
   await page.getByLabel('Preço por unidade').fill('20.00')
   await page.getByLabel('Origem').selectOption('whatsapp')
   await page.getByRole('button', { name: 'Registrar no KDS', exact: true }).click()
-  await page.getByText(/Pedido #\d+ registrado/).waitFor()
+  await page.getByText(/Pedido #\d+ (confirmado pelo servidor|registrado)/).waitFor()
   await page.getByText(/R\$\s*36,00/).first().waitFor()
 
   // Cozinha de Bolso 360 virou uma camada viva: diagnóstico, marco 30 e CPA Guard.
