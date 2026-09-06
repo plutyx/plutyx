@@ -78,6 +78,9 @@ jobs:
       - name: Run Autopilot 360 journey
         run: node frontend/e2e/autopilot-360.mjs
 
+      - name: Run Operator Launcher v3.8 journey
+        run: node frontend/e2e/operator-launcher-v38.mjs
+
       - name: Upload E2E evidence and logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -102,5 +105,8 @@ jobs:
             /tmp/cozinha360-entitlements-failure.png
             /tmp/cozinha360-autopilot-360.png
             /tmp/cozinha360-autopilot-360-failure.png
+            /tmp/cozinha360-operator-launcher-v38.png
+            /tmp/cozinha360-operator-launcher-v38-mobile.png
+            /tmp/cozinha360-operator-launcher-v38-failure.png
             /tmp/cozinha360-api.log
             /tmp/cozinha360-web.log
