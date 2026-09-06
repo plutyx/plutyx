@@ -25,8 +25,18 @@ create index if not exists ix_deliveries_zone on public.deliveries(zone_id) wher
 
 alter table public.deliveries enable row level security;
 
-revoke all privileges on table public.deliveries from anon, authenticated;
-revoke all privileges on sequence public.deliveries_id_seq from anon, authenticated;
+do $$
+declare role_name text;
+begin
+  foreach role_name in array array['anon','authenticated'] loop
+    if exists(select 1 from pg_roles where rolname=role_name) then
+      execute format('revoke all privileges on table public.deliveries from %I',role_name);
+      if to_regclass('public.deliveries_id_seq') is not null then
+        execute format('revoke all privileges on sequence public.deliveries_id_seq from %I',role_name);
+      end if;
+    end if;
+  end loop;
+end $$;
 
 drop trigger if exists trg_deliveries_updated_at on public.deliveries;
 create trigger trg_deliveries_updated_at before update on public.deliveries for each row execute function public.touch_updated_at();
