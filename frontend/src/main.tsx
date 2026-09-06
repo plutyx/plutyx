@@ -24,6 +24,7 @@ import { SessionAwareControls } from './operator-launcher-v38'
 import { TodayAttentionRoute } from './today-attention-v39'
 import { DeliveryOSMarketRoute } from './delivery-os-market-v40'
 import { OfflineQueueStatus } from './offline-status-v50'
+import { Network360Route } from './network-360-v50'
 import { prepareOperatingMemory } from './operating-memory'
 import './styles.css'
 import './market.css'
@@ -64,6 +65,7 @@ import './today-attention-v39.css'
 import './delivery-os-v40.css'
 import './delivery-os-market-v40.css'
 import './offline-status-v50.css'
+import './network-360-v50.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -89,6 +91,7 @@ function Root(){
   if(tracking)return <DeliveryTrackingRoute token={tracking}/>
   if(storeSlug)return <PublicStorefrontRoute slug={storeSlug}/>
   if(hasAccountRoute)return <AccountRoute/>
+  if(params.get('network')==='1')return <OperatorRoute><Network360Route/></OperatorRoute>
   if(params.get('today')==='1')return <OperatorRoute><TodayAttentionRoute/></OperatorRoute>
   if(params.get('delivery')==='1')return <OperatorRoute><DeliveryOSMarketRoute/></OperatorRoute>
   if(params.get('quick')==='1')return <OperatorRoute><QuickOrderRoute/></OperatorRoute>
