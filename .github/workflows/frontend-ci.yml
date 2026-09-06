@@ -21,9 +21,18 @@ jobs:
       - name: Build production frontend bundle
         env:
           VITE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
+          VITE_MARGIN_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-margin-v14
+          VITE_CRM_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-crm-v16
+          VITE_DIRECT_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-direct-v17
+          VITE_INTEGRATIONS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-integrations-v29
+          VITE_PROFILE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-profile-v31
+          VITE_ENTITLEMENTS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-entitlements-v34
+          VITE_AUTOPILOT_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-autopilot-v37
         run: npm run build
       - name: Verify production release marker
-        run: grep -F '<meta name="c360-release" content="3.5.0"' dist/index.html
+        run: grep -F '<meta name="c360-release" content="3.7.0"' dist/index.html
+      - name: Verify Autopilot production endpoint is bundled
+        run: grep -R -F 'cozinha360-autopilot-v37' dist/assets/*.js >/dev/null
       - name: Upload production frontend bundle
         uses: actions/upload-artifact@v4
         with:
