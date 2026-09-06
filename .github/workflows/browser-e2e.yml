@@ -72,6 +72,9 @@ jobs:
       - name: Run connections-hub journey
         run: node frontend/e2e/connections-hub.mjs
 
+      - name: Run Setup 360 real-customer journey
+        run: node frontend/e2e/integration-setup-v42.mjs
+
       - name: Run entitlement journey
         run: node frontend/e2e/entitlements.mjs
 
@@ -104,6 +107,8 @@ jobs:
             /tmp/cozinha360-cash-engine-failure.png
             /tmp/cozinha360-connections-hub.png
             /tmp/cozinha360-connections-hub-failure.png
+            /tmp/cozinha360-setup-v42.png
+            /tmp/cozinha360-setup-v42-failure.png
             /tmp/cozinha360-entitlements.png
             /tmp/cozinha360-entitlements-failure.png
             /tmp/cozinha360-autopilot-360.png
