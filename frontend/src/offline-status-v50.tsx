@@ -11,11 +11,11 @@ export function OfflineQueueStatus(){
  function refresh(){setOnline(navigator.onLine);setItems(readOfflineQueue())}
  async function sync(){if(!token||!navigator.onLine||syncing)return;setSyncing(true);setNotice('');try{const r=await flushOfflineOrders(token);refresh();if(r.synced)setNotice(`${r.synced} pedido${r.synced===1?'':'s'} sincronizado${r.synced===1?'':'s'} com o servidor.`);else if(r.auth_required)setNotice('Entre novamente para sincronizar os pedidos deste dispositivo.');else if(r.stopped_reason)setNotice(r.stopped_reason);else setNotice('Fila já está sincronizada.')}finally{setSyncing(false)}}
  useEffect(()=>{
-  const onOnline=()=>{refresh();void sync()};const onOffline=()=>refresh();const onQueue=()=>refresh();
-  window.addEventListener('online',onOnline);window.addEventListener('offline',onOffline);window.addEventListener('storage',onQueue);window.addEventListener(queueEventName(),onQueue)
+  const onOnline=()=>{refresh();void sync()};const onOffline=()=>refresh();const onQueue=()=>refresh();const onOpen=()=>{refresh();setOpen(true)}
+  window.addEventListener('online',onOnline);window.addEventListener('offline',onOffline);window.addEventListener('storage',onQueue);window.addEventListener(queueEventName(),onQueue);window.addEventListener('c360-offline-queue-open',onOpen)
   const timer=window.setInterval(()=>{if(navigator.onLine&&readOfflineQueue().some(x=>x.state==='pending'))void sync()},30000)
   if(navigator.onLine&&items.some(x=>x.state==='pending'))void sync()
-  return()=>{window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);window.removeEventListener('storage',onQueue);window.removeEventListener(queueEventName(),onQueue);window.clearInterval(timer)}
+  return()=>{window.removeEventListener('online',onOnline);window.removeEventListener('offline',onOffline);window.removeEventListener('storage',onQueue);window.removeEventListener(queueEventName(),onQueue);window.removeEventListener('c360-offline-queue-open',onOpen);window.clearInterval(timer)}
  },[token])
  if(!token)return null
  const pending=items.filter(x=>x.state==='pending').length,failed=items.filter(x=>x.state==='failed').length
