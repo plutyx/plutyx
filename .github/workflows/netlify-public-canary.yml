@@ -1,0 +1,106 @@
+name: netlify-public-canary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/netlify-public-canary.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: netlify-public-canary
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      VITE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
+      VITE_MARGIN_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-margin-v14
+      VITE_CRM_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-crm-v16
+      VITE_DIRECT_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-direct-v17
+      VITE_INTEGRATIONS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-integrations-v29
+      VITE_PROFILE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-profile-v31
+      VITE_ENTITLEMENTS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-entitlements-v34
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build public canary bundle
+        working-directory: frontend
+        run: npm run build
+
+      - name: Read release identity
+        id: release
+        working-directory: frontend
+        shell: bash
+        run: |
+          release="$(sed -n 's/.*<meta name="c360-release" content="\([^"]*\)".*/\1/p' dist/index.html | head -n1)"
+          test -n "$release"
+          echo "value=$release" >> "$GITHUB_OUTPUT"
+
+      - name: Publish temporary anonymous Netlify canary
+        id: deploy
+        working-directory: frontend
+        shell: bash
+        run: |
+          npx --yes netlify-cli@27.5.0 deploy \
+            --dir=dist \
+            --allow-anonymous \
+            --json > /tmp/netlify-canary.json
+          node <<'NODE'
+          const fs=require('fs')
+          const x=JSON.parse(fs.readFileSync('/tmp/netlify-canary.json','utf8'))
+          const url=x.deploy_url||x.deployUrl||x.url
+          if(!url)throw new Error('Netlify anonymous deploy did not return a URL')
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`url=${url}\n`)
+          console.log(`Canary URL: ${url}`)
+          NODE
+
+      - name: Verify canary serves the exact release
+        shell: bash
+        env:
+          CANARY_URL: ${{ steps.deploy.outputs.url }}
+          RELEASE: ${{ steps.release.outputs.value }}
+        run: |
+          marker="<meta name=\"c360-release\" content=\"$RELEASE\""
+          for i in $(seq 1 20); do
+            if curl --fail --silent --show-error --location "$CANARY_URL/" -o /tmp/canary-index.html; then
+              if grep -F "$marker" /tmp/canary-index.html >/dev/null && grep -E '/assets/[^" ]+\.js' /tmp/canary-index.html >/dev/null; then
+                echo "Canary serves release $RELEASE."
+                exit 0
+              fi
+            fi
+            sleep 3
+          done
+          echo "::error title=Canary verification failed::Anonymous Netlify URL did not serve release $RELEASE."
+          exit 1
+
+      - name: Publish canary result
+        env:
+          CANARY_URL: ${{ steps.deploy.outputs.url }}
+          RELEASE: ${{ steps.release.outputs.value }}
+        run: |
+          {
+            echo '## Cozinha 360 public canary'
+            echo
+            echo "- Release: \`$RELEASE\`"
+            echo "- URL: $CANARY_URL"
+            echo '- Scope: temporary QA surface; this is not the production Netlify project.'
+            echo '- Production is unchanged by this workflow.'
+          } >> "$GITHUB_STEP_SUMMARY"
