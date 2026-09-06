@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 5
     env:
       WEB_URL: https://cozinha-360-os.netlify.app
-      EXPECTED_RELEASE: '3.5.0'
+      EXPECTED_RELEASE: '3.7.0'
     steps:
       - name: Fetch public frontend
         run: |
