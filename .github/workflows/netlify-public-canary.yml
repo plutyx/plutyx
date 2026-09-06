@@ -2,6 +2,10 @@ name: netlify-public-canary
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/netlify-public-canary.yml'
   push:
     branches: [main]
     paths:
@@ -12,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: netlify-public-canary
+  group: netlify-public-canary-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
