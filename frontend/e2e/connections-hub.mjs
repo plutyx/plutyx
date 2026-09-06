@@ -34,7 +34,7 @@ try{
  await page.getByText('ABCD-EFGH',{exact:true}).waitFor()
  await page.getByLabel('Código de autorização').fill('WXYZ-1234')
  await page.getByRole('button',{name:'Concluir conexão'}).click()
- await page.getByText('iFood conectado. A operação já pode validar a conta.',exact:true).waitFor()
+ await page.getByText('iFood conectado. A operação já pode validar a conta.',{exact:true}).waitFor()
  await page.getByText('2/5',{exact:true}).waitFor()
  await page.screenshot({path:'/tmp/cozinha360-connections-hub.png',fullPage:true})
  console.log('connections hub real-customer journey ok')
