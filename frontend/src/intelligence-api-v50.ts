@@ -1,4 +1,6 @@
-export const INTELLIGENCE_API=(import.meta.env.VITE_INTELLIGENCE_API_URL||'https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50').replace(/\/$/,'')
+const localIntelligence=import.meta.env.VITE_API_URL||'/api'
+const productionIntelligence='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50'
+export const INTELLIGENCE_API=(import.meta.env.VITE_INTELLIGENCE_API_URL||(import.meta.env.DEV?localIntelligence:productionIntelligence)).replace(/\/$/,'')
 
 export async function intelligenceRequest(path:string,options:RequestInit={},token=localStorage.getItem('c360_token')||''){
   const response=await fetch(`${INTELLIGENCE_API}${path}`,{
