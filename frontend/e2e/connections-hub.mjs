@@ -15,7 +15,7 @@ let googleLastSuccess='2026-09-01T12:00:00Z'
 let ifoodLastSuccess='2026-09-06T02:10:00Z'
 let profile={business_id:1,order_source:'direct',use_mercadopago:true,use_google:true,use_meta_ads:false,configured_at:null,updated_by_user_id:null}
 const recommended=()=>[...(profile.order_source==='whatsapp'?['whatsapp']:profile.order_source==='ifood'?['ifood']:profile.order_source==='mixed'?['whatsapp','ifood']:[]),...(profile.use_mercadopago?['mercadopago']:[]),...(profile.use_google?['google']:[]),...(profile.use_meta_ads?['meta_ads']:[])]
-const provider=(key,name,category,connection=null)=>({key,name,category,impact:'Impacto operacional explicado em linguagem simples.',why:'Conexão segura sem copiar token para o navegador.',mode:key==='ifood'?'device_code':'oauth',eta:'~2 min',platform_ready:true,missing:[],optional_missing:[],connection})
+const provider=(key,name,category,connection=null,platformReady=true)=>({key,name,category,impact:'Impacto operacional explicado em linguagem simples.',why:'Conexão segura sem copiar token para o navegador.',mode:key==='ifood'?'device_code':'oauth',eta:'~2 min',platform_ready:platformReady,missing:platformReady?[]:['PROVIDER_PLATFORM_APPROVAL'],optional_missing:[],connection})
 await page.route('**/cozinha360-profile-v31/**',async route=>{
  const req=route.request(),path=new URL(req.url()).pathname,method=req.method()
  if(path.endsWith('/businesses/1/profile')&&method==='GET')return route.fulfill(json({profile,recommended_order:recommended(),internal_order_ready:profile.order_source==='direct'}))
@@ -37,7 +37,7 @@ await page.route('**/cozinha360-integrations-v29/**',async route=>{
  if(path.endsWith('/ifood/test')&&method==='POST'){testCalls++;ifoodLastSuccess='2026-09-06T02:25:00Z';return route.fulfill(json({ok:true,status:'active'}))}
  if(path.endsWith('/businesses/1/integrations')&&method==='GET')return route.fulfill(json({business_id:1,recommended_order:['whatsapp','mercadopago','google','ifood','meta_ads'],providers:[
    provider('whatsapp','WhatsApp Business','Vendas & CRM'),
-   provider('mercadopago','Mercado Pago / Pix','Pagamentos'),
+   provider('mercadopago','Mercado Pago / Pix','Pagamentos',null,false),
    provider('google','Google Business + Ads','Aquisição local',{id:3,provider:'google',external_account_ref:'g-1',display_name:'conta@google.com',status:googleDegraded?'degraded':'active',last_success_at:googleLastSuccess,last_error:googleDegraded?'Google recusou a credencial':null}),
    provider('ifood','iFood','Marketplace',ifoodActive?{id:7,provider:'ifood',external_account_ref:'m-1',display_name:'Loja iFood Teste',status:'active',last_success_at:ifoodLastSuccess,last_error:null}:null),
    provider('meta_ads','Meta Ads','Aquisição')
@@ -57,11 +57,19 @@ try{
  await page.getByText('Plano de conexões salvo. O Autopilot reorganizou os próximos passos.',{exact:true}).waitFor()
  if(!savedPlan||savedPlan.order_source!=='direct'||savedPlan.use_mercadopago!==true||savedPlan.use_google!==true||savedPlan.use_meta_ads!==false)throw new Error(`unexpected saved plan ${JSON.stringify(savedPlan)}`)
  await page.getByText('Loja própria do Cozinha 360',{exact:true}).waitFor()
- await page.getByRole('heading',{name:'Próximo passo: Mercado Pago / Pix',exact:true}).waitFor()
- await page.getByText('Loja própria — sem API externa',{exact:true}).first().waitFor()
+ await page.getByRole('heading',{name:'Mercado Pago / Pix: ativação da plataforma pendente',exact:true}).waitFor()
+ await page.getByText('Sem ação técnica sua',{exact:true}).waitFor()
  await page.getByText('1/2',{exact:true}).waitFor()
+ await page.getByRole('button',{name:'Usar Pix manual',exact:true}).click()
+ await page.getByText('Plano ajustado: Pix manual por enquanto. Você pode conectar Mercado Pago / Pix depois.',{exact:true}).waitFor()
+ if(!savedPlan||savedPlan.use_mercadopago!==false)throw new Error(`fallback did not disable Mercado Pago requirement: ${JSON.stringify(savedPlan)}`)
+ await page.getByText('Manual — sem API externa',{exact:true}).first().waitFor()
+ await page.getByText('1/1',{exact:true}).waitFor()
  const google=page.locator('.cx-card').filter({hasText:'Google Business + Ads'})
  await google.getByText('ATIVO',{exact:true}).waitFor()
+ const mercado=page.locator('.cx-card').filter({hasText:'Mercado Pago / Pix'})
+ await mercado.getByText('PLATAFORMA',{exact:true}).waitFor()
+ if(await mercado.getByText('NO SEU PLANO',{exact:true}).count())throw new Error('Mercado Pago should leave the required plan after manual-Pix fallback')
  const whatsapp=page.locator('.cx-card').filter({hasText:'WhatsApp Business'})
  if(await whatsapp.getByText('NO SEU PLANO',{exact:true}).count())throw new Error('WhatsApp should not be recommended for a direct-order customer')
  const ifood=page.locator('.cx-card').filter({hasText:'iFood'})
@@ -84,7 +92,7 @@ try{
  await page.getByRole('heading',{name:'2/2 conexões saudáveis',exact:true}).waitFor()
  if(testCalls!==6)throw new Error(`expected 6 connection health calls, got ${testCalls}`)
  await page.screenshot({path:'/tmp/cozinha360-connections-hub.png',fullPage:true})
- console.log('connection doctor stale-degraded-recovery journey ok')
+ console.log('fallback + connection doctor customer journey ok')
 }catch(error){
  await page.screenshot({path:'/tmp/cozinha360-connections-hub-failure.png',fullPage:true}).catch(()=>{})
  console.error(error);process.exitCode=1
