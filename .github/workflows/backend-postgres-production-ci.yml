@@ -62,7 +62,7 @@ jobs:
               'users','businesses','memberships','ingredients','products','orders','customers','purchases',
               'audit_logs','outbox_events','order_items','production_batches','recipe_items','team_invites',
               'inventory_counts','order_completion_snapshots','order_recipe_snapshots',
-              'user_security_states','auth_action_tokens'
+              'user_security_states','auth_action_tokens','autopilot_runs'
           }
           with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
               with conn.cursor() as cur:
@@ -78,11 +78,30 @@ jobs:
                   assert cur.fetchone()[0] == 1
                   cur.execute("select count(*) from pg_indexes where tablename='users' and indexname='ux_users_auth_user_id'")
                   assert cur.fetchone()[0] == 1
+                  for index_name in ('ix_autopilot_runs_business_created','ix_autopilot_runs_business_status'):
+                      cur.execute("select count(*) from pg_indexes where schemaname='public' and tablename='autopilot_runs' and indexname=%s", (index_name,))
+                      assert cur.fetchone()[0] == 1, f'missing index {index_name}'
+                  cur.execute("""
+                    select c.relrowsecurity
+                    from pg_class c join pg_namespace n on n.oid=c.relnamespace
+                    where n.nspname='public' and c.relname='autopilot_runs'
+                  """)
+                  row=cur.fetchone(); assert row and row[0] is True, 'autopilot_runs RLS is not enabled'
+                  cur.execute("""
+                    select count(*)
+                    from pg_constraint c
+                    join pg_class t on t.oid=c.conrelid
+                    join pg_namespace n on n.oid=t.relnamespace
+                    where n.nspname='public' and t.relname='autopilot_runs'
+                      and c.conname='ux_autopilot_runs_business_request' and c.contype='u'
+                  """)
+                  assert cur.fetchone()[0] == 1, 'missing Autopilot idempotency constraint'
                   required_columns = [
                       ('ingredients','on_hand_milliunits'),('products','category'),('orders','inventory_consumed'),
                       ('users','auth_version'),('users','failed_login_attempts'),('users','locked_until'),('users','auth_user_id'),
                       ('order_recipe_snapshots','total_qty_milliunits'),
-                      ('user_security_states','email_verified_at'),('auth_action_tokens','token_hash')
+                      ('user_security_states','email_verified_at'),('auth_action_tokens','token_hash'),
+                      ('autopilot_runs','request_id'),('autopilot_runs','plan_hash'),('autopilot_runs','result_json')
                   ]
                   for table, column in required_columns:
                       cur.execute("select count(*) from information_schema.columns where table_schema='public' and table_name=%s and column_name=%s", (table,column))
@@ -157,6 +176,24 @@ jobs:
                       assert cur.fetchone()[0] >= 2
                       cur.execute("select count(*) from public.audit_logs where business_id=%s", (business_id,))
                       assert cur.fetchone()[0] >= 2
+                      request_id='11111111-1111-4111-8111-111111111111'
+                      cur.execute("""
+                        insert into public.autopilot_runs(
+                          business_id,actor_user_id,request_id,horizon_days,buffer_bps,plan_hash,status,action_count,result_json
+                        ) values (%s,%s,%s::uuid,1,1000,%s,'completed',1,%s::jsonb)
+                        returning id
+                      """, (business_id,user_id,request_id,'a'*64,json.dumps({'created':[{'product_id':product_id}]})))
+                      assert cur.fetchone()[0] > 0
+                      try:
+                          cur.execute("""
+                            insert into public.autopilot_runs(
+                              business_id,actor_user_id,request_id,horizon_days,buffer_bps,plan_hash,status,action_count
+                            ) values (%s,%s,%s::uuid,1,1000,%s,'completed',1)
+                          """, (business_id,user_id,request_id,'b'*64))
+                          raise AssertionError('Autopilot duplicate request_id was accepted')
+                      except psycopg.errors.UniqueViolation:
+                          conn.rollback()
+                          # Restart the smoke transaction after proving the unique guard.
                   print('cloud-native transaction smoke ok')
               finally:
                   conn.rollback()
