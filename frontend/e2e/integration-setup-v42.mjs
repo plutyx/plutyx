@@ -19,7 +19,8 @@ const brands=[
 const connections=[
  {id:10,provider:'ifood',display_name:'Loja iFood Centro',status:'active',last_success_at:'2026-09-06T12:00:00Z',last_error:null},
  {id:11,provider:'whatsapp',display_name:'WhatsApp Principal',status:'active',last_success_at:'2026-09-06T12:00:00Z',last_error:null},
- {id:12,provider:'mercadopago',display_name:'Mercado Pago Operação',status:'active',last_success_at:'2026-09-06T12:00:00Z',last_error:null}
+ {id:12,provider:'mercadopago',display_name:'Mercado Pago Operação',status:'active',last_success_at:'2026-09-06T12:00:00Z',last_error:null},
+ {id:13,provider:'ifood',display_name:'Loja iFood Shopping',status:'active',last_success_at:'2026-09-06T12:00:00Z',last_error:null}
 ]
 const baseProviders=[
  ['direct','Loja própria Cozinha 360','Pedidos','native','ready','Venda direta sem comissão do Cozinha 360.',true,'active',null],
@@ -115,15 +116,20 @@ try{
  if(bindings.length!==0)throw new Error(`multi-brand auto-configure created ${bindings.length} unsafe bindings`)
 
  const burger=page.locator('.setup42-brand-matrix article').filter({hasText:'Bolso Burgers'})
- const ifoodChip=burger.getByRole('button',{name:/iFood/})
- await ifoodChip.click()
- await page.getByText('iFood ligado à marca Bolso Burgers.',{exact:true}).waitFor()
- if(bindings.length!==1||bindings[0].brand_id!==1||bindings[0].provider!=='ifood')throw new Error(`explicit brand mapping failed ${JSON.stringify(bindings)}`)
- await ifoodChip.click()
+ const ifoodPicker=burger.getByLabel('iFood · Bolso Burgers')
+ await ifoodPicker.waitFor()
+ if(await ifoodPicker.locator('option').count()!==3)throw new Error('iFood picker must offer placeholder plus both active accounts')
+ await ifoodPicker.selectOption('13')
+ await page.getByText('iFood · Loja iFood Shopping ligado à marca Bolso Burgers.',{exact:true}).waitFor()
+ if(bindings.length!==1||bindings[0].brand_id!==1||bindings[0].provider!=='ifood'||bindings[0].connection_id!==13)throw new Error(`explicit account mapping failed ${JSON.stringify(bindings)}`)
+ await ifoodPicker.selectOption('10')
+ await page.getByText('iFood · Loja iFood Centro ligado à marca Bolso Burgers.',{exact:true}).waitFor()
+ if(bindings.length!==1||bindings[0].connection_id!==10)throw new Error(`provider account switch created ambiguity ${JSON.stringify(bindings)}`)
+ await ifoodPicker.selectOption('')
  await page.getByText('iFood removido de Bolso Burgers.',{exact:true}).waitFor()
  if(bindings.length!==0)throw new Error('explicit unlink did not remove mapping')
- await ifoodChip.click()
- await page.getByText('iFood ligado à marca Bolso Burgers.',{exact:true}).waitFor()
+ await ifoodPicker.selectOption('10')
+ await page.getByText('iFood · Loja iFood Centro ligado à marca Bolso Burgers.',{exact:true}).waitFor()
 
  const fiscalPanel=page.locator('.setup42-panel').filter({hasText:'Dados fiscais sem ativação falsa'})
  const burgerFiscal=fiscalPanel.locator('details.setup42-fiscal').filter({hasText:'Bolso Burgers'})
