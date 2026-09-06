@@ -17,6 +17,7 @@ import { ControlTowerRoute } from './control-tower'
 import { ExecutionHubRoute } from './execution-hub'
 import { CashEngineRoute } from './cash-engine'
 import { ConnectionsHubRoute } from './connections-hub'
+import { IntegrationSetupLauncher,IntegrationSetupV42Route } from './integration-setup-v42'
 import { SubscriptionStatusRoute } from './subscription-status'
 import { Autopilot360Route } from './autopilot-360'
 import { SessionAwareControls } from './operator-launcher-v38'
@@ -100,7 +101,8 @@ function Root(){
   if(params.get('control')==='1')return <OperatorRoute><ControlTowerRoute/></OperatorRoute>
   if(params.get('execution')==='1')return <OperatorRoute><ExecutionHubRoute/></OperatorRoute>
   if(params.get('cash')==='1')return <OperatorRoute><CashEngineRoute/></OperatorRoute>
-  if(params.get('connections')==='1')return <OperatorRoute><ConnectionsHubRoute/></OperatorRoute>
+  if(params.get('setup')==='1')return <OperatorRoute><IntegrationSetupV42Route/></OperatorRoute>
+  if(params.get('connections')==='1')return <OperatorRoute><><ConnectionsHubRoute/><IntegrationSetupLauncher/></></OperatorRoute>
   if(params.get('plan')==='1')return <OperatorRoute alerts={false}><SubscriptionStatusRoute/></OperatorRoute>
   if(params.get('autopilot')==='1')return <OperatorRoute><Autopilot360Route/></OperatorRoute>
   return <><App/><TabHashBridge/><KitchenAlerts/><InventoryStockEditor/><SessionAwareControls/></>
