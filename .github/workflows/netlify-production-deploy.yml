@@ -2,11 +2,6 @@ name: netlify-production-deploy
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/netlify-production-deploy.yml'
 
 permissions:
   contents: read
@@ -24,14 +19,14 @@ jobs:
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       PUBLIC_URL: https://cozinha-360-os.netlify.app
       VITE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
-      VITE_MARGIN_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-margin-v14
-      VITE_CRM_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-crm-v16
-      VITE_DIRECT_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-direct-v17
+      VITE_MARGIN_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42/cozinha360-margin-v14
+      VITE_CRM_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42/cozinha360-crm-v16
+      VITE_DIRECT_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42/cozinha360-direct-v17
       VITE_INTEGRATIONS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-integrations-v29
       VITE_PROFILE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-profile-v31
       VITE_ENTITLEMENTS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-entitlements-v34
       VITE_AUTOPILOT_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-autopilot-v37
-      VITE_DELIVERY_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-delivery-v40
+      VITE_DELIVERY_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42/cozinha360-delivery-v40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,7 +36,7 @@ jobs:
       - name: Require Netlify deployment credential
         run: |
           if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
-            echo "::error title=Netlify credential missing::Add NETLIFY_AUTH_TOKEN as a GitHub Actions secret for plutyx/plutyx. Do not commit the token or place it in VITE_* variables."
+            echo "::error title=Netlify credential missing::NETLIFY_AUTH_TOKEN is only required when manually using the legacy Netlify fallback. Render is the primary public deployment."
             exit 1
           fi
 
@@ -63,20 +58,16 @@ jobs:
         shell: bash
         run: |
           release="$(sed -n 's/.*<meta name="c360-release" content="\([^"]*\)".*/\1/p' dist/index.html | head -n1)"
-          if [ -z "$release" ]; then
-            echo "::error title=Release marker missing::frontend/dist/index.html has no c360-release marker."
-            exit 1
-          fi
+          test -n "$release"
           echo "value=$release" >> "$GITHUB_OUTPUT"
-          echo "Deploying Cozinha 360 release $release from $GITHUB_SHA"
 
       - name: Verify production Edge endpoints are bundled
         working-directory: frontend
         run: |
-          grep -R -F 'cozinha360-autopilot-v37' dist/assets/*.js >/dev/null
+          grep -R -F 'cozinha360-gateway-v42' dist/assets/*.js >/dev/null
           grep -R -F 'cozinha360-delivery-v40' dist/assets/*.js >/dev/null
 
-      - name: Deploy prebuilt bundle to production
+      - name: Deploy prebuilt bundle to Netlify fallback
         working-directory: frontend
         run: |
           npx --yes netlify-cli@27.5.0 deploy \
@@ -84,22 +75,21 @@ jobs:
             --prod \
             --site="$NETLIFY_SITE_ID" \
             --auth="$NETLIFY_AUTH_TOKEN" \
-            --message="Cozinha 360 release ${{ steps.release.outputs.value }} · $GITHUB_SHA" \
+            --message="Cozinha 360 fallback release ${{ steps.release.outputs.value }} · $GITHUB_SHA" \
             --json > /tmp/netlify-deploy.json
           node -e "const x=require('/tmp/netlify-deploy.json'); if(!x.deploy_url && !x.deployUrl && !x.url) process.exit(1); console.log('Netlify deploy accepted:', x.deploy_url||x.deployUrl||x.url)"
 
-      - name: Verify public alias serves this release
+      - name: Verify fallback alias serves this release
         shell: bash
         run: |
           marker="<meta name=\"c360-release\" content=\"${{ steps.release.outputs.value }}\""
           for i in $(seq 1 30); do
             if curl --fail --silent --show-error --location "$PUBLIC_URL/" -o /tmp/public-index.html; then
               if grep -F "$marker" /tmp/public-index.html >/dev/null && grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null; then
-                echo "Public Netlify alias now serves release ${{ steps.release.outputs.value }}."
+                echo "Netlify fallback now serves release ${{ steps.release.outputs.value }}."
                 exit 0
               fi
             fi
             sleep 4
           done
-          echo "::error title=Netlify alias did not converge::The deploy command completed, but $PUBLIC_URL did not serve release ${{ steps.release.outputs.value }} within the verification window."
           exit 1
