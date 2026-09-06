@@ -8,29 +8,41 @@ on:
       - 'frontend/**'
       - '.github/workflows/public-release-sync.yml'
 
+concurrency:
+  group: public-release-sync-main
+  cancel-in-progress: true
+
 jobs:
   release-identity:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     env:
       WEB_URL: https://cozinha-360-os-v41.onrender.com
       EXPECTED_RELEASE: '5.0.0'
     steps:
-      - name: Wait for public frontend
+      - name: Wait for exact public build
         run: |
-          for i in $(seq 1 55); do
-            if curl --fail --silent --show-error --location "$WEB_URL/" -o /tmp/public-index.html; then
-              marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
-              if grep -F "$marker" /tmp/public-index.html >/dev/null; then
+          expected_commit="$GITHUB_SHA"
+          for i in $(seq 1 75); do
+            if curl --fail --silent --show-error --location \
+              -H 'Cache-Control: no-cache' \
+              "$WEB_URL/release.json?check=$GITHUB_RUN_ID-$i" \
+              -o /tmp/release.json; then
+              release="$(python -c 'import json; print(json.load(open("/tmp/release.json"))["release"])' 2>/dev/null || true)"
+              commit="$(python -c 'import json; print(json.load(open("/tmp/release.json"))["commit"])' 2>/dev/null || true)"
+              if [ "$release" = "$EXPECTED_RELEASE" ] && [ "$commit" = "$expected_commit" ]; then
                 exit 0
               fi
+              echo "Public build is not this commit yet: release=${release:-missing} commit=${commit:-missing} expected=$expected_commit"
             fi
-            sleep 4
+            sleep 5
           done
-          echo "::error title=Public frontend is stale::Expected Cozinha 360 release $EXPECTED_RELEASE on $WEB_URL."
+          echo "::error title=Public frontend is stale::Expected release $EXPECTED_RELEASE at commit $expected_commit on $WEB_URL."
           exit 1
       - name: Verify Vite production assets are referenced
         run: |
+          curl --fail --silent --show-error --location -H 'Cache-Control: no-cache' "$WEB_URL/?check=$GITHUB_RUN_ID" -o /tmp/public-index.html
           grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null
       - name: Public release is synchronized
-        run: echo "Public frontend matches release $EXPECTED_RELEASE on $WEB_URL."
+        run: |
+          echo "Public frontend matches release $EXPECTED_RELEASE and commit $GITHUB_SHA on $WEB_URL."
