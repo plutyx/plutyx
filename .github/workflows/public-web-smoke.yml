@@ -14,6 +14,7 @@ jobs:
       WEB_URL: https://cozinha-360-os-v41.onrender.com
       API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
       GATEWAY_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42
+      SETUP_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-setup-v42
       EXPECTED_RELEASE: '4.2.0'
     steps:
       - name: Public frontend serves exact current release
@@ -38,6 +39,8 @@ jobs:
           grep -Fq 'cozinha360-api-v2' "$bundle"
           grep -Fq 'cozinha360-gateway-v42' "$bundle"
           grep -Fq 'cozinha360-delivery-v40' "$bundle"
+          grep -Fq 'cozinha360-setup-v42' "$bundle"
+          grep -Fq 'Configuração inteligente' "$bundle"
           echo 'public frontend smoke ok'
 
       - name: Public cloud API liveness and readiness
@@ -49,20 +52,26 @@ jobs:
           grep -q '"ok":true' /tmp/readyz.json
           test "$(curl --fail-with-body --silent --show-error --output /tmp/gateway.json --write-out '%{http_code}' "$GATEWAY_URL/health")" = "200"
           grep -q '"version":"4.2.0"' /tmp/gateway.json
+          test "$(curl --fail-with-body --silent --show-error --output /tmp/setup.json --write-out '%{http_code}' "$SETUP_URL/health")" = "200"
+          grep -q '"status":"ok"' /tmp/setup.json
+          grep -q '"version":"4.2.0"' /tmp/setup.json
+          grep -q '"route_setup"' /tmp/setup.json
           echo 'public API readiness smoke ok'
 
       - name: Browser-origin CORS preflight
         run: |
           set -euo pipefail
-          headers="$(mktemp)"
-          code="$(curl --silent --show-error --output /dev/null --dump-header "$headers" --write-out '%{http_code}' \
-            -X OPTIONS "$GATEWAY_URL/cozinha360-delivery-v40/health" \
-            -H "Origin: $WEB_URL" \
-            -H 'Access-Control-Request-Method: GET' \
-            -H 'Access-Control-Request-Headers: authorization,content-type')"
-          test "$code" = "204"
-          grep -Eiq '^access-control-allow-origin: *https://cozinha-360-os-v41\.onrender\.com' "$headers"
-          grep -Eiq '^access-control-allow-headers:.*authorization' "$headers"
+          for target in "$GATEWAY_URL/cozinha360-delivery-v40/health" "$SETUP_URL/health"; do
+            headers="$(mktemp)"
+            code="$(curl --silent --show-error --output /dev/null --dump-header "$headers" --write-out '%{http_code}' \
+              -X OPTIONS "$target" \
+              -H "Origin: $WEB_URL" \
+              -H 'Access-Control-Request-Method: GET' \
+              -H 'Access-Control-Request-Headers: authorization,content-type')"
+            test "$code" = "204"
+            grep -Eiq '^access-control-allow-origin: *(\*|https://cozinha-360-os-v41\.onrender\.com)' "$headers"
+            grep -Eiq '^access-control-allow-headers:.*authorization' "$headers"
+          done
           echo 'browser CORS smoke ok'
 
       - name: Signup validation does not create a user
