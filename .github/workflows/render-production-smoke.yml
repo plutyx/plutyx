@@ -21,13 +21,14 @@ jobs:
       EDGE_ROOT: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1
       GATEWAY: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42
       SETUP_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-setup-v42
-      EXPECTED_RELEASE: '4.2.0'
+      INTELLIGENCE_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50
+      EXPECTED_RELEASE: '5.0.0'
     steps:
       - name: Wait for Render release and verify frontend
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 35); do
+          for i in $(seq 1 55); do
             code="$(curl -L -sS -o /tmp/index.html -w '%{http_code}' "$WEB_URL/")" || true
             marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
             if [ "$code" = "200" ] && grep -F "$marker" /tmp/index.html >/dev/null; then
@@ -44,6 +45,8 @@ jobs:
           grep -F 'cozinha360-delivery-v40' /tmp/bundle.js >/dev/null
           grep -F 'cozinha360-api-v2' /tmp/bundle.js >/dev/null
           grep -F 'cozinha360-setup-v42' /tmp/bundle.js >/dev/null
+          grep -F 'cozinha360-intelligence-v50' /tmp/bundle.js >/dev/null
+          grep -F 'Conte o estoque. O 360 explica a diferença.' /tmp/bundle.js >/dev/null
 
       - name: Verify Render origin is accepted by production Edge services
         shell: bash
@@ -57,6 +60,7 @@ jobs:
             "$EDGE_ROOT/cozinha360-entitlements-v34"
             "$EDGE_ROOT/cozinha360-autopilot-v37"
             "$SETUP_API"
+            "$INTELLIGENCE_API"
           )
           failed=0
           for target in "${targets[@]}"; do
@@ -74,7 +78,7 @@ jobs:
           done
           test "$failed" = "0"
 
-      - name: Verify gateway forwarding and public Edge health
+      - name: Verify gateway and intelligence health
         shell: bash
         run: |
           set -euo pipefail
@@ -89,3 +93,8 @@ jobs:
           grep -F '"route_setup"' /tmp/setup-health.json >/dev/null
           test "$(curl -sS -o /tmp/profile-live.json -w '%{http_code}' "$EDGE_ROOT/cozinha360-profile-v31/livez")" = "200"
           grep -F '"ok":true' /tmp/profile-live.json >/dev/null
+          test "$(curl -sS -o /tmp/intelligence-health.json -w '%{http_code}' "$INTELLIGENCE_API/health")" = "200"
+          grep -F '"status":"ok"' /tmp/intelligence-health.json >/dev/null
+          grep -F '"version":"5.0.0"' /tmp/intelligence-health.json >/dev/null
+          test "$(curl -sS -o /tmp/intelligence-auth.json -w '%{http_code}' "$INTELLIGENCE_API/portfolio/overview")" = "401"
+          grep -F '"detail":"Sessão inválida"' /tmp/intelligence-auth.json >/dev/null
