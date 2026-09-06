@@ -20,6 +20,7 @@ jobs:
       WEB_URL: https://cozinha-360-os-v41.onrender.com
       EDGE_ROOT: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1
       GATEWAY: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42
+      SETUP_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-setup-v42
       EXPECTED_RELEASE: '4.2.0'
     steps:
       - name: Wait for Render release and verify frontend
@@ -42,8 +43,9 @@ jobs:
           grep -F 'cozinha360-gateway-v42' /tmp/bundle.js >/dev/null
           grep -F 'cozinha360-delivery-v40' /tmp/bundle.js >/dev/null
           grep -F 'cozinha360-api-v2' /tmp/bundle.js >/dev/null
+          grep -F 'cozinha360-setup-v42' /tmp/bundle.js >/dev/null
 
-      - name: Verify Render origin is accepted by gateway and wildcard Edge services
+      - name: Verify Render origin is accepted by production Edge services
         shell: bash
         run: |
           set -euo pipefail
@@ -54,6 +56,7 @@ jobs:
             "$EDGE_ROOT/cozinha360-profile-v31"
             "$EDGE_ROOT/cozinha360-entitlements-v34"
             "$EDGE_ROOT/cozinha360-autopilot-v37"
+            "$SETUP_API"
           )
           failed=0
           for target in "${targets[@]}"; do
@@ -80,5 +83,9 @@ jobs:
           grep -F '"version":"4.2.0"' /tmp/gateway-health.json >/dev/null
           test "$(curl -sS -o /tmp/delivery-health.json -w '%{http_code}' "$GATEWAY/cozinha360-delivery-v40/health")" = "200"
           grep -F '"status":"ok"' /tmp/delivery-health.json >/dev/null
+          test "$(curl -sS -o /tmp/setup-health.json -w '%{http_code}' "$SETUP_API/health")" = "200"
+          grep -F '"status":"ok"' /tmp/setup-health.json >/dev/null
+          grep -F '"version":"4.2.0"' /tmp/setup-health.json >/dev/null
+          grep -F '"route_setup"' /tmp/setup-health.json >/dev/null
           test "$(curl -sS -o /tmp/profile-live.json -w '%{http_code}' "$EDGE_ROOT/cozinha360-profile-v31/livez")" = "200"
           grep -F '"ok":true' /tmp/profile-live.json >/dev/null
