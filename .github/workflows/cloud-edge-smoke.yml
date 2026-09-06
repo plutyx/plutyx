@@ -20,6 +20,7 @@ jobs:
       EDGE_BASE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
       PROFILE_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-profile-v31
       ENTITLEMENTS_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-entitlements-v34
+      AUTOPILOT_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-autopilot-v37
     steps:
       - name: Liveness
         run: |
@@ -60,3 +61,16 @@ jobs:
           status="$(curl --silent --output /tmp/entitlements-auth.json --write-out '%{http_code}' "$ENTITLEMENTS_EDGE/businesses/1/entitlements")"
           test "$status" = "401"
           python -c 'import json; x=json.load(open("/tmp/entitlements-auth.json")); assert x.get("detail")=="Sessão inválida"'
+      - name: Autopilot service is live
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$AUTOPILOT_EDGE/livez")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-autopilot-v37" and x["version"]=="3.7.0"' "$body"
+      - name: Autopilot ledger and core dependency are ready
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$AUTOPILOT_EDGE/readyz")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["database"]=="ready" and x["core"]=="ready" and x["version"]=="3.7.0"' "$body"
+      - name: Autopilot tenant plan requires auth
+        run: |
+          status="$(curl --silent --output /tmp/autopilot-auth.json --write-out '%{http_code}' "$AUTOPILOT_EDGE/businesses/1/plan")"
+          test "$status" = "401"
+          python -c 'import json; x=json.load(open("/tmp/autopilot-auth.json")); assert x.get("detail")=="Sessão inválida"'
