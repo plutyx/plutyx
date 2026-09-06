@@ -1,0 +1,54 @@
+name: one-time-v42-hardening
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-v42-hardening.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply narrowly-scoped production hardening
+        shell: python
+        run: |
+          from pathlib import Path
+
+          setup = Path('supabase/edge/cozinha360-setup-v42/index.ts')
+          s = setup.read_text()
+          old = "provider==='google'?['maps_google','google']:provider==='mapbox'?['mapbox']:['external']"
+          new = "provider==='google'?['maps_google']:provider==='mapbox'?['mapbox']:['external']"
+          if old not in s:
+              raise SystemExit('setup route-provider pattern not found')
+          setup.write_text(s.replace(old, new, 1))
+
+          ui = Path('frontend/src/integration-setup-v42.tsx')
+          u = ui.read_text()
+          anchor = "const bindable=useMemo(()=>activeConnections.filter(c=>['ifood','whatsapp','mercadopago'].includes(c.provider)),[activeConnections])"
+          if anchor not in u:
+              raise SystemExit('setup UI bindable anchor not found')
+          u = u.replace(anchor, anchor + "\n const mapReady=useMemo(()=>data?.providers.some(p=>['maps_google','mapbox'].includes(p.key)&&p.state==='active')||false,[data])", 1)
+          u = u.replace("<button className={routeMode==='assisted'?'active':''} onClick={()=>setRouteMode('assisted')}", "<button disabled={!mapReady} className={routeMode==='assisted'?'active':''} onClick={()=>setRouteMode('assisted')}", 1)
+          u = u.replace("<button className={routeMode==='intelligent'?'active':''} onClick={()=>setRouteMode('intelligent')}", "<button disabled={!mapReady} className={routeMode==='intelligent'?'active':''} onClick={()=>setRouteMode('intelligent')}", 1)
+          ui.write_text(u)
+
+          cx = Path('frontend/src/connections-hub.tsx')
+          c = cx.read_text()
+          old_call = "ireq(`/businesses/${selectedBusinessId}/integrations/${p.key}/start`,{method:'POST'},token)"
+          new_call = "ireq(`/businesses/${selectedBusinessId}/integrations/${p.key}/start`,{method:'POST',body:JSON.stringify({return_origin:location.origin})},token)"
+          if old_call not in c:
+              raise SystemExit('connections start-call pattern not found')
+          cx.write_text(c.replace(old_call, new_call, 1))
+
+      - name: Commit hardening
+        run: |
+          git config user.name 'cozinha360-release-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add supabase/edge/cozinha360-setup-v42/index.ts frontend/src/integration-setup-v42.tsx frontend/src/connections-hub.tsx
+          git commit -m 'Harden map provider activation and OAuth return origin'
+          git push origin HEAD:main
