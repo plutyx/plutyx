@@ -1,0 +1,77 @@
+name: delivery-v40-postgres-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  delivery-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cozinha360
+          POSTGRES_DB: cozinha360
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U cozinha360 -d cozinha360"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'psycopg[binary]==3.2.9'
+      - name: Apply all migrations
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import psycopg
+          files=sorted(Path('supabase/migrations').glob('*.sql'))
+          with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
+              with conn.cursor() as cur:
+                  for path in files:
+                      print('applying',path.name)
+                      cur.execute(path.read_text(encoding='utf-8'))
+              conn.commit()
+          PY
+      - name: Verify Delivery OS v4.0 invariants
+        run: |
+          python - <<'PY'
+          import psycopg
+          tables={'brands','delivery_zones','delivery_drivers','loyalty_programs','delivery_promos'}
+          with psycopg.connect('postgresql://cozinha360@localhost:5432/cozinha360') as conn:
+              with conn.cursor() as cur:
+                  cur.execute("select table_name from information_schema.tables where table_schema='public'")
+                  present={r[0] for r in cur.fetchall()}
+                  assert tables <= present, f'missing tables: {sorted(tables-present)}'
+                  for table in ('delivery_zones','delivery_drivers','loyalty_programs','delivery_promos'):
+                      cur.execute("select c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname=%s",(table,))
+                      row=cur.fetchone();assert row and row[0] is True,f'{table} RLS is not enabled'
+                  required=[
+                    ('brands','slug'),('brands','primary_channel'),('brands','sort_order'),
+                    ('delivery_zones','fee_cents'),('delivery_zones','min_order_cents'),('delivery_zones','eta_min'),('delivery_zones','version'),
+                    ('delivery_drivers','vehicle'),('delivery_drivers','status'),('delivery_drivers','version'),
+                    ('loyalty_programs','cashback_bps'),('delivery_promos','discount_type'),('delivery_promos','used_count')
+                  ]
+                  for table,column in required:
+                      cur.execute("select count(*) from information_schema.columns where table_schema='public' and table_name=%s and column_name=%s",(table,column))
+                      assert cur.fetchone()[0]==1,f'missing {table}.{column}'
+                  for index in ('uq_brands_business_slug_active','ix_delivery_zones_business','ix_delivery_drivers_business','uq_delivery_promos_business_code'):
+                      cur.execute("select count(*) from pg_indexes where schemaname='public' and indexname=%s",(index,))
+                      assert cur.fetchone()[0]==1,f'missing index {index}'
+                  # PostgreSQL vanilla has no Supabase roles, but the migration must remain portable.
+                  cur.execute("insert into public.businesses(name,city) values ('Delivery CI','Mogi') returning id")
+                  bid=cur.fetchone()[0]
+                  cur.execute("insert into public.brands(business_id,name,slug,primary_channel) values (%s,'Smash','smash','direct') returning id",(bid,));brand=cur.fetchone()[0]
+                  cur.execute("insert into public.delivery_zones(business_id,brand_id,name,zone_type,match_value,fee_cents,min_order_cents,eta_min) values (%s,%s,'5 km','radius','5 km',790,3500,45)",(bid,brand))
+                  cur.execute("insert into public.delivery_drivers(business_id,name,vehicle,status) values (%s,'Moto CI','moto','available')",(bid,))
+                  cur.execute("insert into public.loyalty_programs(business_id,mode,cashback_bps,active) values (%s,'cashback',500,true)",(bid,))
+                  cur.execute("insert into public.delivery_promos(business_id,brand_id,code,discount_type,value,min_order_cents) values (%s,%s,'VOLTA10','percent',1000,3000)",(bid,brand))
+                  conn.rollback()
+          print('delivery v4.0 schema invariants ok')
+          PY

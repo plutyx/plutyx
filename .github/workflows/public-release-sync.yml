@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
+      - 'netlify.toml'
       - '.github/workflows/public-release-sync.yml'
   workflow_run:
     workflows: ['netlify-production-deploy']
@@ -16,27 +17,40 @@ jobs:
   release-identity:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
       WEB_URL: https://cozinha-360-os.netlify.app
-      EXPECTED_RELEASE: '3.9.0'
+      EXPECTED_RELEASE: '4.0.0'
     steps:
-      - name: Fetch public frontend
-        run: |
-          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$WEB_URL/" -o /tmp/public-index.html
-          test -s /tmp/public-index.html
-      - name: Verify public release identity
+      - name: Wait for Git deploy to converge
         run: |
           marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
-          if ! grep -F "$marker" /tmp/public-index.html >/dev/null; then
-            echo "::error title=Public frontend is stale::Expected Cozinha 360 release $EXPECTED_RELEASE on $WEB_URL, but the public HTML does not carry that release marker. Deploy the latest frontend bundle before calling public production synchronized."
-            exit 1
-          fi
+          for attempt in $(seq 1 24); do
+            if curl --fail --silent --show-error --location "$WEB_URL/?release_probe=$GITHUB_RUN_ID-$attempt" -o /tmp/public-index.html; then
+              if grep -F "$marker" /tmp/public-index.html >/dev/null; then
+                echo "Release $EXPECTED_RELEASE visible after attempt $attempt."
+                exit 0
+              fi
+            fi
+            echo "Waiting for Netlify release $EXPECTED_RELEASE ($attempt/24)..."
+            sleep 10
+          done
+          echo "::error title=Public frontend is stale::Expected Cozinha 360 release $EXPECTED_RELEASE on $WEB_URL after 4 minutes of convergence."
+          exit 1
       - name: Verify Vite production assets are referenced
         run: |
-          if ! grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null; then
-            echo "::error title=Unexpected public bundle::Release marker is present but the public HTML does not reference a Vite production JavaScript asset."
-            exit 1
-          fi
+          js_asset=$(grep -oE '/assets/[^" ]+\.js' /tmp/public-index.html | head -1)
+          css_asset=$(grep -oE '/assets/[^" ]+\.css' /tmp/public-index.html | head -1)
+          test -n "$js_asset"
+          test -n "$css_asset"
+          curl --fail --silent --show-error --location "$WEB_URL$js_asset" -o /tmp/public-app.js
+          curl --fail --silent --show-error --location "$WEB_URL$css_asset" -o /tmp/public-app.css
+          grep -F 'cozinha360-delivery-v40' /tmp/public-app.js >/dev/null
+      - name: Verify public security headers
+        run: |
+          headers=$(curl --silent --show-error --head "$WEB_URL/")
+          echo "$headers" | grep -i '^x-content-type-options: *nosniff' >/dev/null
+          echo "$headers" | grep -i '^x-frame-options: *DENY' >/dev/null
+          echo "$headers" | grep -i '^content-security-policy:' >/dev/null
       - name: Public release is synchronized
-        run: echo "Public frontend matches release $EXPECTED_RELEASE."
+        run: echo "Public frontend, assets and security headers match release $EXPECTED_RELEASE."
