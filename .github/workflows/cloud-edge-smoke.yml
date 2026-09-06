@@ -21,6 +21,7 @@ jobs:
       PROFILE_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-profile-v31
       ENTITLEMENTS_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-entitlements-v34
       AUTOPILOT_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-autopilot-v37
+      INTELLIGENCE_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50
     steps:
       - name: Liveness
         run: |
@@ -74,3 +75,14 @@ jobs:
           status="$(curl --silent --output /tmp/autopilot-auth.json --write-out '%{http_code}' "$AUTOPILOT_EDGE/businesses/1/plan")"
           test "$status" = "401"
           python -c 'import json; x=json.load(open("/tmp/autopilot-auth.json")); assert x.get("detail")=="Sessão inválida"'
+      - name: Intelligence v5 service is live and database-ready
+        run: |
+          live="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$INTELLIGENCE_EDGE/livez")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-intelligence-v50" and x["version"]=="5.0.0"' "$live"
+          ready="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$INTELLIGENCE_EDGE/readyz")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["database"]=="ready" and x["version"]=="5.0.0"' "$ready"
+      - name: Intelligence tenant routes require auth
+        run: |
+          status="$(curl --silent --output /tmp/intelligence-auth.json --write-out '%{http_code}' "$INTELLIGENCE_EDGE/portfolio/overview")"
+          test "$status" = "401"
+          python -c 'import json; x=json.load(open("/tmp/intelligence-auth.json")); assert x.get("detail")=="Sessão inválida"'
