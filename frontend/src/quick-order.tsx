@@ -5,6 +5,7 @@ import {
   readCachedBusinesses,readCachedCostPreview,readCachedProducts,recallQuickPrice,recallQuickSource,
   rememberQuickPrice,rememberQuickSource,type OfflineQuickOrder,
 } from './offline-queue-v50'
+import { intelligenceRequest } from './intelligence-api-v50'
 
 const API = import.meta.env.VITE_API_URL || '/api'
 
@@ -18,7 +19,7 @@ type QuickResult = { id:number; total_cents:number; variable_cost_cents:number; 
 
 const money=(c=0)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(c/100)
 
-async function request(path:string, options:RequestInit={}, token?:string){
+async function coreRequest(path:string, options:RequestInit={}, token?:string){
   const res=await fetch(`${API}${path}`,{
     ...options,
     headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{ }),...(options.headers||{})},
@@ -54,7 +55,7 @@ export function QuickOrderRoute(){
 
   useEffect(()=>{
     if(!token){setLoading(false);return}
-    request('/me',{},token).then(body=>{
+    coreRequest('/me',{},token).then(body=>{
       const rows:Business[]=body.businesses||[]
       setBusinesses(rows);cacheBusinesses(rows)
       if(rows[0])setBusinessId(rows[0].id)
@@ -67,7 +68,7 @@ export function QuickOrderRoute(){
   useEffect(()=>{
     if(!businessId)return
     setError('');setCost(null);setResult(null);setQueued(null);setSource(recallQuickSource(businessId))
-    request(`/businesses/${businessId}/products`,{},token).then((rows:Product[])=>{
+    coreRequest(`/businesses/${businessId}/products`,{},token).then((rows:Product[])=>{
       const active=rows.filter(x=>x.active)
       setProducts(active);cacheProducts(businessId,active)
       setProductId(active[0]?.id||0);setOfflineNote('')
@@ -80,7 +81,7 @@ export function QuickOrderRoute(){
   useEffect(()=>{
     if(!businessId||!productId){setCost(null);return}
     setError('');setCost(null)
-    request(`/businesses/${businessId}/products/${productId}/cost-preview`,{},token)
+    intelligenceRequest(`/businesses/${businessId}/products/${productId}/cost-preview`,{},token)
       .then((next:CostPreview)=>{setCost(next);cacheCostPreview(businessId,productId,next)})
       .catch(err=>{
         const cached=readCachedCostPreview(businessId,productId).cost as CostPreview|null
@@ -117,7 +118,7 @@ export function QuickOrderRoute(){
     rememberQuickPrice(businessId,productId,source,priceCents);rememberQuickSource(businessId,source)
     try{
       if(!online){queueLocally(payload);return}
-      const body=await request(`/businesses/${businessId}/orders/quick`,{method:'POST',body:JSON.stringify(payload)},token)
+      const body=await intelligenceRequest(`/businesses/${businessId}/orders/quick`,{method:'POST',body:JSON.stringify(payload)},token)
       setResult(body);setOfflineNote('')
     }catch(err){
       if(isNetworkFailure(err)){try{queueLocally(payload)}catch(queueError){setError(queueError instanceof Error?queueError.message:'Não foi possível guardar o pedido offline')}}else setError(err instanceof Error?err.message:'Não foi possível registrar o pedido')
