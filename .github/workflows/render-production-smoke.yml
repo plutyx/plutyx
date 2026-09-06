@@ -1,0 +1,82 @@
+name: render-production-smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      WEB_URL: https://cozinha-360-os-v41.onrender.com
+      EDGE_ROOT: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1
+    steps:
+      - name: Wait for Render release and verify frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            code="$(curl -L -sS -o /tmp/index.html -w '%{http_code}' "$WEB_URL/")" || true
+            if [ "$code" = "200" ] && grep -F '<meta name="c360-release"' /tmp/index.html >/dev/null; then
+              break
+            fi
+            sleep 4
+          done
+          test -s /tmp/index.html
+          grep -F '<meta name="c360-release"' /tmp/index.html
+          asset="$(grep -Eo '/assets/[^" ]+\.js' /tmp/index.html | head -n1)"
+          test -n "$asset"
+          test "$(curl -L -sS -o /tmp/bundle.js -w '%{http_code}' "$WEB_URL$asset")" = "200"
+          grep -F 'cozinha360-delivery-v40' /tmp/bundle.js >/dev/null
+          grep -F 'cozinha360-api-v2' /tmp/bundle.js >/dev/null
+
+      - name: Verify Render origin is accepted by production Edge services
+        shell: bash
+        run: |
+          set -euo pipefail
+          services=(
+            cozinha360-api-v2
+            cozinha360-margin-v14
+            cozinha360-crm-v16
+            cozinha360-direct-v17
+            cozinha360-integrations-v29
+            cozinha360-profile-v31
+            cozinha360-entitlements-v34
+            cozinha360-autopilot-v37
+            cozinha360-delivery-v40
+          )
+          failed=0
+          for service in "${services[@]}"; do
+            headers="/tmp/${service}.headers"
+            code="$(curl -sS -D "$headers" -o /dev/null -w '%{http_code}' -X OPTIONS \
+              -H "Origin: $WEB_URL" \
+              -H 'Access-Control-Request-Method: GET' \
+              -H 'Access-Control-Request-Headers: authorization,content-type' \
+              "$EDGE_ROOT/$service")" || code=000
+            origin="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/{gsub("\r",""); sub(/^[^:]+:[ ]*/,""); print; exit}' "$headers" 2>/dev/null || true)"
+            echo "$service status=$code allow-origin=${origin:-missing}"
+            if [ "$code" != "204" ] && [ "$code" != "200" ]; then failed=1; fi
+            if [ "$origin" != "*" ] && [ "$origin" != "$WEB_URL" ]; then failed=1; fi
+          done
+          if [ "$failed" = "1" ]; then
+            echo '::error title=Render CORS not production-ready::One or more Edge services reject the Render production origin.'
+            exit 1
+          fi
+
+      - name: Verify public Edge health
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(curl -sS -o /tmp/delivery-health.json -w '%{http_code}' "$EDGE_ROOT/cozinha360-delivery-v40/health")" = "200"
+          grep -F '"status":"ok"' /tmp/delivery-health.json >/dev/null
+          test "$(curl -sS -o /tmp/profile-live.json -w '%{http_code}' "$EDGE_ROOT/cozinha360-profile-v31/livez")" = "200"
+          grep -F '"ok":true' /tmp/profile-live.json >/dev/null
