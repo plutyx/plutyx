@@ -18,7 +18,12 @@ await page.route('**/api/portfolio/overview',route=>route.fulfill(ok({
 
 try{
  await page.goto('http://127.0.0.1:5173/?network=1',{waitUntil:'networkidle'})
- await page.getByRole('heading',{name:'Todas as operações. Só o que merece sua atenção.',exact:true}).waitFor({timeout:15000})
+ const heading=page.getByRole('heading',{name:'Todas as operações. Só o que merece sua atenção.',exact:true})
+ await heading.waitFor({timeout:15000})
+ const headingBox=await heading.boundingBox()
+ if(!headingBox||headingBox.y>260)throw new Error(`Network 360 hero drifted below the fold: ${JSON.stringify(headingBox)}`)
+ const statusBox=await page.locator('.network50-hero aside').boundingBox()
+ if(!statusBox||statusBox.height>320)throw new Error(`Network 360 status card inherited sidebar sizing: ${JSON.stringify(statusBox)}`)
  await page.getByText('Shawarma Centro: Contribuição negativa',{exact:true}).waitFor()
  const rows=page.locator('.network50-unit')
  if(await rows.count()!==3)throw new Error(`expected 3 units, got ${await rows.count()}`)
