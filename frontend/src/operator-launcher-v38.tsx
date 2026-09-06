@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react'
 import {
   BarChart3,BookOpen,Boxes,Building2,ChefHat,CircleDollarSign,Command,LayoutDashboard,
-  Network,Plus,Search,ShieldCheck,ShoppingBag,SlidersHorizontal,Sparkles,Store,
+  Network,Plus,Scale,Search,ShieldCheck,ShoppingBag,SlidersHorizontal,Sparkles,Store,
   Sun,Truck,Users,WalletCards,X
 } from 'lucide-react'
 
@@ -15,6 +15,7 @@ const actions:Action[]=[
   {label:'Execution Hub',href:'/?execution=1',group:'Operar',description:'execução de 72h, compras e checklists',keywords:'execução checklist compras 72h',icon:Boxes},
   {label:'Control Tower',href:'/?control=1',group:'Operar',description:'auditoria 30/60/90 e contingência',keywords:'controle auditoria recuperação contingência',icon:SlidersHorizontal},
   {label:'Network 360',href:'/?network=1',group:'Controlar',description:'todas as operações ordenadas por exceção e risco',keywords:'rede unidades multi operação lojas franquia visão consolidada exceções risco',icon:Building2},
+  {label:'CMV 360',href:'/?cmv=1',group:'Controlar',description:'contagem física, consumo teórico e diferença sem explicação',keywords:'cmv estoque contagem desperdício perda ficha consumo físico teórico inventário custo real',icon:Scale},
   {label:'Cash & Margin',href:'/?cash=1',group:'Controlar',description:'caixa, ponto de equilíbrio e runway',keywords:'caixa margem break even runway financeiro',icon:CircleDollarSign},
   {label:'Margens & canais',href:'/?margin=1',group:'Controlar',description:'contribuição por canal e preço mínimo',keywords:'margem canal preço contribuição',icon:WalletCards},
   {label:'Autopilot 360',href:'/?autopilot=1',group:'Controlar',description:'prioridades e próxima ação com dados da operação',keywords:'autopilot prioridade ação briefing ia',icon:Sparkles},
@@ -86,7 +87,7 @@ function OperatorLauncher(){
           <div><span className="operator-launcher-kicker">COZINHA 360 · COMANDO</span><h2>O que você precisa fazer agora?</h2></div>
           <button type="button" className="operator-launcher-close" onClick={()=>setOpen(false)} aria-label="Fechar launcher"><X size={18}/></button>
         </header>
-        <label className="operator-launcher-search"><Search size={18}/><input ref={inputRef} value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar delivery, caixa, CRM, cozinha, rede, segurança…" aria-label="Buscar função"/><span>ESC</span></label>
+        <label className="operator-launcher-search"><Search size={18}/><input ref={inputRef} value={query} onChange={event=>setQuery(event.target.value)} placeholder="Buscar delivery, caixa, CMV, CRM, cozinha, rede…" aria-label="Buscar função"/><span>ESC</span></label>
         <div className="operator-launcher-groups">
           {groups.map(section=><div className="operator-launcher-group" key={section.group}><h3>{section.group}</h3><div className="operator-launcher-list">{section.items.map(item=>{const Icon=item.icon;return <a key={item.href} href={item.href} className="operator-launcher-item"><span className="operator-launcher-icon"><Icon size={18}/></span><span><b>{item.label}</b><small>{item.description}</small></span></a>})}</div></div>)}
           {!filtered.length&&<div className="operator-launcher-empty">Nenhuma função encontrada. Tente outro termo.</div>}
