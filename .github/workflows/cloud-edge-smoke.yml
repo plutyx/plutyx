@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 5
     env:
       EDGE_BASE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
+      PROFILE_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-profile-v31
     steps:
       - name: Liveness
         run: |
@@ -32,3 +33,16 @@ jobs:
           status="$(curl --silent --output /tmp/auth.json --write-out '%{http_code}' -H 'Content-Type: application/json' -d '{}' "$EDGE_BASE/auth/signup")"
           test "$status" = "422"
           python -c 'import json; x=json.load(open("/tmp/auth.json")); assert "detail" in x'
+      - name: Smart setup service is live
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROFILE_EDGE/livez")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-profile-v31" and x["version"]=="3.1.0"' "$body"
+      - name: Smart setup database is ready
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PROFILE_EDGE/readyz")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["database"]=="ready"' "$body"
+      - name: Smart setup tenant route requires auth
+        run: |
+          status="$(curl --silent --output /tmp/profile-auth.json --write-out '%{http_code}' "$PROFILE_EDGE/businesses/1/profile")"
+          test "$status" = "401"
+          python -c 'import json; x=json.load(open("/tmp/profile-auth.json")); assert x.get("detail")=="Sessão inválida"'

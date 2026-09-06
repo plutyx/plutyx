@@ -1,0 +1,24 @@
+import { createClient } from 'npm:@supabase/supabase-js@2'
+
+const SUPABASE_URL=Deno.env.get('SUPABASE_URL')!
+const ANON_KEY=Deno.env.get('SUPABASE_ANON_KEY')!
+const SERVICE_KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const FUNCTION_SLUG='cozinha360-profile-v31'
+const anon=createClient(SUPABASE_URL,ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}})
+const admin=createClient(SUPABASE_URL,SERVICE_KEY,{auth:{persistSession:false,autoRefreshToken:false}})
+const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'GET,PUT,OPTIONS','Content-Type':'application/json; charset=utf-8'}
+const j=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:cors})
+const fail=(detail:string,status=400)=>j({detail},status)
+const now=()=>new Date().toISOString()
+
+function routePath(req:Request){const p=new URL(req.url).pathname,marker='/'+FUNCTION_SLUG;const i=p.indexOf(marker);return i>=0?(p.slice(i+marker.length)||'/'):p}
+async function body(req:Request){try{return await req.json()}catch{return{}}}
+async function auth(req:Request){const h=req.headers.get('authorization')||'',token=h.startsWith('Bearer ')?h.slice(7):'';if(!token)return null;const {data,error}=await anon.auth.getUser(token);if(error||!data.user)return null;let {data:profile}=await admin.from('users').select('id,email,full_name').eq('auth_user_id',data.user.id).maybeSingle();if(!profile&&data.user.email){const r=await admin.from('users').select('id,email,full_name').ilike('email',data.user.email).maybeSingle();profile=r.data}return profile||null}
+async function member(userId:number,businessId:number,write=false){const {data}=await admin.from('memberships').select('id,role').eq('user_id',userId).eq('business_id',businessId).maybeSingle();if(!data)return null;if(write&&!['owner','admin'].includes(data.role))return null;return data}
+
+const blank=(businessId:number)=>({business_id:businessId,order_source:'direct',use_mercadopago:true,use_google:true,use_meta_ads:false,configured_at:null,updated_by_user_id:null})
+function recommended(p:any){const result:string[]=[];if(p.order_source==='whatsapp')result.push('whatsapp');if(p.order_source==='ifood')result.push('ifood');if(p.order_source==='mixed')result.push('whatsapp','ifood');if(p.use_mercadopago)result.push('mercadopago');if(p.use_google)result.push('google');if(p.use_meta_ads)result.push('meta_ads');return result}
+async function getProfile(businessId:number){const r=await admin.from('integration_profiles').select('business_id,order_source,use_mercadopago,use_google,use_meta_ads,configured_at,updated_by_user_id,updated_at').eq('business_id',businessId).maybeSingle();if(r.error)throw r.error;const profile=r.data||blank(businessId);return{profile,recommended_order:recommended(profile),internal_order_ready:profile.order_source==='direct'}}
+async function saveProfile(businessId:number,userId:number,input:any){const order=String(input.order_source||'');if(!['direct','whatsapp','ifood','mixed'].includes(order))return fail('Escolha uma origem de pedidos válida.',422);for(const k of ['use_mercadopago','use_google','use_meta_ads'])if(typeof input[k]!=='boolean')return fail(`Campo ${k} deve ser verdadeiro ou falso.`,422);const row={business_id:businessId,order_source:order,use_mercadopago:input.use_mercadopago,use_google:input.use_google,use_meta_ads:input.use_meta_ads,configured_at:now(),updated_by_user_id:userId,updated_at:now()};const r=await admin.from('integration_profiles').upsert(row,{onConflict:'business_id'}).select('business_id,order_source,use_mercadopago,use_google,use_meta_ads,configured_at,updated_by_user_id,updated_at').single();if(r.error)throw r.error;return j({profile:r.data,recommended_order:recommended(r.data),internal_order_ready:r.data.order_source==='direct'})}
+
+Deno.serve(async(req:Request)=>{if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});const path=routePath(req),method=req.method;try{if(path==='/livez'&&method==='GET')return j({ok:true,service:'cozinha360-profile-v31',version:'3.1.0'});if(path==='/readyz'&&method==='GET'){const r=await admin.from('integration_profiles').select('business_id',{head:true,count:'exact'});return r.error?fail('database_not_ready',503):j({ok:true,database:'ready',version:'3.1.0'})}const user:any=await auth(req);if(!user)return fail('Sessão inválida',401);const m=path.match(/^\/businesses\/(\d+)\/profile$/);if(!m)return fail('Rota não encontrada',404);const bid=Number(m[1]);if(method==='GET'){if(!await member(user.id,bid))return fail('Sem acesso',403);return j(await getProfile(bid))}if(method==='PUT'){if(!await member(user.id,bid,true))return fail('Somente owner/admin pode ajustar o plano de conexões',403);return saveProfile(bid,user.id,await body(req))}return fail('Método não permitido',405)}catch(e){console.error('profile-v31',e);return fail('Erro interno',500)}})
