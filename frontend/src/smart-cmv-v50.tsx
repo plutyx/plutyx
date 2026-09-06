@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState}from'react'
 import{AlertTriangle,ArrowLeft,ArrowRight,CheckCircle2,ClipboardCheck,Coins,PackageCheck,RefreshCcw,Scale,ShieldCheck,Sparkles,TriangleAlert,WifiOff}from'lucide-react'
 import{money,request}from'./app'
+import{intelligenceRequest}from'./intelligence-api-v50'
 
 type Business={id:number;name:string;city?:string}
 type Ingredient={id:number;name:string;unit:string;on_hand_milliunits:number;par_level_milliunits:number;reorder_target_milliunits:number;version:number}
@@ -21,7 +22,7 @@ export function SmartCMVRoute(){
   try{
    let id=target;if(!businesses.length){const me=await request('/me',{},token);const rows=(me.businesses||[]) as Business[];setBusinesses(rows);const requested=Number(new URLSearchParams(location.search).get('business_id')||0);id=(requested&&rows.some(x=>x.id===requested))?requested:(id||Number(rows[0]?.id||0));if(id)setBusinessId(id)}
    if(!id){setData(null);setIngredients([]);return}
-   const[ingredientRows,smart]=await Promise.all([request(`/businesses/${id}/ingredients`,{},token),request(`/businesses/${id}/smart-cmv`,{},token)])
+   const[ingredientRows,smart]=await Promise.all([request(`/businesses/${id}/ingredients`,{},token),intelligenceRequest(`/businesses/${id}/smart-cmv`,{},token)])
    const active=(ingredientRows||[]) as Ingredient[];setIngredients(active);setData(smart as SmartCMV)
    const next=(smart.ingredients as SmartRow[]).find(x=>x.status!=='ready')||smart.ingredients[0]
    if(next){setSelectedId(Number(next.ingredient_id));const ingredient=active.find(x=>x.id===Number(next.ingredient_id));setCountValue(String(ingredient?.on_hand_milliunits??next.current_on_hand_milliunits??0))}
@@ -35,7 +36,7 @@ export function SmartCMVRoute(){
  async function saveCount(e:React.FormEvent){
   e.preventDefault();if(!selected||!businessId)return;const value=Number(countValue);if(!Number.isInteger(value)||value<0){setError('Informe uma quantidade inteira igual ou maior que zero.');return}
   setBusy(true);setError('');setNotice('')
-  try{await request(`/businesses/${businessId}/inventory/counts`,{method:'POST',body:JSON.stringify({ingredient_id:selected.id,counted_milliunits:value,note:note.trim()})},token);setNotice(`Contagem de ${selected.name} confirmada. O estoque oficial foi atualizado para ${value} ${selected.unit}.`);setNote('');await load(businessId)}catch(e){setError(e instanceof Error?e.message:'Não foi possível salvar a contagem.')}finally{setBusy(false)}
+  try{await intelligenceRequest(`/businesses/${businessId}/inventory/counts`,{method:'POST',body:JSON.stringify({ingredient_id:selected.id,counted_milliunits:value,note:note.trim()})},token);setNotice(`Contagem de ${selected.name} confirmada. O estoque oficial foi atualizado para ${value} ${selected.unit}.`);setNote('');await load(businessId)}catch(e){setError(e instanceof Error?e.message:'Não foi possível salvar a contagem.')}finally{setBusy(false)}
  }
  if(loading)return <main className="cmv50-shell cmv50-center"><div className="cmv50-loader"><Scale/>CRUZANDO CONTAGENS, COMPRAS E FICHAS</div></main>
  if(!data)return <main className="cmv50-shell cmv50-center"><section className="cmv50-error"><WifiOff/><h1>CMV inteligente indisponível.</h1><p>{error||'Crie uma operação e tente novamente.'}</p><a href="/">Voltar</a></section></main>
