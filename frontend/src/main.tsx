@@ -20,6 +20,7 @@ import { ConnectionsHubRoute } from './connections-hub'
 import { SubscriptionStatusRoute } from './subscription-status'
 import { Autopilot360Route } from './autopilot-360'
 import { SessionAwareControls } from './operator-launcher-v38'
+import { TodayAttentionRoute } from './today-attention-v39'
 import { prepareOperatingMemory } from './operating-memory'
 import './styles.css'
 import './market.css'
@@ -55,6 +56,7 @@ import './subscription-nav.css'
 import './autopilot-360.css'
 import './dock-v37.css'
 import './operator-launcher-v38.css'
+import './today-attention-v39.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -73,27 +75,32 @@ function TabHashBridge(){
   return null
 }
 
+function OperatorRoute({children,alerts=true}:{children:React.ReactNode;alerts?:boolean}){
+  return <>{children}{alerts&&<KitchenAlerts/>}<SessionAwareControls/></>
+}
+
 function Root(){
   const params=new URLSearchParams(window.location.search)
   const hasAccountRoute=Boolean(params.get('reset_token')||params.get('verify_token')||params.get('forgot')==='1'||params.get('security')==='1')
   const storeSlug=params.get('loja')||''
   if(storeSlug)return <PublicStorefrontRoute slug={storeSlug}/>
   if(hasAccountRoute)return <AccountRoute/>
-  if(params.get('quick')==='1')return <QuickOrderRoute/>
-  if(params.get('margin')==='1')return <ChannelMarginRoute/>
-  if(params.get('crm')==='1')return <CrmLifecycleRoute/>
-  if(params.get('direct')==='1')return <DirectCommerceAdminRoute/>
-  if(params.get('kitchen')==='1')return <><KitchenBatchRoute/><KitchenAlerts/></>
-  if(params.get('system360')==='1')return <><System360Route/><KitchenAlerts/></>
-  if(params.get('playbook')==='1')return <><PlaybookLabRoute/><KitchenAlerts/></>
-  if(params.get('vitrine')==='1')return <><VitrineStudioRoute/><KitchenAlerts/></>
-  if(params.get('growth')==='1')return <><GrowthLabRoute/><KitchenAlerts/></>
-  if(params.get('control')==='1')return <><ControlTowerRoute/><KitchenAlerts/></>
-  if(params.get('execution')==='1')return <><ExecutionHubRoute/><KitchenAlerts/></>
-  if(params.get('cash')==='1')return <><CashEngineRoute/><KitchenAlerts/></>
-  if(params.get('connections')==='1')return <><ConnectionsHubRoute/><KitchenAlerts/></>
-  if(params.get('plan')==='1')return <SubscriptionStatusRoute/>
-  if(params.get('autopilot')==='1')return <><Autopilot360Route/><KitchenAlerts/></>
+  if(params.get('today')==='1')return <OperatorRoute><TodayAttentionRoute/></OperatorRoute>
+  if(params.get('quick')==='1')return <OperatorRoute><QuickOrderRoute/></OperatorRoute>
+  if(params.get('margin')==='1')return <OperatorRoute><ChannelMarginRoute/></OperatorRoute>
+  if(params.get('crm')==='1')return <OperatorRoute><CrmLifecycleRoute/></OperatorRoute>
+  if(params.get('direct')==='1')return <OperatorRoute><DirectCommerceAdminRoute/></OperatorRoute>
+  if(params.get('kitchen')==='1')return <OperatorRoute><KitchenBatchRoute/></OperatorRoute>
+  if(params.get('system360')==='1')return <OperatorRoute><System360Route/></OperatorRoute>
+  if(params.get('playbook')==='1')return <OperatorRoute><PlaybookLabRoute/></OperatorRoute>
+  if(params.get('vitrine')==='1')return <OperatorRoute><VitrineStudioRoute/></OperatorRoute>
+  if(params.get('growth')==='1')return <OperatorRoute><GrowthLabRoute/></OperatorRoute>
+  if(params.get('control')==='1')return <OperatorRoute><ControlTowerRoute/></OperatorRoute>
+  if(params.get('execution')==='1')return <OperatorRoute><ExecutionHubRoute/></OperatorRoute>
+  if(params.get('cash')==='1')return <OperatorRoute><CashEngineRoute/></OperatorRoute>
+  if(params.get('connections')==='1')return <OperatorRoute><ConnectionsHubRoute/></OperatorRoute>
+  if(params.get('plan')==='1')return <OperatorRoute alerts={false}><SubscriptionStatusRoute/></OperatorRoute>
+  if(params.get('autopilot')==='1')return <OperatorRoute><Autopilot360Route/></OperatorRoute>
   return <>
     <App/>
     <TabHashBridge/>

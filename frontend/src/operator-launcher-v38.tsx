@@ -1,13 +1,14 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react'
 import {
   BarChart3,BookOpen,Boxes,ChefHat,CircleDollarSign,Command,LayoutDashboard,
-  Megaphone,Network,Plus,Search,ShieldCheck,ShoppingBag,SlidersHorizontal,
-  Sparkles,Store,Users,WalletCards,X
+  Network,Plus,Search,ShieldCheck,ShoppingBag,SlidersHorizontal,
+  Sparkles,Store,Sun,Users,WalletCards,X
 } from 'lucide-react'
 
 type Action={label:string;href:string;group:'Operar'|'Controlar'|'Crescer'|'Administrar';description:string;keywords:string;icon:React.ElementType}
 
 const actions:Action[]=[
+  {label:'Hoje',href:'/?today=1',group:'Operar',description:'prioridades, alertas e sequência de decisões do dia',keywords:'hoje atenção prioridade briefing decisão alertas',icon:Sun},
   {label:'Sistema 360',href:'/?system360=1',group:'Operar',description:'diagnóstico, motores e marco dos 30 pedidos',keywords:'sistema operação diagnóstico 30 pedidos',icon:LayoutDashboard},
   {label:'Modo cozinha',href:'/?kitchen=1',group:'Operar',description:'fila, preparo, componentes e estoque projetado',keywords:'cozinha kds produção preparo componentes',icon:ChefHat},
   {label:'Execution Hub',href:'/?execution=1',group:'Operar',description:'execução de 72h, compras e checklists',keywords:'execução checklist compras 72h',icon:Boxes},
@@ -71,7 +72,7 @@ function OperatorLauncher(){
   const groups=(['Operar','Controlar','Crescer','Administrar'] as const).map(group=>({group,items:filtered.filter(item=>item.group===group)})).filter(section=>section.items.length)
   return <>
     <nav className="operator-rail" aria-label="Ações principais">
-      <a className="operator-rail-link operator-rail-autopilot" href="/?autopilot=1"><Sparkles size={16}/><span>Autopilot</span></a>
+      <a className="operator-rail-link operator-rail-autopilot" href="/?today=1"><Sun size={16}/><span>Hoje</span></a>
       <a className="operator-rail-link operator-rail-primary" href="/?quick=1"><Plus size={17}/><span>+ Pedido rápido</span></a>
       <a className="operator-rail-link" href="/?kitchen=1"><ChefHat size={16}/><span>Cozinha</span></a>
       <a className="operator-rail-link" href="/?cash=1"><CircleDollarSign size={16}/><span>Caixa</span></a>

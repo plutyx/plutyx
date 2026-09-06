@@ -64,7 +64,7 @@ try {
 
   // O cliente não digita custo variável. O atalho usa a ficha técnica e envia o pedido ao KDS.
   await page.getByRole('link', { name: '+ Pedido rápido', exact: true }).click()
-  await page.getByText('PEDIDO RÁPIDO').waitFor()
+  await page.locator('.quick-heading .eyebrow').getByText('PEDIDO RÁPIDO', { exact: true }).waitFor()
   await page.getByLabel('Produto').selectOption({ label: 'Wrap E2E' })
   await page.getByText(/R\$\s*2,00/).first().waitFor()
   await page.getByLabel('Quantidade').fill('2')
