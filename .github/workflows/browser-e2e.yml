@@ -69,6 +69,9 @@ jobs:
       - name: Run cash-engine journey
         run: node frontend/e2e/cash-engine.mjs
 
+      - name: Run connections-hub journey
+        run: node frontend/e2e/connections-hub.mjs
+
       - name: Upload E2E evidence and logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -87,5 +90,7 @@ jobs:
             /tmp/cozinha360-operating-memory-failure.png
             /tmp/cozinha360-cash-engine.png
             /tmp/cozinha360-cash-engine-failure.png
+            /tmp/cozinha360-connections-hub.png
+            /tmp/cozinha360-connections-hub-failure.png
             /tmp/cozinha360-api.log
             /tmp/cozinha360-web.log
