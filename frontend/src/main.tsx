@@ -5,7 +5,7 @@ import { AccountRoute } from './account-actions'
 import { QuickOrderRoute } from './quick-order'
 import { ChannelMarginRoute } from './channel-margin'
 import { CrmLifecycleRoute } from './crm-lifecycle'
-import { DirectCommerceAdminRoute, PublicStorefrontRoute } from './direct-order'
+import { DeliveryTrackingRoute,DirectCommerceAdminRoute,PublicStorefrontRoute } from './direct-order'
 import { KitchenAlerts } from './kitchen-alerts'
 import { InventoryStockEditor } from './inventory-editor'
 import { KitchenBatchRoute } from './kitchen-batch'
@@ -30,6 +30,7 @@ import './quick-order.css'
 import './channel-margin.css'
 import './crm-lifecycle.css'
 import './direct-order.css'
+import './direct-order-v40.css'
 import './kitchen-alerts.css'
 import './super-flow.css'
 import './flow-v18.css'
@@ -76,15 +77,12 @@ function TabHashBridge(){
   },[])
   return null
 }
-
-function OperatorRoute({children,alerts=true}:{children:React.ReactNode;alerts?:boolean}){
-  return <>{children}{alerts&&<KitchenAlerts/>}<SessionAwareControls/></>
-}
-
+function OperatorRoute({children,alerts=true}:{children:React.ReactNode;alerts?:boolean}){return <>{children}{alerts&&<KitchenAlerts/>}<SessionAwareControls/></>}
 function Root(){
   const params=new URLSearchParams(window.location.search)
   const hasAccountRoute=Boolean(params.get('reset_token')||params.get('verify_token')||params.get('forgot')==='1'||params.get('security')==='1')
-  const storeSlug=params.get('loja')||''
+  const tracking=params.get('track')||'',storeSlug=params.get('loja')||''
+  if(tracking)return <DeliveryTrackingRoute token={tracking}/>
   if(storeSlug)return <PublicStorefrontRoute slug={storeSlug}/>
   if(hasAccountRoute)return <AccountRoute/>
   if(params.get('today')==='1')return <OperatorRoute><TodayAttentionRoute/></OperatorRoute>
@@ -104,22 +102,7 @@ function Root(){
   if(params.get('connections')==='1')return <OperatorRoute><ConnectionsHubRoute/></OperatorRoute>
   if(params.get('plan')==='1')return <OperatorRoute alerts={false}><SubscriptionStatusRoute/></OperatorRoute>
   if(params.get('autopilot')==='1')return <OperatorRoute><Autopilot360Route/></OperatorRoute>
-  return <>
-    <App/>
-    <TabHashBridge/>
-    <KitchenAlerts/>
-    <InventoryStockEditor/>
-    <SessionAwareControls/>
-  </>
+  return <><App/><TabHashBridge/><KitchenAlerts/><InventoryStockEditor/><SessionAwareControls/></>
 }
-
-async function boot(){
-  await prepareOperatingMemory()
-  createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
-      <Root />
-    </React.StrictMode>,
-  )
-}
-
+async function boot(){await prepareOperatingMemory();createRoot(document.getElementById('root')!).render(<React.StrictMode><Root /></React.StrictMode>)}
 void boot()
