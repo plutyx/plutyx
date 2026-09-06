@@ -13,7 +13,7 @@ create table if not exists public.autopilot_runs (
   result_json jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (business_id, request_id)
+  constraint ux_autopilot_runs_business_request unique (business_id, request_id)
 );
 
 create index if not exists ix_autopilot_runs_business_created on public.autopilot_runs(business_id, created_at desc);
