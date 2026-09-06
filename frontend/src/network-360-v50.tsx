@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState}from'react'
 import{AlertTriangle,ArrowLeft,ArrowRight,Building2,CheckCircle2,ChefHat,CircleDollarSign,Clock3,Gauge,PackageSearch,RefreshCcw,Store,TriangleAlert,WifiOff}from'lucide-react'
-import{money,request}from'./app'
+import{money}from'./app'
+import{intelligenceRequest}from'./intelligence-api-v50'
 
 type Tone='critical'|'warning'|'neutral'|'stable'
 type Signal={score:number;code:string;tone:Tone;title:string;detail:string}
@@ -14,7 +15,7 @@ function clock(raw:string){try{return new Intl.DateTimeFormat('pt-BR',{hour:'2-d
 export function Network360Route(){
  const token=localStorage.getItem('c360_token')||''
  const[data,setData]=useState<Portfolio|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('')
- async function load(){if(!token){window.location.replace('/');return}setLoading(true);setError('');try{setData(await request('/portfolio/overview',{},token))}catch(e){setError(e instanceof Error?e.message:'Não foi possível montar a visão de rede.')}finally{setLoading(false)}}
+ async function load(){if(!token){window.location.replace('/');return}setLoading(true);setError('');try{setData(await intelligenceRequest('/portfolio/overview',{},token))}catch(e){setError(e instanceof Error?e.message:'Não foi possível montar a visão de rede.')}finally{setLoading(false)}}
  useEffect(()=>{void load()},[])
  const ordered=useMemo(()=>data?.businesses||[],[data])
  if(loading)return <main className="network50-shell network50-center"><div className="network50-loader"><Building2/>CRUZANDO TODAS AS OPERAÇÕES</div></main>
