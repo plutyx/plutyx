@@ -1,0 +1,44 @@
+name: one-time-v422-setup-backend-safety
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-v422-setup-backend-safety.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse ambiguous multi-brand automatic bindings
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p=Path('supabase/edge/cozinha360-setup-v42/index.ts')
+          s=p.read_text()
+          new=r'''async function autoConfigure(req:Request,businessId:number,userId:number){
+ const[brands,connections,bindings]=await Promise.all([admin.from('brands').select('id,name').eq('business_id',businessId).eq('active',true).eq('soft_deleted',false),admin.from('integration_connections').select('*').eq('business_id',businessId).eq('status','active'),admin.from('brand_integration_bindings').select('*').eq('business_id',businessId)]);if(brands.error||connections.error||bindings.error)return fail(req,'Não foi possível calcular a configuração automática.',500);
+ const activeBrands=brands.data||[],candidates=(connections.data||[]).filter(c=>['ifood','whatsapp','mercadopago'].includes(String(c.provider))),existing=bindings.data||[];
+ if(activeBrands.length>1){const unresolved=candidates.filter(c=>!activeBrands.every(b=>existing.some(x=>Number(x.brand_id)===Number(b.id)&&String(x.provider)===String(c.provider)&&x.active)));await audit(businessId,userId,'review_required','brand_integration_binding','multi_brand',{brand_ids:activeBrands.map(b=>b.id),connection_ids:unresolved.map(c=>c.id)});return reply(req,{ok:true,requires_review:true,reason:'multi_brand',created_count:0,brands:activeBrands.map(b=>({id:b.id,name:b.name})),connections:unresolved.map(c=>({id:c.id,provider:c.provider,display_name:c.display_name||null})),message:'Operação multi-marca exige vínculo explícito para evitar roteamento incorreto.'})}
+ if(activeBrands.length===0)return reply(req,{ok:true,requires_review:false,created_count:0,bindings:[],message:'Nenhuma marca ativa para configurar.'});
+ const brand=activeBrands[0],created:any[]=[];for(const c of candidates){if(existing.some(x=>Number(x.brand_id)===Number(brand.id)&&String(x.provider)===String(c.provider)&&x.active))continue;const r=await admin.from('brand_integration_bindings').upsert({business_id:businessId,brand_id:brand.id,connection_id:c.id,provider:c.provider,order_import_enabled:['ifood','whatsapp'].includes(String(c.provider)),menu_sync_enabled:false,price_sync_enabled:false,availability_sync_enabled:false,auto_accept_orders:false,active:true,updated_at:now()},{onConflict:'business_id,brand_id,provider'}).select('*').single();if(!r.error)created.push(r.data)}await audit(businessId,userId,'auto_configure','brand_integration_binding','single_brand',{brand_id:brand.id,created:created.map(x=>x.id)});return reply(req,{ok:true,requires_review:false,created_count:created.length,bindings:created})
+}'''
+          pattern=r"async function autoConfigure\(req:Request,businessId:number,userId:number\)\{.*?\n\nDeno\.serve"
+          replaced,n=re.subn(pattern,new+'\n\nDeno.serve',s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'autoConfigure replacement count={n}')
+          p.write_text(replaced)
+
+      - name: Commit safe multi-brand backend
+        run: |
+          git config user.name 'cozinha360-release-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add supabase/edge/cozinha360-setup-v42/index.ts
+          git commit -m 'Require explicit integration mapping for multi-brand operations'
+          git push origin HEAD:main
