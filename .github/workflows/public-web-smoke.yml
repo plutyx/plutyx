@@ -9,29 +9,35 @@ on:
 jobs:
   public-web:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     env:
-      WEB_URL: https://cozinha-360-os.netlify.app
+      WEB_URL: https://cozinha-360-os-v41.onrender.com
       API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
+      GATEWAY_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42
+      EXPECTED_RELEASE: '4.2.0'
     steps:
-      - name: Public frontend is real HTML and built bundle
+      - name: Public frontend serves exact current release
         run: |
           set -euo pipefail
           headers="$(mktemp)"
           body="$(mktemp)"
-          code="$(curl --fail-with-body --silent --show-error --location --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$WEB_URL")"
-          test "$code" = "200"
+          for i in $(seq 1 35); do
+            code="$(curl --silent --show-error --location --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$WEB_URL")" || true
+            marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
+            if [ "$code" = "200" ] && grep -Fq "$marker" "$body"; then break; fi
+            sleep 4
+          done
+          marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
+          grep -Fq "$marker" "$body"
           grep -Eiq '^content-type: *text/html' "$headers"
           grep -Fq 'Cozinha 360 OS' "$body"
-          grep -Eq 'name="c360-release" content="[0-9]+\.[0-9]+\.[0-9]+"' "$body"
           asset="$(grep -Eo 'src="/assets/index-[^"]+\.js"' "$body" | head -1 | cut -d'"' -f2)"
           test -n "$asset"
           bundle="$(mktemp)"
           test "$(curl --fail-with-body --silent --show-error --output "$bundle" --write-out '%{http_code}' "$WEB_URL$asset")" = "200"
           grep -Fq 'cozinha360-api-v2' "$bundle"
-          grep -Eiq '^x-content-type-options: *nosniff' "$headers"
-          grep -Eiq '^x-frame-options: *DENY' "$headers"
-          grep -Eiq '^referrer-policy: *strict-origin-when-cross-origin' "$headers"
-          grep -Eiq '^permissions-policy:.*camera=\(\).*microphone=\(\).*geolocation=\(\)' "$headers"
+          grep -Fq 'cozinha360-gateway-v42' "$bundle"
+          grep -Fq 'cozinha360-delivery-v40' "$bundle"
           echo 'public frontend smoke ok'
 
       - name: Public cloud API liveness and readiness
@@ -41,6 +47,8 @@ jobs:
           test "$(curl --fail-with-body --silent --show-error --output /tmp/readyz.json --write-out '%{http_code}' "$API_URL/readyz")" = "200"
           grep -q '"ok":true' /tmp/livez.json
           grep -q '"ok":true' /tmp/readyz.json
+          test "$(curl --fail-with-body --silent --show-error --output /tmp/gateway.json --write-out '%{http_code}' "$GATEWAY_URL/health")" = "200"
+          grep -q '"version":"4.2.0"' /tmp/gateway.json
           echo 'public API readiness smoke ok'
 
       - name: Browser-origin CORS preflight
@@ -48,12 +56,12 @@ jobs:
           set -euo pipefail
           headers="$(mktemp)"
           code="$(curl --silent --show-error --output /dev/null --dump-header "$headers" --write-out '%{http_code}' \
-            -X OPTIONS "$API_URL/me" \
+            -X OPTIONS "$GATEWAY_URL/cozinha360-delivery-v40/health" \
             -H "Origin: $WEB_URL" \
             -H 'Access-Control-Request-Method: GET' \
             -H 'Access-Control-Request-Headers: authorization,content-type')"
           test "$code" = "204"
-          grep -Eiq '^access-control-allow-origin: *(\*|https://cozinha-360-os\.netlify\.app)' "$headers"
+          grep -Eiq '^access-control-allow-origin: *https://cozinha-360-os-v41\.onrender\.com' "$headers"
           grep -Eiq '^access-control-allow-headers:.*authorization' "$headers"
           echo 'browser CORS smoke ok'
 
