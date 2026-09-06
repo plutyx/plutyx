@@ -72,7 +72,7 @@ function OperatorLauncher(){
   return <>
     <nav className="operator-rail" aria-label="Ações principais">
       <a className="operator-rail-link operator-rail-autopilot" href="/?autopilot=1"><Sparkles size={16}/><span>Autopilot</span></a>
-      <a className="operator-rail-link operator-rail-primary" href="/?quick=1"><Plus size={17}/><span>Pedido</span></a>
+      <a className="operator-rail-link operator-rail-primary" href="/?quick=1"><Plus size={17}/><span>+ Pedido rápido</span></a>
       <a className="operator-rail-link" href="/?kitchen=1"><ChefHat size={16}/><span>Cozinha</span></a>
       <a className="operator-rail-link" href="/?cash=1"><CircleDollarSign size={16}/><span>Caixa</span></a>
       <button className="operator-rail-link operator-more" type="button" onClick={()=>setOpen(true)} aria-haspopup="dialog" aria-expanded={open}><Command size={16}/><span>Mais</span><kbd>⌘K</kbd></button>
