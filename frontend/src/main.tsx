@@ -21,6 +21,7 @@ import { SubscriptionStatusRoute } from './subscription-status'
 import { Autopilot360Route } from './autopilot-360'
 import { SessionAwareControls } from './operator-launcher-v38'
 import { TodayAttentionRoute } from './today-attention-v39'
+import { DeliveryOSRoute } from './delivery-os-v40'
 import { prepareOperatingMemory } from './operating-memory'
 import './styles.css'
 import './market.css'
@@ -57,6 +58,7 @@ import './autopilot-360.css'
 import './dock-v37.css'
 import './operator-launcher-v38.css'
 import './today-attention-v39.css'
+import './delivery-os-v40.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -86,6 +88,7 @@ function Root(){
   if(storeSlug)return <PublicStorefrontRoute slug={storeSlug}/>
   if(hasAccountRoute)return <AccountRoute/>
   if(params.get('today')==='1')return <OperatorRoute><TodayAttentionRoute/></OperatorRoute>
+  if(params.get('delivery')==='1')return <OperatorRoute><DeliveryOSRoute/></OperatorRoute>
   if(params.get('quick')==='1')return <OperatorRoute><QuickOrderRoute/></OperatorRoute>
   if(params.get('margin')==='1')return <OperatorRoute><ChannelMarginRoute/></OperatorRoute>
   if(params.get('crm')==='1')return <OperatorRoute><CrmLifecycleRoute/></OperatorRoute>
