@@ -90,6 +90,9 @@ jobs:
       - name: Run Network 360 v5.0 journey
         run: node frontend/e2e/network-360-v50.mjs
 
+      - name: Run Smart CMV v5.0 journey
+        run: node frontend/e2e/smart-cmv-v50.mjs
+
       - name: Run safe offline order v5.0 journey
         run: node frontend/e2e/offline-order-v50.mjs
 
@@ -127,6 +130,8 @@ jobs:
             /tmp/cozinha360-today-attention-v39-failure.png
             /tmp/cozinha360-network-v50.png
             /tmp/cozinha360-network-v50-failure.png
+            /tmp/cozinha360-smart-cmv-v50.png
+            /tmp/cozinha360-smart-cmv-v50-failure.png
             /tmp/cozinha360-offline-v50.png
             /tmp/cozinha360-offline-v50-failure.png
             /tmp/cozinha360-api.log
