@@ -8,18 +8,18 @@ await page.route('**/api/me',route=>route.fulfill(json({user:{id:1,email:'client
 await page.route('**/api/businesses/1/memory',route=>route.fulfill(json({business_id:1,states:{}})))
 let ifoodActive=false
 const provider=(key,name,category,connection=null)=>({key,name,category,impact:'Impacto operacional explicado em linguagem simples.',why:'Conexão segura sem copiar token para o navegador.',mode:key==='ifood'?'device_code':'oauth',eta:'~2 min',platform_ready:true,missing:[],optional_missing:[],connection})
-await page.route('**/cozinha360-integrations-v29/businesses/1/integrations**',async route=>{
+await page.route('**/cozinha360-integrations-v29/**',async route=>{
  const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method()
- if(path.endsWith('/ifood/start')&&method==='POST')return route.fulfill(json({action:'device_code',connection_id:7,user_code:'ABCD-EFGH',authorization_url:'http://127.0.0.1:5173/ifood-portal',expires_in:600,next:'Cole o código'}))
- if(path.endsWith('/ifood/complete')&&method==='POST'){ifoodActive=true;return route.fulfill(json({ok:true,connection:{id:7,status:'active',display_name:'Loja iFood Teste'}}))}
- if(path.endsWith('/integrations')&&method==='GET')return route.fulfill(json({business_id:1,recommended_order:['whatsapp','mercadopago','google','ifood','meta_ads'],providers:[
+ if(path.endsWith('/businesses/1/integrations/ifood/start')&&method==='POST')return route.fulfill(json({action:'device_code',connection_id:7,user_code:'ABCD-EFGH',authorization_url:'http://127.0.0.1:5173/ifood-portal',expires_in:600,next:'Cole o código'}))
+ if(path.endsWith('/businesses/1/integrations/ifood/complete')&&method==='POST'){ifoodActive=true;return route.fulfill(json({ok:true,connection:{id:7,status:'active',display_name:'Loja iFood Teste'}}))}
+ if(path.endsWith('/businesses/1/integrations')&&method==='GET')return route.fulfill(json({business_id:1,recommended_order:['whatsapp','mercadopago','google','ifood','meta_ads'],providers:[
    provider('whatsapp','WhatsApp Business','Vendas & CRM'),
    provider('mercadopago','Mercado Pago / Pix','Pagamentos'),
    provider('google','Google Business + Ads','Aquisição local',{id:3,provider:'google',external_account_ref:'g-1',display_name:'conta@google.com',status:'active',last_success_at:'2026-09-05T22:00:00Z',last_error:null}),
    provider('ifood','iFood','Marketplace',ifoodActive?{id:7,provider:'ifood',external_account_ref:'m-1',display_name:'Loja iFood Teste',status:'active',last_success_at:'2026-09-05T22:10:00Z',last_error:null}:null),
    provider('meta_ads','Meta Ads','Aquisição')
  ]}))
- return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:'mock route not found'})})
+ return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:`mock route not found: ${method} ${path}`})})
 })
 try{
  await page.goto('http://127.0.0.1:5173/?connections=1',{waitUntil:'networkidle'})
