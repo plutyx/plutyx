@@ -7,11 +7,13 @@ const json=body=>({status:200,contentType:'application/json',body:JSON.stringify
 await page.route('**/api/me',route=>route.fulfill(json({user:{id:1,email:'cliente@example.com',full_name:'Cliente Real'},businesses:[{id:1,name:'Cozinha Cliente',city:'Mogi das Cruzes',role:'owner',preferences:{}}]})))
 await page.route('**/api/businesses/1/memory',route=>route.fulfill(json({business_id:1,states:{}})))
 let ifoodActive=false
+let testCalls=0
 const provider=(key,name,category,connection=null)=>({key,name,category,impact:'Impacto operacional explicado em linguagem simples.',why:'Conexão segura sem copiar token para o navegador.',mode:key==='ifood'?'device_code':'oauth',eta:'~2 min',platform_ready:true,missing:[],optional_missing:[],connection})
 await page.route('**/cozinha360-integrations-v29/**',async route=>{
  const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method()
- if(path.endsWith('/businesses/1/integrations/ifood/start')&&method==='POST')return route.fulfill(json({action:'device_code',connection_id:7,user_code:'ABCD-EFGH',authorization_url:'http://127.0.0.1:5173/ifood-portal',expires_in:600,next:'Cole o código'}))
+ if(path.endsWith('/businesses/1/integrations/ifood/start')&&method==='POST')return route.fulfill(json({action:'device_code',connection_id:7,user_code:'ABCD-EFGH',authorization_url:'https://example.com/ifood-portal',expires_in:600,next:'Cole o código'}))
  if(path.endsWith('/businesses/1/integrations/ifood/complete')&&method==='POST'){ifoodActive=true;return route.fulfill(json({ok:true,connection:{id:7,status:'active',display_name:'Loja iFood Teste'}}))}
+ if(path.endsWith('/test')&&method==='POST'){testCalls++;return route.fulfill(json({ok:true,status:'active'}))}
  if(path.endsWith('/businesses/1/integrations')&&method==='GET')return route.fulfill(json({business_id:1,recommended_order:['whatsapp','mercadopago','google','ifood','meta_ads'],providers:[
    provider('whatsapp','WhatsApp Business','Vendas & CRM'),
    provider('mercadopago','Mercado Pago / Pix','Pagamentos'),
@@ -23,9 +25,11 @@ await page.route('**/cozinha360-integrations-v29/**',async route=>{
 })
 try{
  await page.goto('http://127.0.0.1:5173/?connections=1',{waitUntil:'networkidle'})
- await page.getByRole('heading',{name:'Conecte o que você já usa. O 360 organiza o resto.',exact:true}).waitFor({timeout:15000})
+ await page.getByRole('heading',{name:'Conecte uma vez. O 360 cuida da saúde.',exact:true}).waitFor({timeout:15000})
  await page.getByText('1/5',{exact:true}).waitFor()
- await page.getByText('1. WhatsApp → 2. Pix → 3. Google',{exact:true}).waitFor()
+ await page.getByText('Pedido → Pagamento → Descoberta → Escala',{exact:true}).waitFor()
+ await page.getByRole('heading',{name:'Próximo passo: WhatsApp Business',exact:true}).waitFor()
+ await page.getByText('COMECE PELO CANAL DE PEDIDOS',{exact:true}).waitFor()
  const google=page.locator('.cx-card').filter({hasText:'Google Business + Ads'})
  await google.getByText('ATIVO',{exact:true}).waitFor()
  const ifood=page.locator('.cx-card').filter({hasText:'iFood'})
@@ -36,8 +40,11 @@ try{
  await page.getByRole('button',{name:'Concluir conexão'}).click()
  await page.getByText('iFood conectado. A operação já pode validar a conta.',{exact:true}).waitFor()
  await page.getByText('2/5',{exact:true}).waitFor()
+ await page.getByRole('button',{name:'Testar conexões'}).click()
+ await page.getByText('2/2 conexões validadas. Tudo saudável.',{exact:true}).waitFor()
+ if(testCalls!==2)throw new Error(`expected 2 connection tests, got ${testCalls}`)
  await page.screenshot({path:'/tmp/cozinha360-connections-hub.png',fullPage:true})
- console.log('connections hub real-customer journey ok')
+ console.log('connections autopilot real-customer journey ok')
 }catch(error){
  await page.screenshot({path:'/tmp/cozinha360-connections-hub-failure.png',fullPage:true}).catch(()=>{})
  console.error(error);process.exitCode=1
