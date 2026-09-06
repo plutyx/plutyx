@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { intelligenceRequest } from './intelligence-api-v50'
 
 const API = import.meta.env.VITE_API_URL || '/api'
 
@@ -39,7 +40,6 @@ export function InventoryStockEditor(){
       const ingredientName=row?.querySelector('b')?.textContent?.trim()
       if(!ingredientName)return
 
-      // Capture before React's delegated click so the legacy prompt workflow never opens.
       event.preventDefault();event.stopPropagation();event.stopImmediatePropagation()
       setLoading(true);setError('')
       try{
@@ -76,7 +76,7 @@ export function InventoryStockEditor(){
     if(target<par){setError('O alvo de reposição precisa ser igual ou maior que o estoque mínimo.');return}
     setBusy(true)
     try{
-      await request(`/businesses/${editing.businessId}/ingredients/${editing.ingredient.id}/inventory`,{
+      await intelligenceRequest(`/businesses/${editing.businessId}/ingredients/${editing.ingredient.id}/inventory`,{
         method:'PATCH',
         body:JSON.stringify({
           on_hand_milliunits:onHand,
@@ -85,8 +85,7 @@ export function InventoryStockEditor(){
           expected_version:editing.ingredient.version,
         }),
       })
-      setEditing(null);setToast('Estoque configurado.')
-      // Reuse the app's existing refresh action so the row/KPIs update without a page reload.
+      setEditing(null);setToast('Estoque configurado e auditado na nuvem.')
       setTimeout(()=>document.querySelector<HTMLButtonElement>('.header-actions .icon-btn')?.click(),0)
       setTimeout(()=>setToast(''),2400)
     }catch(e){setError(e instanceof Error?e.message:'Não foi possível salvar o estoque')}
