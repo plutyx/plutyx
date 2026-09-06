@@ -11,14 +11,14 @@ on:
 jobs:
   release-identity:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     env:
       WEB_URL: https://cozinha-360-os-v41.onrender.com
-      EXPECTED_RELEASE: '4.2.0'
+      EXPECTED_RELEASE: '5.0.0'
     steps:
       - name: Wait for public frontend
         run: |
-          for i in $(seq 1 30); do
+          for i in $(seq 1 55); do
             if curl --fail --silent --show-error --location "$WEB_URL/" -o /tmp/public-index.html; then
               marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
               if grep -F "$marker" /tmp/public-index.html >/dev/null; then
