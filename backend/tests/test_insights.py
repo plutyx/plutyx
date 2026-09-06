@@ -129,6 +129,24 @@ def test_market_intelligence_customer_journey():
         assert row['legacy_orders'] == 0
         assert row['method'] == 'completion_recipe_snapshots'
 
+        smart_cmv = client.get(f'/businesses/{business_id}/smart-cmv', headers=owner)
+        assert smart_cmv.status_code == 200, smart_cmv.text
+        smart = smart_cmv.json()
+        assert smart['summary']['ingredients_ready'] == 1
+        assert smart['summary']['coverage'] == 1.0
+        smart_row = smart['ingredients'][0]
+        assert smart_row['status'] == 'ready'
+        assert smart_row['purchased_milliunits'] == 500
+        assert smart_row['observed_usage_milliunits'] == 450
+        assert smart_row['theoretical_usage_milliunits'] == 400
+        assert smart_row['unexplained_usage_milliunits'] == 50
+        assert smart_row['unexplained_value_cents'] == 75
+        assert smart_row['signal'] == 'shrink'
+        assert smart_row['severity'] == 'warning'
+        assert smart_row['snapshot_orders'] == 1
+        assert smart_row['legacy_orders'] == 0
+        assert smart['safety_note'].startswith('O endpoint é somente leitura')
+
         quality = client.get(f'/businesses/{business_id}/data-quality', headers=owner)
         assert quality.status_code == 200, quality.text
         codes = {issue['code'] for issue in quality.json()['issues']}
@@ -157,6 +175,8 @@ def test_market_intelligence_customer_journey():
         outsider = auth(client, 'insights-outsider@example.com', 'Outsider')
         denied = client.get(f'/businesses/{business_id}/insights/owner-brief', headers=outsider)
         assert denied.status_code == 403
+        denied_cmv = client.get(f'/businesses/{business_id}/smart-cmv', headers=outsider)
+        assert denied_cmv.status_code == 403
 
         ready = client.get('/ready')
         assert ready.status_code == 200
