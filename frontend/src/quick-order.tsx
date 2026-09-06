@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CheckCircle2, ChefHat, CircleDollarSign, CloudOff, ShoppingBag, Wifi } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ChefHat, CloudOff, ShoppingBag, Wifi } from 'lucide-react'
 import {
   cacheBusinesses,cacheCostPreview,cacheProducts,enqueueOfflineQuickOrder,isNetworkFailure,
   readCachedBusinesses,readCachedCostPreview,readCachedProducts,recallQuickPrice,recallQuickSource,
@@ -40,10 +40,17 @@ export function QuickOrderRoute(){
   const[source,setSource]=useState('whatsapp')
   const[loading,setLoading]=useState(true)
   const[busy,setBusy]=useState(false)
+  const[online,setOnline]=useState(()=>navigator.onLine)
   const[error,setError]=useState('')
   const[offlineNote,setOfflineNote]=useState('')
   const[result,setResult]=useState<QuickResult|null>(null)
   const[queued,setQueued]=useState<OfflineQuickOrder|null>(null)
+
+  useEffect(()=>{
+    const sync=()=>setOnline(navigator.onLine)
+    window.addEventListener('online',sync);window.addEventListener('offline',sync)
+    return()=>{window.removeEventListener('online',sync);window.removeEventListener('offline',sync)}
+  },[])
 
   useEffect(()=>{
     if(!token){setLoading(false);return}
@@ -109,7 +116,7 @@ export function QuickOrderRoute(){
     const payload={product_id:productId,quantity:qty,unit_price_cents:priceCents,paid:true,source,idempotency_key:`quick-ui-${crypto.randomUUID()}`}
     rememberQuickPrice(businessId,productId,source,priceCents);rememberQuickSource(businessId,source)
     try{
-      if(!navigator.onLine){queueLocally(payload);return}
+      if(!online){queueLocally(payload);return}
       const body=await request(`/businesses/${businessId}/orders/quick`,{method:'POST',body:JSON.stringify(payload)},token)
       setResult(body);setOfflineNote('')
     }catch(err){
@@ -128,7 +135,7 @@ export function QuickOrderRoute(){
 
       {businesses.length>1&&<label className="quick-field"><span>Operação</span><select aria-label="Operação" value={businessId} onChange={e=>setBusinessId(Number(e.target.value))}>{businesses.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label>}
 
-      {offlineNote&&<div className="quick-offline-note">{navigator.onLine?<Wifi size={16}/>:<CloudOff size={16}/>}<span>{offlineNote}</span></div>}
+      {offlineNote&&<div className="quick-offline-note">{online?<Wifi size={16}/>:<CloudOff size={16}/>}<span>{offlineNote}</span></div>}
       {error&&<div className="quick-error">{error}</div>}
       {!products.length&&!error&&<div className="quick-empty">Nenhum produto ativo no cache. Conecte uma vez para carregar o catálogo desta operação.</div>}
 
@@ -141,7 +148,7 @@ export function QuickOrderRoute(){
         </div>
 
         {cost&&<div className="quick-cost-card">
-          <div className="quick-cost-head"><div><span className="eyebrow">CUSTO {navigator.onLine?'AUTOMÁTICO':'SALVO'}</span><b>{cost.product_name}</b></div><strong>{money(cost.direct_cost_per_unit_cents)}<small>/un.</small></strong></div>
+          <div className="quick-cost-head"><div><span className="eyebrow">CUSTO {online?'AUTOMÁTICO':'SALVO'}</span><b>{cost.product_name}</b></div><strong>{money(cost.direct_cost_per_unit_cents)}<small>/un.</small></strong></div>
           <div className="quick-cost-breakdown"><span>Ingredientes <b>{money(cost.ingredients_cents)}</b></span><span>Embalagem <b>{money(cost.packaging_cents)}</b></span><span>Energia <b>{money(cost.energy_cents)}</b></span><span>Mão de obra <b>{money(cost.labor_cents)}</b></span></div>
         </div>}
 
@@ -151,7 +158,7 @@ export function QuickOrderRoute(){
           <div className={preview.contribution<0?'negative':'positive'}><span>Contribuição estimada</span><strong>{money(preview.contribution)}</strong></div>
         </div>
         <p className="quick-disclaimer">Offline, estes números são apenas a última prévia local. O pedido só vira registro oficial quando o servidor aceitar e recalcular custos. Taxas de canal entram quando houver canal configurado no pedido.</p>
-        <button className="primary quick-submit" disabled={busy||!cost||priceCents<=0}><ShoppingBag size={18}/>{busy?'Registrando...':navigator.onLine?'Registrar no KDS':'Guardar pedido offline'}</button>
+        <button className="primary quick-submit" disabled={busy||!cost||priceCents<=0}><ShoppingBag size={18}/>{busy?'Registrando...':online?'Registrar no KDS':'Guardar pedido offline'}</button>
       </form>}
 
       {result&&<div className="quick-success"><CheckCircle2 size={28}/><div><b>Pedido #{result.id} confirmado pelo servidor.</b><span>{money(result.total_cents)} de venda · {money(result.contribution_cents)} de contribuição estimada.</span></div><a href="/">Abrir KDS</a></div>}
