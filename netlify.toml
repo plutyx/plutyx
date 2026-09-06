@@ -1,0 +1,40 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--no-audit --no-fund"
+  VITE_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2"
+  VITE_MARGIN_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-margin-v14"
+  VITE_CRM_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-crm-v16"
+  VITE_DIRECT_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-direct-v17"
+  VITE_INTEGRATIONS_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-integrations-v29"
+  VITE_PROFILE_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-profile-v31"
+  VITE_ENTITLEMENTS_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-entitlements-v34"
+  VITE_AUTOPILOT_API_URL = "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-autopilot-v37"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(self), payment=(self)"
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://npgheuzpnkwtxopswpqy.supabase.co; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
