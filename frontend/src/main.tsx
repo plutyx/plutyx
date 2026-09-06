@@ -75,21 +75,6 @@ function TabHashBridge(){
   return null
 }
 
-function DefaultTodayRedirect(){
-  useEffect(()=>{
-    if(window.location.hash)return
-    let redirected=false
-    const check=()=>{
-      if(redirected||window.location.hash)return
-      if(localStorage.getItem('c360_token')){redirected=true;window.location.replace('/?today=1')}
-    }
-    check()
-    const timer=window.setInterval(check,250)
-    return()=>window.clearInterval(timer)
-  },[])
-  return null
-}
-
 function OperatorRoute({children,alerts=true}:{children:React.ReactNode;alerts?:boolean}){
   return <>{children}{alerts&&<KitchenAlerts/>}<SessionAwareControls/></>
 }
@@ -117,7 +102,6 @@ function Root(){
   if(params.get('plan')==='1')return <OperatorRoute alerts={false}><SubscriptionStatusRoute/></OperatorRoute>
   if(params.get('autopilot')==='1')return <OperatorRoute><Autopilot360Route/></OperatorRoute>
   return <>
-    <DefaultTodayRedirect/>
     <App/>
     <TabHashBridge/>
     <KitchenAlerts/>
