@@ -8,12 +8,11 @@ type Provider={key:string;name:string;category:string;impact:string;why:string;m
 type Catalog={business_id:number;recommended_order:string[];providers:Provider[]}
 type IfoodFlow={user_code:string;authorization_url:string;expires_in:number}|null
 
-const CORE_API=import.meta.env.VITE_API_URL||'/api'
 const INTEGRATIONS_API=import.meta.env.VITE_INTEGRATIONS_API_URL||'https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-integrations-v29'
 const essentials=new Set(['whatsapp','mercadopago','google'])
 
 async function ireq(path:string,options:RequestInit={},token=''){
- const res=await fetch(`${INTEGRATIONS_API}${path}`,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{ }),(options.headers||{})}})
+ const res=await fetch(`${INTEGRATIONS_API}${path}`,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{ }),...(options.headers||{})}})
  const body=await res.json().catch(()=>({detail:'Resposta inválida'}))
  if(!res.ok){const e:any=new Error(body.detail||'Falha na integração');e.body=body;throw e}
  return body
