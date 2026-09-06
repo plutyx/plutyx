@@ -52,6 +52,7 @@ import './connections-hub.css'
 import './subscription-status.css'
 import './subscription-nav.css'
 import './autopilot-360.css'
+import './dock-v37.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
