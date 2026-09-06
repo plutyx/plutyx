@@ -31,7 +31,9 @@ export function TodayAttentionRoute(){
     setLoading(true);setError('')
     try{
       const me=await request('/me',{},token)
-      const businessId=Number(me.businesses?.[0]?.id||0)
+      const requestedBusinessId=Number(new URLSearchParams(window.location.search).get('business_id')||0)
+      const requestedAllowed=requestedBusinessId>0&&(me.businesses||[]).some((business:{id:number})=>Number(business.id)===requestedBusinessId)
+      const businessId=requestedAllowed?requestedBusinessId:Number(me.businesses?.[0]?.id||0)
       if(!businessId){window.location.replace('/');return}
       const [workspace,dashboard,kds,production,demand,finance,alerts,customers]=await Promise.all([
         request(`/businesses/${businessId}/workspace`,{},token),
