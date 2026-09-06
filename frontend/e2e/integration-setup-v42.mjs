@@ -60,8 +60,7 @@ await page.route('**/cozinha360-setup-v42/**',async route=>{
  if(path.endsWith('/businesses/1/setup')&&method==='GET')return route.fulfill(ok(setup()))
  if(path.endsWith('/businesses/1/auto-configure')&&method==='POST'){
    autoConfigureCalls++
-   for(const brand of brands)for(const connection of connections)addBinding(brand.id,connection)
-   return route.fulfill(ok({ok:true,created_count:6,bindings}))
+   return route.fulfill(ok({ok:true,requires_review:true,reason:'multi_brand',created_count:0,brands,connections,message:'Operação multi-marca exige vínculo explícito para evitar roteamento incorreto.'}))
  }
  if(path.endsWith('/businesses/1/bindings')&&method==='POST'){
    const payload=req.postDataJSON(),connection=connections.find(c=>c.id===Number(payload.connection_id))
@@ -95,7 +94,9 @@ await page.route('**/cozinha360-setup-v42/**',async route=>{
 try{
  await page.goto('http://127.0.0.1:5173/?setup=1',{waitUntil:'networkidle'})
  await page.getByRole('heading',{name:'Conecte só o que sua cozinha realmente usa.',exact:true}).waitFor({timeout:15000})
- await page.getByText('3 conexões para distribuir',{exact:true}).waitFor()
+ const unboundStat=page.locator('.setup42-hero aside > div').filter({hasText:'conexões para distribuir'})
+ await unboundStat.waitFor()
+ if((await unboundStat.locator('b').textContent())?.trim()!=='3')throw new Error('expected 3 unbound provider families before setup')
 
  const mapsCard=page.locator('.setup42-provider-grid article').filter({hasText:'Google Maps Routes'})
  await mapsCard.getByText('CHAVE DA PLATAFORMA',{exact:true}).waitFor()
@@ -109,18 +110,20 @@ try{
  if(!await assisted.isDisabled()||!await intelligent.isDisabled())throw new Error('Paid/assisted routing must stay disabled when no route provider is validated')
 
  await page.getByRole('button',{name:/Configurar automaticamente/}).click()
- await page.getByText('Conexões ativas distribuídas entre as marcas.',{exact:true}).waitFor()
- await page.getByText('6 vínculos',{exact:true}).waitFor()
+ await page.getByText('Operação multi-marca detectada. O 360 não distribuiu contas automaticamente para evitar pedidos, pagamentos ou clientes na marca errada. Escolha abaixo qual conta atende cada marca.',{exact:true}).waitFor()
  if(autoConfigureCalls!==1)throw new Error(`expected one auto-configure call, got ${autoConfigureCalls}`)
+ if(bindings.length!==0)throw new Error(`multi-brand auto-configure created ${bindings.length} unsafe bindings`)
 
  const burger=page.locator('.setup42-brand-matrix article').filter({hasText:'Bolso Burgers'})
  const ifoodChip=burger.getByRole('button',{name:/iFood/})
  await ifoodChip.click()
+ await page.getByText('iFood ligado à marca Bolso Burgers.',{exact:true}).waitFor()
+ if(bindings.length!==1||bindings[0].brand_id!==1||bindings[0].provider!=='ifood')throw new Error(`explicit brand mapping failed ${JSON.stringify(bindings)}`)
+ await ifoodChip.click()
  await page.getByText('iFood removido de Bolso Burgers.',{exact:true}).waitFor()
- await page.getByText('5 vínculos',{exact:true}).waitFor()
+ if(bindings.length!==0)throw new Error('explicit unlink did not remove mapping')
  await ifoodChip.click()
  await page.getByText('iFood ligado à marca Bolso Burgers.',{exact:true}).waitFor()
- await page.getByText('6 vínculos',{exact:true}).waitFor()
 
  const fiscalPanel=page.locator('.setup42-panel').filter({hasText:'Dados fiscais sem ativação falsa'})
  const burgerFiscal=fiscalPanel.locator('details.setup42-fiscal').filter({hasText:'Bolso Burgers'})
@@ -141,7 +144,7 @@ try{
  if(!routeSavePayload||routeSavePayload.route_mode!=='manual'||routeSavePayload.route_provider!=='manual')throw new Error(`unexpected route payload ${JSON.stringify(routeSavePayload)}`)
 
  await page.screenshot({path:'/tmp/cozinha360-setup-v42.png',fullPage:true})
- console.log('Setup 360 real-customer journey ok')
+ console.log('Setup 360 safe multi-brand customer journey ok')
 }catch(error){
  await page.screenshot({path:'/tmp/cozinha360-setup-v42-failure.png',fullPage:true}).catch(()=>{})
  console.error(error);process.exitCode=1
