@@ -27,6 +27,7 @@ from .insights import router as insights_router
 from .ops import router as ops_router
 from .simplicity import router as simplicity_router
 from .portfolio import router as portfolio_router
+from .smart_cmv import router as smart_cmv_router
 
 market_router.include_router(security_router)
 market_router.include_router(account_security_router)
@@ -34,3 +35,4 @@ market_router.include_router(insights_router)
 market_router.include_router(ops_router)
 market_router.include_router(simplicity_router)
 market_router.include_router(portfolio_router)
+market_router.include_router(smart_cmv_router)
