@@ -1,1 +1,1 @@
-import './service.ts'
+import './service-market-v40.ts'
