@@ -1,0 +1,37 @@
+name: public-release-sync
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/public-release-sync.yml'
+
+jobs:
+  release-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      WEB_URL: https://cozinha-360-os.netlify.app
+      EXPECTED_RELEASE: '3.5.0'
+    steps:
+      - name: Fetch public frontend
+        run: |
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 "$WEB_URL/" -o /tmp/public-index.html
+          test -s /tmp/public-index.html
+      - name: Verify public release identity
+        run: |
+          marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
+          if ! grep -F "$marker" /tmp/public-index.html >/dev/null; then
+            echo "::error title=Public frontend is stale::Expected Cozinha 360 release $EXPECTED_RELEASE on $WEB_URL, but the public HTML does not carry that release marker. Deploy the latest frontend bundle before calling public production synchronized."
+            exit 1
+          fi
+      - name: Verify Vite production assets are referenced
+        run: |
+          if ! grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null; then
+            echo "::error title=Unexpected public bundle::Release marker is present but the public HTML does not reference a Vite production JavaScript asset."
+            exit 1
+          fi
+      - name: Public release is synchronized
+        run: echo "Public frontend matches release $EXPECTED_RELEASE."

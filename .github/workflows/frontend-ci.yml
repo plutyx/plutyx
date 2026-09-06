@@ -22,6 +22,8 @@ jobs:
         env:
           VITE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
         run: npm run build
+      - name: Verify production release marker
+        run: grep -F '<meta name="c360-release" content="3.5.0"' dist/index.html
       - name: Upload production frontend bundle
         uses: actions/upload-artifact@v4
         with:
