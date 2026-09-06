@@ -1,12 +1,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const URL=Deno.env.get('SUPABASE_URL')!
+const SUPABASE_URL=Deno.env.get('SUPABASE_URL')!
 const ANON=Deno.env.get('SUPABASE_ANON_KEY')!
 const SERVICE=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const CORE=(Deno.env.get('C360_CORE_API_URL')||`${URL}/functions/v1/cozinha360-api-v2`).replace(/\/$/,'')
+const CORE=(Deno.env.get('C360_CORE_API_URL')||`${SUPABASE_URL}/functions/v1/cozinha360-api-v2`).replace(/\/$/,'')
 const SLUG='cozinha360-autopilot-v37'
-const anon=createClient(URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}})
-const admin=createClient(URL,SERVICE,{auth:{persistSession:false,autoRefreshToken:false}})
+const anon=createClient(SUPABASE_URL,ANON,{auth:{persistSession:false,autoRefreshToken:false}})
+const admin=createClient(SUPABASE_URL,SERVICE,{auth:{persistSession:false,autoRefreshToken:false}})
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}
 const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers})
 const fail=(detail:string,status=400,extra:Record<string,unknown>={})=>reply({detail,...extra},status)
