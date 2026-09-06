@@ -11,7 +11,7 @@ let testCalls=0
 const provider=(key,name,category,connection=null)=>({key,name,category,impact:'Impacto operacional explicado em linguagem simples.',why:'Conexão segura sem copiar token para o navegador.',mode:key==='ifood'?'device_code':'oauth',eta:'~2 min',platform_ready:true,missing:[],optional_missing:[],connection})
 await page.route('**/cozinha360-integrations-v29/**',async route=>{
  const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method()
- if(path.endsWith('/businesses/1/integrations/ifood/start')&&method==='POST')return route.fulfill(json({action:'device_code',connection_id:7,user_code:'ABCD-EFGH',authorization_url:'http://127.0.0.1:5173/ifood-portal',expires_in:600,next:'Cole o código'}))
+ if(path.endsWith('/businesses/1/integrations/ifood/start')&&method==='POST')return route.fulfill(json({action:'device_code',connection_id:7,user_code:'ABCD-EFGH',authorization_url:'https://example.com/ifood-portal',expires_in:600,next:'Cole o código'}))
  if(path.endsWith('/businesses/1/integrations/ifood/complete')&&method==='POST'){ifoodActive=true;return route.fulfill(json({ok:true,connection:{id:7,status:'active',display_name:'Loja iFood Teste'}}))}
  if(path.endsWith('/test')&&method==='POST'){testCalls++;return route.fulfill(json({ok:true,status:'active'}))}
  if(path.endsWith('/businesses/1/integrations')&&method==='GET')return route.fulfill(json({business_id:1,recommended_order:['whatsapp','mercadopago','google','ifood','meta_ads'],providers:[
