@@ -41,7 +41,12 @@ try{
 
   await page.addInitScript(value=>localStorage.setItem('c360_token',value),token)
   await page.goto(`http://127.0.0.1:5173/?cmv=1&business_id=${business.id}`,{waitUntil:'networkidle'})
-  await page.getByRole('heading',{name:'Conte o estoque. O 360 explica a diferença.',exact:true}).waitFor({timeout:15000})
+  const heading=page.getByRole('heading',{name:'Conte o estoque. O 360 explica a diferença.',exact:true})
+  await heading.waitFor({timeout:15000})
+  const headingBox=await heading.boundingBox()
+  if(!headingBox||headingBox.y>260)throw new Error(`Smart CMV hero drifted below the fold: ${JSON.stringify(headingBox)}`)
+  const statusBox=await page.locator('.cmv50-hero aside').boundingBox()
+  if(!statusBox||statusBox.height>320)throw new Error(`Smart CMV status card inherited sidebar sizing: ${JSON.stringify(statusBox)}`)
   await page.getByText('Frango CMV',{exact:true}).last().waitFor()
   const variance=page.locator('.cmv50-var').filter({hasText:'Frango CMV'})
   await variance.waitFor()
