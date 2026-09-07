@@ -107,11 +107,11 @@ jobs:
           grep -F '"demand_inputs":"ready"' /tmp/purchases-ready.json >/dev/null
           test "$(curl -sS -o /tmp/suppliers-live.json -w '%{http_code}' "$SUPPLIERS_API/livez")" = "200"
           grep -F '"version":"5.2.0"' /tmp/suppliers-live.json >/dev/null
-          for pair in \
-            "$INTELLIGENCE_API/portfolio/overview:/tmp/intelligence-auth.json" \
-            "$PURCHASES_API/businesses/1/purchase-plan?history_days=28&cover_days=7:/tmp/purchases-auth.json" \
-            "$SUPPLIERS_API/businesses/1/suppliers:/tmp/suppliers-auth.json"; do
-            url="${pair%%:*}"; file="${pair#*:}"
+          check_unauth() {
+            local url="$1" file="$2"
             test "$(curl -sS -o "$file" -w '%{http_code}' "$url")" = "401"
             grep -F '"detail":"Sessão inválida"' "$file" >/dev/null
-          done
+          }
+          check_unauth "$INTELLIGENCE_API/portfolio/overview" /tmp/intelligence-auth.json
+          check_unauth "$PURCHASES_API/businesses/1/purchase-plan?history_days=28&cover_days=7" /tmp/purchases-auth.json
+          check_unauth "$SUPPLIERS_API/businesses/1/suppliers" /tmp/suppliers-auth.json
