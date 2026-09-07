@@ -31,31 +31,27 @@ jobs:
       VITE_INTELLIGENCE_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50
       VITE_PURCHASES_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v53
       VITE_SUPPLIERS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-suppliers-v52
+      VITE_KDS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
       - name: Require Netlify deployment credential
         run: |
           if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
             echo "::error title=Netlify credential missing::NETLIFY_AUTH_TOKEN is only required when manually using the legacy Netlify fallback. Render is the primary public deployment."
             exit 1
           fi
-
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install --no-audit --no-fund
-
       - name: Typecheck frontend
         working-directory: frontend
         run: npm run typecheck
-
       - name: Build exact production bundle
         working-directory: frontend
         run: npm run build
-
       - name: Read release identity from bundle
         id: release
         working-directory: frontend
@@ -64,7 +60,6 @@ jobs:
           release="$(sed -n 's/.*<meta name="c360-release" content="\([^"]*\)".*/\1/p' dist/index.html | head -n1)"
           test -n "$release"
           echo "value=$release" >> "$GITHUB_OUTPUT"
-
       - name: Verify production Edge endpoints are bundled
         working-directory: frontend
         run: |
@@ -72,30 +67,21 @@ jobs:
           grep -R -F 'cozinha360-delivery-v40' dist/assets/*.js >/dev/null
           grep -R -F 'cozinha360-purchases-v53' dist/assets/*.js >/dev/null
           grep -R -F 'cozinha360-suppliers-v52' dist/assets/*.js >/dev/null
+          grep -R -F 'cozinha360-kds-v54' dist/assets/*.js >/dev/null
           grep -R -F 'PREVISÃO OPERACIONAL' dist/assets/*.js >/dev/null
-
+          grep -R -F 'SLAs da operação' dist/assets/*.js >/dev/null
       - name: Deploy prebuilt bundle to Netlify fallback
         working-directory: frontend
         run: |
-          npx --yes netlify-cli@27.5.0 deploy \
-            --dir=dist \
-            --prod \
-            --site="$NETLIFY_SITE_ID" \
-            --auth="$NETLIFY_AUTH_TOKEN" \
-            --message="Cozinha 360 fallback release ${{ steps.release.outputs.value }} · $GITHUB_SHA" \
-            --json > /tmp/netlify-deploy.json
+          npx --yes netlify-cli@27.5.0 deploy --dir=dist --prod --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Cozinha 360 fallback release ${{ steps.release.outputs.value }} · $GITHUB_SHA" --json > /tmp/netlify-deploy.json
           node -e "const x=require('/tmp/netlify-deploy.json'); if(!x.deploy_url && !x.deployUrl && !x.url) process.exit(1); console.log('Netlify deploy accepted:', x.deploy_url||x.deployUrl||x.url)"
-
       - name: Verify fallback alias serves this release
         shell: bash
         run: |
           marker="<meta name=\"c360-release\" content=\"${{ steps.release.outputs.value }}\""
           for i in $(seq 1 30); do
             if curl --fail --silent --show-error --location "$PUBLIC_URL/" -o /tmp/public-index.html; then
-              if grep -F "$marker" /tmp/public-index.html >/dev/null && grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null; then
-                echo "Netlify fallback now serves release ${{ steps.release.outputs.value }}."
-                exit 0
-              fi
+              if grep -F "$marker" /tmp/public-index.html >/dev/null && grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null; then echo "Netlify fallback now serves release ${{ steps.release.outputs.value }}."; exit 0; fi
             fi
             sleep 4
           done
