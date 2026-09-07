@@ -22,7 +22,7 @@ jobs:
       ENTITLEMENTS_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-entitlements-v34
       AUTOPILOT_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-autopilot-v37
       INTELLIGENCE_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50
-      PURCHASES_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v51
+      PURCHASES_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v53
       SUPPLIERS_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-suppliers-v52
     steps:
       - name: Liveness
@@ -88,15 +88,15 @@ jobs:
           status="$(curl --silent --output /tmp/intelligence-auth.json --write-out '%{http_code}' "$INTELLIGENCE_EDGE/portfolio/overview")"
           test "$status" = "401"
           python -c 'import json; x=json.load(open("/tmp/intelligence-auth.json")); assert x.get("detail")=="Sessão inválida"'
-      - name: Purchases v5.1 service is live and database-ready
+      - name: Purchases v5.3 service is live and demand inputs are ready
         run: |
           live="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PURCHASES_EDGE/livez")"
-          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-purchases-v51" and x["version"]=="5.1.2"' "$live"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-purchases-v53" and x["version"]=="5.3.0"' "$live"
           ready="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PURCHASES_EDGE/readyz")"
-          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["database"]=="ready" and x["version"]=="5.1.2"' "$ready"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["database"]=="ready" and x["demand_inputs"]=="ready" and x["version"]=="5.3.0"' "$ready"
       - name: Purchases tenant routes require auth
         run: |
-          status="$(curl --silent --output /tmp/purchases-auth.json --write-out '%{http_code}' "$PURCHASES_EDGE/businesses/1/purchase-plan")"
+          status="$(curl --silent --output /tmp/purchases-auth.json --write-out '%{http_code}' "$PURCHASES_EDGE/businesses/1/purchase-plan?history_days=28&cover_days=7")"
           test "$status" = "401"
           python -c 'import json; x=json.load(open("/tmp/purchases-auth.json")); assert x.get("detail")=="Sessão inválida"'
       - name: Suppliers v5.2 service is live and database-ready
