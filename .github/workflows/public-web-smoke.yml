@@ -16,11 +16,11 @@ jobs:
       GATEWAY_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42
       SETUP_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-setup-v42
       INTELLIGENCE_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50
-      PURCHASES_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v51
+      PURCHASES_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v53
       SUPPLIERS_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-suppliers-v52
-      EXPECTED_RELEASE: '5.2.0'
+      EXPECTED_RELEASE: '5.3.0'
     steps:
-      - name: Public frontend serves current v5.2 release
+      - name: Public frontend serves current v5.3 release
         run: |
           set -euo pipefail
           headers="$(mktemp)"
@@ -44,13 +44,14 @@ jobs:
           grep -Fq 'cozinha360-delivery-v40' "$bundle"
           grep -Fq 'cozinha360-setup-v42' "$bundle"
           grep -Fq 'cozinha360-intelligence-v50' "$bundle"
-          grep -Fq 'cozinha360-purchases-v51' "$bundle"
+          grep -Fq 'cozinha360-purchases-v53' "$bundle"
           grep -Fq 'cozinha360-suppliers-v52' "$bundle"
           grep -Fq 'Conte o estoque. O 360 explica a diferença.' "$bundle"
           grep -Fq 'Compre pelo alvo. Não pelo susto.' "$bundle"
+          grep -Fq 'PREVISÃO OPERACIONAL' "$bundle"
           grep -Fq 'Saiba com quem comprar antes de faltar.' "$bundle"
           grep -Fq 'Configuração inteligente' "$bundle"
-          echo 'public frontend v5.2 smoke ok'
+          echo 'public frontend v5.3 smoke ok'
 
       - name: Public cloud API liveness and readiness
         run: |
@@ -69,9 +70,10 @@ jobs:
           grep -q '"status":"ok"' /tmp/intelligence.json
           grep -q '"version":"5.0.0"' /tmp/intelligence.json
           test "$(curl --fail-with-body --silent --show-error --output /tmp/purchases-live.json --write-out '%{http_code}' "$PURCHASES_URL/livez")" = "200"
-          grep -q '"version":"5.1.2"' /tmp/purchases-live.json
+          grep -q '"version":"5.3.0"' /tmp/purchases-live.json
           test "$(curl --fail-with-body --silent --show-error --output /tmp/purchases-ready.json --write-out '%{http_code}' "$PURCHASES_URL/readyz")" = "200"
           grep -q '"database":"ready"' /tmp/purchases-ready.json
+          grep -q '"demand_inputs":"ready"' /tmp/purchases-ready.json
           test "$(curl --fail-with-body --silent --show-error --output /tmp/suppliers-live.json --write-out '%{http_code}' "$SUPPLIERS_URL/livez")" = "200"
           grep -q '"version":"5.2.0"' /tmp/suppliers-live.json
           test "$(curl --fail-with-body --silent --show-error --output /tmp/suppliers-ready.json --write-out '%{http_code}' "$SUPPLIERS_URL/readyz")" = "200"
@@ -104,7 +106,7 @@ jobs:
             grep -q 'Sessão inválida' "$file"
           }
           check_unauth "$INTELLIGENCE_URL/portfolio/overview" /tmp/intelligence-auth.json
-          check_unauth "$PURCHASES_URL/businesses/1/purchase-plan" /tmp/purchases-auth.json
+          check_unauth "$PURCHASES_URL/businesses/1/purchase-plan?history_days=28&cover_days=7" /tmp/purchases-auth.json
           check_unauth "$SUPPLIERS_URL/businesses/1/suppliers" /tmp/suppliers-auth.json
           echo 'tenant auth boundaries ok'
 
