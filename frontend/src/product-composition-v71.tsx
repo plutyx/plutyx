@@ -9,7 +9,6 @@ import {
   Edit3,
   Flame,
   Layers3,
-  Loader2,
   Package,
   RefreshCcw,
   Sparkles,
@@ -56,6 +55,8 @@ type IngredientView = {
   state: "critical" | "attention" | "covered" | "unconfigured";
 };
 
+type TenantOption = { id: number; name: string };
+
 const orbitPositions = [
   { x: 50, y: 8 },
   { x: 78, y: 17 },
@@ -67,8 +68,9 @@ const orbitPositions = [
   { x: 22, y: 17 },
 ];
 
-function stateFor(ingredient: Ingredient) {
+function stateFor(ingredient: Ingredient, qty: number) {
   if (ingredient.on_hand_milliunits <= 0) return "critical" as const;
+  if (qty > 0 && ingredient.on_hand_milliunits < qty) return "critical" as const;
   if (ingredient.par_level_milliunits <= 0) return "unconfigured" as const;
   if (ingredient.on_hand_milliunits <= ingredient.par_level_milliunits) return "attention" as const;
   return "covered" as const;
@@ -171,7 +173,7 @@ function ProductCompositionMap({ businessId, product, ingredients, revision }: {
           qty,
           estimatedCost: costById.get(ingredient.id) || 0,
           coverage: qty > 0 ? Math.max(0, ingredient.on_hand_milliunits) / qty : null,
-          state: stateFor(ingredient),
+          state: stateFor(ingredient, qty),
         } satisfies IngredientView;
       })
       .filter(Boolean) as IngredientView[];
@@ -342,6 +344,17 @@ function ProductCompositionMap({ businessId, product, ingredients, revision }: {
   );
 }
 
+function visibleTenant(options: TenantOption[]) {
+  if (options.length === 1) return options[0];
+  if (!options.length) return null;
+  const names = new Set(options.map((item) => item.name.trim()).filter(Boolean));
+  const visibleNames = Array.from(document.querySelectorAll<HTMLElement>(".app-shell h2"))
+    .map((heading) => heading.textContent?.trim() || "")
+    .filter((name) => names.has(name));
+  const matches = options.filter((item) => visibleNames.includes(item.name.trim()));
+  return matches.length === 1 ? matches[0] : null;
+}
+
 export function ProductCompositionPortal() {
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [businessId, setBusinessId] = useState(0);
@@ -350,6 +363,8 @@ export function ProductCompositionPortal() {
   const [product, setProduct] = useState<Product | null>(null);
   const [revision, setRevision] = useState(0);
   const dataRef = useRef({ products: [] as Product[], businessId: 0 });
+  const tenantOptionsRef = useRef<TenantOption[]>([]);
+  const tenantRequestRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -357,26 +372,35 @@ export function ProductCompositionPortal() {
     let panelObserver: MutationObserver | null = null;
     let observedPanel: HTMLElement | null = null;
     let refreshTimer = 0;
+    let catalogRefreshAt = 0;
 
-    async function loadTenant() {
+    async function loadTenant(force = false) {
       const token = localStorage.getItem("c360_token") || "";
-      if (!token || dataRef.current.businessId) return;
+      if (!token) return;
       try {
-        const me = await request("/me", {}, token);
-        const bid = Number((me.businesses || [])[0]?.id || 0);
-        if (!bid || cancelled) return;
+        if (!tenantOptionsRef.current.length) {
+          const me = await request("/me", {}, token);
+          if (cancelled) return;
+          tenantOptionsRef.current = Array.isArray(me.businesses)
+            ? me.businesses.map((item: TenantOption) => ({ id: Number(item.id), name: String(item.name || "") })).filter((item: TenantOption) => item.id > 0)
+            : [];
+        }
+        const active = visibleTenant(tenantOptionsRef.current);
+        if (!active || cancelled) return;
+        if (!force && dataRef.current.businessId === active.id && dataRef.current.products.length) return;
+        const requestId = ++tenantRequestRef.current;
         const [nextProducts, nextIngredients] = await Promise.all([
-          request(`/businesses/${bid}/products`, {}, token),
-          request(`/businesses/${bid}/ingredients`, {}, token),
+          request(`/businesses/${active.id}/products`, {}, token),
+          request(`/businesses/${active.id}/ingredients`, {}, token),
         ]);
-        if (cancelled) return;
+        if (cancelled || requestId !== tenantRequestRef.current) return;
         const productRows = Array.isArray(nextProducts) ? nextProducts as Product[] : [];
         const ingredientRows = Array.isArray(nextIngredients) ? nextIngredients as Ingredient[] : [];
-        dataRef.current = { products: productRows, businessId: bid };
-        setBusinessId(bid);
+        dataRef.current = { products: productRows, businessId: active.id };
+        setBusinessId(active.id);
         setProducts(productRows);
         setIngredients(ingredientRows);
-        sync();
+        sync(false);
       } catch {
         // The primary Products editor remains usable if the visual map cannot resolve data.
       }
@@ -407,12 +431,13 @@ export function ProductCompositionPortal() {
           const next = resolveProduct(panel);
           if (next) setProduct(next);
           setRevision((value) => value + 1);
+          void loadTenant(true);
         }, 120);
       });
       panelObserver.observe(panel, { childList: true, subtree: true, characterData: true });
     }
 
-    function sync() {
+    function sync(allowCatalogRefresh = true) {
       const panel = document.querySelector<HTMLElement>(".recipe-panel");
       if (!panel) {
         panelObserver?.disconnect();
@@ -423,6 +448,7 @@ export function ProductCompositionPortal() {
           setHost(null);
           setProduct(null);
         }
+        void loadTenant();
         return;
       }
       let target = document.querySelector<HTMLElement>("[data-product-composition-v71-host]");
@@ -438,7 +464,15 @@ export function ProductCompositionPortal() {
         setHost(target);
         if (next) setProduct(next);
       }
-      void loadTenant();
+      if (!next && allowCatalogRefresh && dataRef.current.businessId) {
+        const now = Date.now();
+        if (now - catalogRefreshAt > 1000) {
+          catalogRefreshAt = now;
+          void loadTenant(true);
+        }
+      } else {
+        void loadTenant();
+      }
     }
 
     const bodyObserver = new MutationObserver(() => sync());
@@ -446,7 +480,7 @@ export function ProductCompositionPortal() {
     const click = (event: Event) => {
       const target = event.target as HTMLElement | null;
       if (!target?.closest(".row-button")) return;
-      window.setTimeout(sync, 0);
+      window.setTimeout(() => sync(), 0);
     };
     document.addEventListener("click", click, true);
     sync();
@@ -457,6 +491,7 @@ export function ProductCompositionPortal() {
       bodyObserver.disconnect();
       panelObserver?.disconnect();
       window.clearTimeout(refreshTimer);
+      tenantRequestRef.current += 1;
       document.removeEventListener("click", click, true);
       if (ownedHost?.isConnected) ownedHost.remove();
     };
