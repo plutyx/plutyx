@@ -50,6 +50,7 @@ import "./autopilot-360.css";
 import "./dock-v37.css";
 import "./operator-launcher-v38.css";
 import "./today-attention-v39.css";
+import "./today-cockpit-v66.css";
 import "./delivery-os-v40.css";
 import "./delivery-os-market-v40.css";
 import "./offline-status-v50.css";
