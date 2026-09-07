@@ -27,33 +27,35 @@ jobs:
       KDS_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54
       EXPECTED_RELEASE: '5.6.0'
     steps:
-      - name: Wait for Render v5.6 release and verify frontend
+      - name: Wait for exact Render release and verify frontend assets
         shell: bash
         run: |
           set -euo pipefail
+          ready=0
           for i in $(seq 1 75); do
-            code="$(curl -L -sS -o /tmp/index.html -w '%{http_code}' "$WEB_URL/?check=$GITHUB_RUN_ID-$i")" || true
+            index_code="$(curl -L -sS -o /tmp/index.html -w '%{http_code}' "$WEB_URL/?check=$GITHUB_RUN_ID-$i")" || index_code=000
+            release_code="$(curl -L -sS -o /tmp/release.json -w '%{http_code}' "$WEB_URL/release.json?check=$GITHUB_RUN_ID-$i")" || release_code=000
             marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
-            if [ "$code" = "200" ] && grep -F "$marker" /tmp/index.html >/dev/null; then break; fi
+            if [ "$index_code" = "200" ] \
+              && [ "$release_code" = "200" ] \
+              && grep -F "$marker" /tmp/index.html >/dev/null \
+              && jq -e --arg release "$EXPECTED_RELEASE" --arg sha "$GITHUB_SHA" '.release == $release and .commit == $sha' /tmp/release.json >/dev/null; then
+              ready=1
+              break
+            fi
             sleep 4
           done
-          marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
-          grep -F "$marker" /tmp/index.html >/dev/null
-          asset="$(grep -Eo '/assets/[^" ]+\.js' /tmp/index.html | head -n1)"
-          test -n "$asset"
-          test "$(curl -L -sS -o /tmp/bundle.js -w '%{http_code}' "$WEB_URL$asset")" = "200"
-          grep -F 'cozinha360-gateway-v42' /tmp/bundle.js >/dev/null
-          grep -F 'cozinha360-delivery-v40' /tmp/bundle.js >/dev/null
-          grep -F 'cozinha360-api-v2' /tmp/bundle.js >/dev/null
-          grep -F 'cozinha360-setup-v42' /tmp/bundle.js >/dev/null
-          grep -F 'cozinha360-intelligence-v50' /tmp/bundle.js >/dev/null
-          grep -F 'cozinha360-purchases-v53' /tmp/bundle.js >/dev/null
-          grep -F 'cozinha360-suppliers-v52' /tmp/bundle.js >/dev/null
-          grep -F 'cozinha360-kds-v54' /tmp/bundle.js >/dev/null
-          grep -F 'Compre pelo alvo. Não pelo susto.' /tmp/bundle.js >/dev/null
-          grep -F 'PREVISÃO OPERACIONAL' /tmp/bundle.js >/dev/null
-          grep -F 'Saiba com quem comprar antes de faltar.' /tmp/bundle.js >/dev/null
-          grep -F 'SLAs da operação' /tmp/bundle.js >/dev/null
+          test "$ready" = "1"
+
+          js_asset="$(grep -Eo '/assets/[^\" ]+\.js' /tmp/index.html | head -n1)"
+          css_asset="$(grep -Eo '/assets/[^\" ]+\.css' /tmp/index.html | head -n1 || true)"
+          test -n "$js_asset"
+          test "$(curl -L -sS -o /tmp/entry.js -w '%{http_code}' "$WEB_URL$js_asset")" = "200"
+          test -s /tmp/entry.js
+          if [ -n "$css_asset" ]; then
+            test "$(curl -L -sS -o /tmp/app.css -w '%{http_code}' "$WEB_URL$css_asset")" = "200"
+            test -s /tmp/app.css
+          fi
 
       - name: Verify Render origin is accepted by production Edge services
         shell: bash
