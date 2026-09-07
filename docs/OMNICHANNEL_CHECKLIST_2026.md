@@ -17,8 +17,11 @@ This checklist converts the current dark-kitchen/home-delivery market guide into
 - [x] distinct browser audio for new order and delivery state
 - [x] live grouped prep view by identical menu product across open kitchen orders
 - [x] explode grouped prep into identical recipe/pre-prep components (e.g. total buns, patties, sauces)
-- [ ] configurable SLA per product/channel
+- [x] configurable SLA per product/channel
 - [ ] optional printer bridge; never block core workflow on hardware
+
+### SLA intelligence v5.4
+The kitchen now has a tenant-level default SLA, optional preparation SLA per product and optional maximum commercial SLA per sales channel. The effective order SLA is deterministic: the preparation requirement is calculated from the slowest product in the order, then capped by the channel promise when one exists. When a channel promises less time than the configured preparation requirement, the KDS surfaces a conflict instead of hiding the mismatch. SLA changes are explicit owner/admin actions, audited, and never mutate order or inventory state by themselves.
 
 ## Finance and pricing
 - [x] recipe/ingredient costing
@@ -62,4 +65,5 @@ The purchase planner combines the current stock position, open unconsumed orders
 - CRM campaign suggestions never override consent/opt-out state.
 - Conversion adapters must deduplicate with the Cozinha 360 event ID before sending to ad platforms.
 - Purchase forecasts are deterministic operational guidance, not demand guarantees or autonomous purchasing.
+- KDS SLA is operational guidance and conflict detection; it never rewrites marketplace promises or customer-facing provider settings automatically.
 - No claim of fiscal, labor or marketplace compliance without provider/jurisdiction validation.
