@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react'
-import {AlertTriangle,ArrowRight,CheckCircle2,ChefHat,CircleDollarSign,Clock3,PackageSearch,RefreshCcw,ShoppingBag,Sparkles,Users,WifiOff} from 'lucide-react'
+import {motion,useReducedMotion} from 'motion/react'
+import {AlertTriangle,ArrowRight,CheckCircle2,ChefHat,CircleDollarSign,Clock3,Crosshair,PackageSearch,Radar,RefreshCcw,ShoppingBag,Sparkles,Users,WifiOff} from 'lucide-react'
 import {money,request} from './app'
 import type {Customer,Dashboard,DemandRow,Finance,InventoryAlert,KdsOrder,ProductionBatch,Workspace} from './app'
 
@@ -18,6 +19,54 @@ const activeBatchStatuses=new Set(['planned','in_progress'])
 function percent(value=0){return `${Math.round(value*100)}%`}
 function plural(value:number,singular:string,pluralForm=`${singular}s`){return `${value} ${value===1?singular:pluralForm}`}
 function formatClock(date:Date){return new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit'}).format(date)}
+
+function DecisionRadar({items,blockers}:{items:AttentionItem[];blockers:number}){
+  const reduced=Boolean(useReducedMotion())
+  const visible=items.slice(0,5)
+  const strongest=visible[0]?.score||0
+  return <section className="today66-cockpit" data-today-cockpit-v66 aria-label="Radar de atenção da operação">
+    <article className="today66-radar-card">
+      <header className="today66-radar-head"><span><Radar size={13}/> RADAR DE ATENÇÃO</span><small>mais perto do centro = maior prioridade</small></header>
+      <div className="today66-radar">
+        <div className="today66-radar-rings" aria-hidden="true"><i className="today66-radar-ring"></i><i className="today66-radar-ring"></i><i className="today66-radar-ring"></i><i className="today66-radar-ring"></i></div>
+        <i className="today66-axis" aria-hidden="true"></i><i className="today66-axis vertical" aria-hidden="true"></i>
+        <motion.div className="today66-center" animate={reduced?undefined:{scale:blockers?[1,1.045,1]:1}} transition={{duration:2.2,repeat:blockers?Infinity:0,ease:'easeInOut'}}><div><b>AGORA</b><small>{blockers?`${blockers} PRIORIDADE${blockers===1?'':'S'}`:'SEM BLOQUEIO'}</small></div></motion.div>
+        {visible.map((item,index)=>{
+          const angle=(-90+(360/Math.max(visible.length,1))*index)*Math.PI/180
+          const radius=28+(100-Math.min(100,Math.max(0,item.score)))*.4
+          const left=50+Math.cos(angle)*radius
+          const top=50+Math.sin(angle)*radius
+          const Icon=item.icon
+          return <motion.a
+            key={item.id}
+            href={item.href}
+            className={`today66-node ${item.tone}`}
+            style={{left:`${left}%`,top:`${top}%`}}
+            aria-label={`${item.eyebrow}: ${item.title}. ${item.action}`}
+            initial={reduced?false:{opacity:0,scale:.85}}
+            animate={{opacity:1,scale:1}}
+            whileHover={reduced?undefined:{scale:1.055}}
+            whileTap={reduced?undefined:{scale:.97}}
+            transition={{type:'spring',stiffness:240,damping:22,delay:reduced?0:index*.045}}
+          ><span className="today66-node-icon"><Icon size={14}/></span><span className="today66-node-copy"><b>{item.eyebrow}</b><small>{item.metric}</small></span></motion.a>
+        })}
+      </div>
+    </article>
+
+    <aside className="today66-pulse-card">
+      <div className="today66-pulse-top">
+        <span className="today66-pulse-label"><Crosshair size={13}/> PULSO DE DECISÃO</span>
+        <div className="today66-pulse-score"><strong>{strongest}</strong><span>/100 prioridade máxima</span></div>
+        <div className="today66-pulse-track" aria-hidden="true"><motion.i initial={false} animate={{width:`${strongest}%`}} transition={reduced?{duration:0}:{type:'spring',stiffness:90,damping:20}}/></div>
+        <p className="today66-pulse-caption">O número apenas ordena sinais já registrados; não estima lucro, perda futura ou demanda inexistente.</p>
+        <div className="today66-signal-stack">{visible.slice(0,4).map(item=><div className={`today66-signal ${item.tone}`} key={item.id}><i></i><b>{item.eyebrow}</b><small>{item.metric}</small></div>)}</div>
+      </div>
+      <div className="today66-pulse-bottom">
+        {visible[0]&&<a className="today66-pulse-action" href={visible[0].href}><span>{visible[0].action}</span><ArrowRight size={15}/></a>}
+      </div>
+    </aside>
+  </section>
+}
 
 export function TodayAttentionRoute(){
   const token=localStorage.getItem('c360_token')||''
@@ -118,11 +167,13 @@ export function TodayAttentionRoute(){
     </header>
 
     <section className="today39-content">
-      <div className="today39-heading"><div><span className="today39-kicker">{workspace.business.city||'Sua operação'} · {workspace.business.name}</span><h1>Seu dia em 60 segundos.</h1><p>Primeiro o que exige ação. Depois os indicadores. Relatórios ficam para quando você precisar investigar.</p></div><div className={`today39-status ${intelligence.blockers?'attention':'stable'}`}><span></span>{intelligence.blockers?`${intelligence.blockers} prioridade${intelligence.blockers===1?'':'s'} agora`:'operação sem bloqueio crítico'}</div></div>
+      <div className="today39-heading"><div><span className="today39-kicker">{workspace.business.city||'Sua operação'} · {workspace.business.name}</span><h1>Seu dia em 60 segundos.</h1><p>Risco, fluxo, caixa e capacidade posicionados pelo que muda o dia agora.</p></div><div className={`today39-status ${intelligence.blockers?'attention':'stable'}`}><span></span>{intelligence.blockers?`${intelligence.blockers} prioridade${intelligence.blockers===1?'':'s'} agora`:'operação sem bloqueio crítico'}</div></div>
+
+      <DecisionRadar items={intelligence.items} blockers={intelligence.blockers}/>
 
       <article className={`today39-brief ${top.tone}`}>
         <div className="today39-brief-icon"><top.icon size={24}/></div>
-        <div><span>BRIEFING OPERACIONAL</span><h2>{intelligence.brief}</h2><p>Esta visão só ordena fatos e limites já registrados no Cozinha 360; não inventa previsão financeira nem substitui conferência humana.</p></div>
+        <div><span>BRIEFING OPERACIONAL</span><h2>{intelligence.brief}</h2><p>Ordenado apenas com sinais já registrados. A confirmação final continua com quem opera.</p></div>
         <a href={top.href}>{top.action}<ArrowRight size={16}/></a>
       </article>
 
