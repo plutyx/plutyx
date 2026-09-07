@@ -3,6 +3,7 @@ import{AlertTriangle,CheckCircle2,CloudOff,CloudUpload,RefreshCcw,Trash2,Wifi,Wi
 import{discardOfflineOrder,flushOfflineOrders,queueEventName,readOfflineQueue,retryOfflineOrder,type OfflineQuickOrder}from'./offline-queue-v50'
 import{money}from'./app'
 import{OperatorExperienceLayer}from'./operator-experience-v60'
+import{OperationalCycleV61}from'./operational-cycle-v61'
 import'./operator-experience-v60.css'
 
 function when(raw:string){try{return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(raw))}catch{return raw}}
@@ -22,7 +23,7 @@ export function OfflineQueueStatus(){
  if(!token)return null
  const pending=items.filter(x=>x.state==='pending').length,failed=items.filter(x=>x.state==='failed').length
  const visible=!online||items.length>0||open
- return <><OperatorExperienceLayer/>{visible&&<button className={`offline50-pill ${online?'online':'offline'} ${failed?'has-failed':''}`} type="button" onClick={()=>setOpen(true)} aria-label="Status de conexão e pedidos offline">{online?<Wifi size={15}/>:<WifiOff size={15}/>}<span>{online?(items.length?`${items.length} para sincronizar`:'online'):'modo offline'}</span>{failed>0&&<b>{failed}</b>}</button>}
+ return <><OperatorExperienceLayer/><OperationalCycleV61/>{visible&&<button className={`offline50-pill ${online?'online':'offline'} ${failed?'has-failed':''}`} type="button" onClick={()=>setOpen(true)} aria-label="Status de conexão e pedidos offline">{online?<Wifi size={15}/>:<WifiOff size={15}/>}<span>{online?(items.length?`${items.length} para sincronizar`:'online'):'modo offline'}</span>{failed>0&&<b>{failed}</b>}</button>}
  {open&&<div className="offline50-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><section className="offline50-panel" role="dialog" aria-modal="true" aria-label="Fila segura offline">
   <header><div className={`offline50-net ${online?'online':'offline'}`}>{online?<Wifi/>:<CloudOff/>}<span><b>{online?'Conectado':'Sem internet'}</b><small>{online?'Pedidos pendentes podem ser enviados agora.':'Vendas rápidas podem ser guardadas neste dispositivo.'}</small></span></div><button onClick={()=>setOpen(false)} aria-label="Fechar"><X/></button></header>
   <div className="offline50-headline"><span>FILA SEGURA</span><h2>{items.length?`${items.length} pedido${items.length===1?'':'s'} aguardando confirmação do servidor.`:'Tudo sincronizado.'}</h2><p>Um pedido offline não aparece como recebido no KDS até o servidor confirmar. Cada tentativa reutiliza a mesma chave idempotente para evitar duplicação.</p></div>
