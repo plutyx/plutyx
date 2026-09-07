@@ -75,19 +75,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(curl -sS -o /tmp/gateway-health.json -w '%{http_code}' "$GATEWAY/health")" = "200"
-          grep -F '"status":"ok"' /tmp/gateway-health.json >/dev/null
-          test "$(curl -sS -o /tmp/delivery-health.json -w '%{http_code}' "$GATEWAY/cozinha360-delivery-v40/health")" = "200"
-          test "$(curl -sS -o /tmp/intelligence-health.json -w '%{http_code}' "$INTELLIGENCE_API/health")" = "200"
-          test "$(curl -sS -o /tmp/purchases-live.json -w '%{http_code}' "$PURCHASES_API/livez")" = "200"
-          grep -F '"version":"5.3.0"' /tmp/purchases-live.json >/dev/null
-          test "$(curl -sS -o /tmp/suppliers-live.json -w '%{http_code}' "$SUPPLIERS_API/livez")" = "200"
-          test "$(curl -sS -o /tmp/kds-live.json -w '%{http_code}' "$KDS_API/livez")" = "200"
-          grep -F '"version":"5.4.0"' /tmp/kds-live.json >/dev/null
-          test "$(curl -sS -o /tmp/kds-ready.json -w '%{http_code}' "$KDS_API/readyz")" = "200"
-          grep -F '"sla_columns":"ready"' /tmp/kds-ready.json >/dev/null
-          check_unauth() { local url="$1" file="$2"; test "$(curl -sS -o "$file" -w '%{http_code}' "$url")" = "401"; grep -F '"detail":"Sessão inválida"' "$file" >/dev/null; }
-          check_unauth "$INTELLIGENCE_API/portfolio/overview" /tmp/intelligence-auth.json
-          check_unauth "$PURCHASES_API/businesses/1/purchase-plan?history_days=28&cover_days=7" /tmp/purchases-auth.json
-          check_unauth "$SUPPLIERS_API/businesses/1/suppliers" /tmp/suppliers-auth.json
-          check_unauth "$KDS_API/businesses/1/kds" /tmp/kds-auth.json
+          check_json() {
+            local label="$1" url="$2" expected_code="$3" expected_text="$4" file="$5"
+            local code
+            code="$(curl -sS -o "$file" -w '%{http_code}' "$url")" || code=000
+            echo "[$label] status=$code body=$(cat "$file" 2>/dev/null || true)"
+            if [ "$code" != "$expected_code" ]; then
+              echo "::error title=$label status mismatch::Expected HTTP $expected_code, got $code from $url"
+              return 1
+            fi
+            if [ -n "$expected_text" ] && ! grep -F "$expected_text" "$file" >/dev/null; then
+              echo "::error title=$label body mismatch::Expected body marker $expected_text from $url"
+              return 1
+            fi
+          }
+
+          check_json 'gateway health' "$GATEWAY/health" 200 '"status":"ok"' /tmp/gateway-health.json
+          check_json 'delivery health' "$GATEWAY/cozinha360-delivery-v40/health" 200 '' /tmp/delivery-health.json
+          check_json 'intelligence health' "$INTELLIGENCE_API/health" 200 '' /tmp/intelligence-health.json
+          check_json 'purchases live' "$PURCHASES_API/livez" 200 '"version":"5.3.0"' /tmp/purchases-live.json
+          check_json 'suppliers live' "$SUPPLIERS_API/livez" 200 '' /tmp/suppliers-live.json
+          check_json 'kds live' "$KDS_API/livez" 200 '"version":"5.4.0"' /tmp/kds-live.json
+          check_json 'kds ready' "$KDS_API/readyz" 200 '"sla_columns":"ready"' /tmp/kds-ready.json
+          check_json 'intelligence unauth' "$INTELLIGENCE_API/portfolio/overview" 401 'Sessão inválida' /tmp/intelligence-auth.json
+          check_json 'purchases unauth' "$PURCHASES_API/businesses/1/purchase-plan?history_days=28&cover_days=7" 401 'Sessão inválida' /tmp/purchases-auth.json
+          check_json 'suppliers unauth' "$SUPPLIERS_API/businesses/1/suppliers" 401 'Sessão inválida' /tmp/suppliers-auth.json
+          check_json 'kds unauth' "$KDS_API/businesses/1/kds" 401 'Sessão inválida' /tmp/kds-auth.json
