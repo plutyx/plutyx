@@ -1,0 +1,223 @@
+/* 2026 discovery refinement: depth and feedback without adding sales copy. */
+.discovery-home {
+  --discovery-glass: rgba(12, 17, 27, 0.62);
+  --discovery-line: rgba(255, 255, 255, 0.09);
+  --discovery-soft-line: rgba(255, 255, 255, 0.055);
+}
+
+.discovery-hero {
+  perspective: 1400px;
+  isolation: isolate;
+}
+
+.discovery-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 8% -10% 3% 33%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 28% 38%, rgba(255, 189, 89, 0.1), transparent 27%),
+    radial-gradient(circle at 62% 42%, rgba(110, 231, 199, 0.085), transparent 30%),
+    radial-gradient(circle at 66% 70%, rgba(159, 122, 234, 0.105), transparent 34%);
+  filter: blur(34px);
+  pointer-events: none;
+}
+
+.discovery-hero__visual {
+  transform-style: preserve-3d;
+  transition:
+    transform 0.8s var(--ease-spring),
+    border-color 0.35s ease,
+    box-shadow 0.5s ease;
+}
+
+.discovery-hero__visual:hover {
+  transform: translate3d(0, -7px, 0) rotateX(0.7deg) rotateY(-0.8deg);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.13),
+    0 70px 170px rgba(0, 0, 0, 0.4),
+    0 0 90px rgba(159, 122, 234, 0.055);
+}
+
+.hero-signal,
+.discovery-hero__bento {
+  border-color: rgba(255, 255, 255, 0.11);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.02)),
+    rgba(7, 10, 16, 0.54);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.095),
+    0 18px 55px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(26px) saturate(145%);
+  -webkit-backdrop-filter: blur(26px) saturate(145%);
+}
+
+.discovery-hero__bento {
+  transition:
+    transform 0.55s var(--ease-spring),
+    border-color 0.3s ease,
+    background 0.3s ease;
+}
+
+.discovery-hero__bento:hover {
+  transform: translateY(-5px);
+  border-color: rgba(255, 255, 255, 0.16);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)),
+    rgba(7, 10, 16, 0.62);
+}
+
+.discovery-primary {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.discovery-primary::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -40% auto -40% -45%;
+  width: 40%;
+  transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+  transition: left 0.7s var(--ease-spring);
+}
+
+.discovery-primary:hover::after {
+  left: 110%;
+}
+
+.journey-stage,
+.signal-preview,
+.solution-constellation__orb,
+.story-card,
+.future-panel {
+  position: relative;
+  isolation: isolate;
+}
+
+.journey-stage::before,
+.signal-preview::before,
+.solution-constellation__orb::before,
+.future-panel::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.17),
+    rgba(255, 189, 89, 0.08) 26%,
+    transparent 48%,
+    rgba(110, 231, 199, 0.085) 76%,
+    rgba(159, 122, 234, 0.1)
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.journey-option,
+.solution-node {
+  transform: translateZ(0);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+  transition:
+    transform 0.55s var(--ease-spring),
+    border-color 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.35s ease;
+}
+
+.journey-option:hover,
+.solution-node:hover {
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.085),
+    0 20px 55px rgba(0, 0, 0, 0.18);
+}
+
+.journey-option.is-active,
+.solution-node.is-active {
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.1),
+    0 24px 70px rgba(0, 0, 0, 0.2),
+    0 0 44px rgba(110, 231, 199, 0.045);
+}
+
+.journey-map {
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.055);
+}
+
+.story-stack {
+  perspective: 1200px;
+}
+
+.story-card {
+  backdrop-filter: blur(28px) saturate(135%);
+  -webkit-backdrop-filter: blur(28px) saturate(135%);
+  transform-origin: 50% 18%;
+}
+
+.story-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 8% -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+  opacity: 0.6;
+}
+
+.future-panel {
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.085),
+    0 55px 140px rgba(0, 0, 0, 0.26);
+}
+
+.operational-playground-host {
+  position: relative;
+  z-index: 3;
+}
+
+.operational-playground-host::before {
+  content: "";
+  position: absolute;
+  top: 13%;
+  left: 50%;
+  width: min(70vw, 54rem);
+  height: 24rem;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(110, 231, 199, 0.065), transparent 67%);
+  filter: blur(45px);
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .discovery-hero__visual:hover,
+  .discovery-hero__bento:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discovery-hero__visual,
+  .discovery-hero__bento,
+  .journey-option,
+  .solution-node,
+  .discovery-primary::after {
+    transition-duration: 0.01ms !important;
+  }
+  .discovery-hero__visual:hover,
+  .discovery-hero__bento:hover {
+    transform: none !important;
+  }
+  .discovery-primary::after {
+    display: none;
+  }
+}
