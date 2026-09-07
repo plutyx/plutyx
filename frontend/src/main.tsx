@@ -6,6 +6,7 @@ import { InventoryStockEditor } from "./inventory-editor";
 import { SessionAwareControls } from "./operator-launcher-v38";
 import { OfflineQueueStatus } from "./offline-status-v50";
 import { prepareOperatingMemory } from "./operating-memory";
+import { DiscoveryPlaygroundPortal } from "./operational-playground-portal";
 import "./tailwind.css";
 import "./styles.css";
 import "./market.css";
@@ -339,6 +340,7 @@ function Root() {
   return (
     <>
       <App />
+      <DiscoveryPlaygroundPortal />
       <TabHashBridge />
       <KitchenAlerts />
       <InventoryStockEditor />
