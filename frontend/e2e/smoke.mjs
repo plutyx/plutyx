@@ -138,7 +138,7 @@ try {
     );
   }
 
-  // Estoque: ingrediente + configuração do mínimo/alvo em drawer touch-friendly.
+  // Estoque: o mapa visual deve abrir o MESMO drawer auditado e acompanhar PAR/alvo reais.
   await page.getByRole("button", { name: "Custos", exact: true }).click();
   await page.getByPlaceholder("Ingrediente").fill("Frango E2E");
   await page.getByPlaceholder("Preço pacote R$").fill("10.00");
@@ -147,9 +147,16 @@ try {
   await page.getByText("Frango E2E").waitFor();
 
   const ingredientRow = page.locator(".row").filter({ hasText: "Frango E2E" });
-  await ingredientRow
-    .getByRole("button", { name: "Estoque", exact: true })
-    .click();
+  const heatmap = page.locator("[data-inventory-heatmap-v67]");
+  await heatmap.waitFor({ state: "visible", timeout: 10000 });
+  await heatmap.getByText("Veja a ruptura antes da cozinha sentir.", { exact: true }).waitFor();
+  const heatCell = heatmap.getByRole("button").filter({ hasText: "Frango E2E" });
+  await heatCell.waitFor();
+  if ((await heatCell.getAttribute("data-stock-state")) !== "unconfigured") {
+    throw new Error(`new ingredient should start without PAR rule, got ${await heatCell.getAttribute("data-stock-state")}`);
+  }
+  await heatCell.click();
+
   const stockDialog = page.getByRole("dialog");
   await stockDialog.waitFor();
   await stockDialog
@@ -167,6 +174,14 @@ try {
     .click();
   await page.getByText(/Estoque configurado/).waitFor();
   await ingredientRow.getByText(/1000 g em estoque · mínimo 300/).waitFor();
+  await page.waitForFunction(() => {
+    const cell = Array.from(document.querySelectorAll('[data-inventory-heatmap-v67] button')).find((node) => node.textContent?.includes('Frango E2E'));
+    return cell?.getAttribute('data-stock-state') === 'covered' && cell.textContent?.includes('333%');
+  }, undefined, { timeout: 10000 });
+  await page.screenshot({
+    path: "/tmp/cozinha360-inventory-heatmap-v67.png",
+    fullPage: true,
+  });
 
   // Produto + ficha técnica.
   await page.getByRole("button", { name: "Produtos", exact: true }).click();
@@ -295,6 +310,12 @@ try {
     .filter({ hasText: "Frango E2E" })
     .getByText(/600 g em estoque/)
     .waitFor();
+  const refreshedHeatmap = page.locator("[data-inventory-heatmap-v67]");
+  await refreshedHeatmap.getByRole("button", { name: "Atualizar mapa de estoque", exact: true }).click();
+  await page.waitForFunction(() => {
+    const cell = Array.from(document.querySelectorAll('[data-inventory-heatmap-v67] button')).find((node) => node.textContent?.includes('Frango E2E'));
+    return cell?.getAttribute('data-stock-state') === 'attention' && cell.textContent?.includes('200%');
+  }, undefined, { timeout: 10000 });
 
   // Readiness e onboarding são condições do produto, não apenas uma tela carregada.
   const token = await page.evaluate(() => localStorage.getItem("c360_token"));
@@ -327,7 +348,7 @@ try {
     path: "/tmp/cozinha360-e2e-success.png",
     fullPage: true,
   });
-  console.log("browser customer journey ok");
+  console.log("browser customer journey + inventory heatmap v6.7 ok");
 } catch (error) {
   await page
     .screenshot({ path: "/tmp/cozinha360-e2e-failure.png", fullPage: true })
