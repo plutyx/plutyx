@@ -55,16 +55,19 @@ try {
     if (request.method() === "POST" && url.endsWith("/pix")) {
       paymentPosts += 1;
       const payload = request.postDataJSON();
-      if (payload.business_id !== 4 || payload.order_id !== 777 || !payload.client_order_key || payload.payer_email !== "cliente@example.com") {
+      if (payload.business_id !== 4 || payload.order_id !== 777 || !payload.client_order_key || payload.payer_email !== "cliente@example.com" || payload.provider !== "mercadopago") {
         throw new Error(`unexpected Pix payload: ${JSON.stringify(payload)}`);
       }
+      if (payload.payer_tax_id) throw new Error("Mercado Pago route received PagBank tax ID field");
       return route.fulfill({
         status: 201,
         contentType: "application/json",
         body: JSON.stringify({
           ok: true,
+          provider: "mercadopago",
           payment: {
             token,
+            provider: "mercadopago",
             status: "processing",
             status_detail: "pending_waiting_payment",
             paid: false,
@@ -85,6 +88,7 @@ try {
         body: JSON.stringify({
           payment: {
             token,
+            provider: "mercadopago",
             status: "processed",
             status_detail: "accredited",
             paid: true,
@@ -112,15 +116,17 @@ try {
   await page.getByRole("heading", { name: "Finalize por Pix quando quiser.", exact: true }).waitFor();
   if (paymentPosts !== 0) throw new Error("Pix was created before explicit customer action");
 
+  const pixCard = page.locator("[data-pix-checkout-experience]");
+  if ((await pixCard.getAttribute("data-pix-provider")) !== "mercadopago") throw new Error("legacy Pix did not default to Mercado Pago");
   await page.getByRole("button", { name: "Gerar Pix", exact: true }).click();
   await page.getByText("Aguardando confirmação", { exact: true }).waitFor();
   if (paymentPosts !== 1) throw new Error(`expected one Pix creation, got ${paymentPosts}`);
 
-  await page.getByText("Pagamento reconhecido", { exact: true }).waitFor({ timeout: 10000 });
+  await page.getByText("Pix confirmado", { exact: true }).waitFor({ timeout: 10000 });
   if (statusGets < 1) throw new Error("Pix status was not refreshed while checkout was visible");
 
   await page.screenshot({ path: "/tmp/cozinha360-pix-checkout.png", fullPage: false });
-  console.log("progressive Pix checkout experience ok");
+  console.log("progressive Mercado Pago Pix checkout experience ok");
 } catch (error) {
   await page.screenshot({ path: "/tmp/cozinha360-pix-checkout-failure.png", fullPage: true }).catch(() => {});
   console.error(error);
