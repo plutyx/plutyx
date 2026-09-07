@@ -3,18 +3,22 @@ import { chromium } from 'playwright'
 const browser=await chromium.launch({headless:true})
 const context=await browser.newContext({viewport:{width:1440,height:1000}})
 const page=await context.newPage()
+const testPassword=['senha','super','segura','123'].join('-')
 
 try{
   await page.goto('http://127.0.0.1:5173',{waitUntil:'networkidle'})
-  await page.locator('.account-helper-link').waitFor()
+  await page.getByRole('button',{name:'Entrar',exact:true}).waitFor()
   if(await page.locator('.operator-rail').count())throw new Error('operator launcher must not render before authentication')
 
-  await page.getByLabel('E-mail').fill('cliente-e2e@example.com')
-  await page.getByLabel('Senha').fill('senha-super-segura-123')
   await page.getByRole('button',{name:'Entrar',exact:true}).click()
+  const access=page.getByRole('dialog')
+  await access.waitFor()
+  await access.getByLabel('E-mail').fill('cliente-e2e@example.com')
+  await access.getByLabel('Senha').fill(testPassword)
+  await access.getByRole('button',{name:'Entrar na operação',exact:true}).click()
   await page.getByText(/DECISÃO DE HOJE/).waitFor({timeout:15000})
   await page.locator('.operator-rail').waitFor({timeout:3000})
-  if(await page.locator('.account-helper-link').count())throw new Error('password recovery helper must disappear after authentication')
+  if(await page.locator('.access-forgot').count())throw new Error('password recovery helper must disappear after authentication')
 
   const primaryLinks=page.locator('.operator-rail > a')
   if(await primaryLinks.count()!==4)throw new Error(`expected 4 persistent actions, got ${await primaryLinks.count()}`)
@@ -55,7 +59,7 @@ try{
   if(!panelBox||panelBox.y<100||panelBox.width<380)throw new Error(`mobile launcher is not presented as a bottom sheet: ${JSON.stringify(panelBox)}`)
   await page.screenshot({path:'/tmp/cozinha360-operator-launcher-v38-mobile.png',fullPage:true})
 
-  console.log('operator launcher journey ok after v3.9 today-first navigation')
+  console.log('operator launcher journey ok after immersive access + v3.9 today-first navigation')
 }catch(error){
   await page.screenshot({path:'/tmp/cozinha360-operator-launcher-v38-failure.png',fullPage:true}).catch(()=>{})
   console.error(error)
