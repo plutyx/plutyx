@@ -4,6 +4,32 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 
 try {
+  await page.route("**/cozinha360-public-integrations-v58/capabilities", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        version: "5.8.0",
+        providers: [
+          {
+            id: "mercadopago",
+            name: "Mercado Pago",
+            mode: "oauth_pkce",
+            authorization: "Mercado Pago OAuth + PKCE",
+            partner_access: "mercadopago_application",
+            platform_ready: false,
+            state: "platform_setup_required",
+            user_action: "none",
+          },
+        ],
+        ready_count: 0,
+        total_count: 5,
+        secrets_exposed: false,
+      }),
+    });
+  });
+
   await page.addInitScript(() => {
     localStorage.setItem(
       "c360_discovery_exploration",
@@ -35,6 +61,15 @@ try {
     throw new Error("living flow surfaced a provider the user did not choose");
   }
 
+  const reality = page.locator("[data-integration-reality-host]");
+  await reality.getByText("REALIDADE DA PLATAFORMA", { exact: true }).waitFor();
+  await reality.getByText("0/1", { exact: true }).waitFor();
+  await reality.getByText("Mercado Pago", { exact: true }).waitFor();
+  await reality.getByText("PLATAFORMA", { exact: true }).waitFor();
+  if (await reality.getByText("WhatsApp", { exact: true }).count()) {
+    throw new Error("readiness ribbon surfaced a provider outside the explicit route");
+  }
+
   for (const label of ["Entrada", "Pagamento", "Produção", "Entrega", "Retorno"]) {
     await flow.getByRole("button", { name: new RegExp(label) }).click();
   }
@@ -54,7 +89,7 @@ try {
     fullPage: false,
   });
 
-  console.log("living operation flow + explicit connection context ok");
+  console.log("living operation flow + real readiness contract ok");
 } catch (error) {
   await page
     .screenshot({ path: "/tmp/cozinha360-living-operation-flow-failure.png", fullPage: true })
