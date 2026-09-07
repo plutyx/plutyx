@@ -1,0 +1,246 @@
+/* Orders Command Board v6.4
+   Scan-first kanban inspired by category-leading restaurant ops patterns,
+   while preserving Cozinha 360 status logic and selectors. */
+
+.app-shell .kds-board{
+  display:grid!important;
+  grid-auto-flow:column;
+  grid-auto-columns:minmax(285px,1fr);
+  grid-template-columns:none!important;
+  align-items:start;
+  gap:11px!important;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  scroll-snap-type:x proximity;
+  padding:2px 2px 14px;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(255,255,255,.12) transparent;
+}
+.app-shell .kds-board::-webkit-scrollbar{height:7px}
+.app-shell .kds-board::-webkit-scrollbar-track{background:transparent}
+.app-shell .kds-board::-webkit-scrollbar-thumb{border-radius:999px;background:rgba(255,255,255,.12)}
+
+.app-shell .kds-column{
+  --lane-accent:119,229,239;
+  position:relative;
+  min-width:0;
+  min-height:390px;
+  max-height:calc(100vh - 230px);
+  overflow-y:auto;
+  scroll-snap-align:start;
+  border:1px solid rgba(255,255,255,.07)!important;
+  border-radius:20px!important;
+  background:
+    linear-gradient(180deg,rgba(var(--lane-accent),.045),transparent 110px),
+    linear-gradient(155deg,rgba(255,255,255,.032),rgba(255,255,255,.012))!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.035),0 18px 50px rgba(0,0,0,.11);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  scrollbar-width:thin;
+  scrollbar-color:rgba(var(--lane-accent),.18) transparent;
+}
+.app-shell .kds-column:nth-child(2){--lane-accent:108,161,255}
+.app-shell .kds-column:nth-child(3){--lane-accent:245,198,103}
+.app-shell .kds-column:nth-child(4){--lane-accent:167,139,250}
+.app-shell .kds-column:nth-child(5){--lane-accent:118,228,173}
+.app-shell .kds-column:nth-child(6){--lane-accent:148,163,184}
+
+.app-shell .kds-title{
+  position:sticky;
+  top:0;
+  z-index:4;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-height:52px;
+  padding:12px 13px!important;
+  border-bottom:1px solid rgba(var(--lane-accent),.11)!important;
+  background:linear-gradient(180deg,rgba(9,14,20,.96),rgba(9,14,20,.86));
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+}
+.app-shell .kds-title:before{
+  content:"";
+  width:7px;
+  height:7px;
+  flex:none;
+  border-radius:999px;
+  background:rgb(var(--lane-accent));
+  box-shadow:0 0 18px rgba(var(--lane-accent),.45);
+}
+.app-shell .kds-title b{
+  margin-right:auto;
+  font-size:10px!important;
+  font-weight:900!important;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:rgba(236,244,249,.72)!important;
+}
+.app-shell .kds-title span{
+  display:grid;
+  min-width:26px;
+  height:26px;
+  place-items:center;
+  border:1px solid rgba(var(--lane-accent),.16);
+  border-radius:9px;
+  background:rgba(var(--lane-accent),.07);
+  color:rgb(var(--lane-accent))!important;
+  font-size:11px!important;
+  font-weight:900;
+}
+
+.app-shell .ticket{
+  position:relative;
+  overflow:hidden;
+  margin:9px!important;
+  padding:13px!important;
+  border:1px solid rgba(255,255,255,.075)!important;
+  border-radius:16px!important;
+  background:linear-gradient(145deg,rgba(25,32,40,.94),rgba(12,17,23,.96))!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.045),0 14px 32px rgba(0,0,0,.13)!important;
+  transition:transform .24s cubic-bezier(.2,.8,.2,1),border-color .24s ease,box-shadow .24s ease;
+}
+.app-shell .ticket:after{
+  content:"";
+  position:absolute;
+  width:130px;
+  height:130px;
+  right:-75px;
+  top:-78px;
+  border-radius:999px;
+  background:rgba(var(--lane-accent),.07);
+  filter:blur(28px);
+  pointer-events:none;
+}
+.app-shell .ticket:hover{
+  transform:translateY(-2px);
+  border-color:rgba(var(--lane-accent),.19)!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.06),0 20px 42px rgba(0,0,0,.18)!important;
+}
+.app-shell .ticket.late{
+  border-color:rgba(255,119,125,.32)!important;
+  box-shadow:inset 3px 0 #ff777d,0 0 34px rgba(255,119,125,.045),0 16px 36px rgba(0,0,0,.15)!important;
+  background:linear-gradient(145deg,rgba(78,27,32,.36),rgba(12,17,23,.97) 54%)!important;
+}
+
+.app-shell .ticket-top{
+  position:relative;
+  z-index:1;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px;
+  margin-bottom:12px!important;
+}
+.app-shell .ticket-top b{
+  font-size:13px!important;
+  font-weight:900!important;
+  letter-spacing:-.015em;
+  color:#eef5f8!important;
+}
+.app-shell .ticket-top span{
+  display:inline-flex;
+  align-items:center;
+  min-height:27px;
+  padding:0 8px;
+  border:1px solid rgba(var(--lane-accent),.16);
+  border-radius:999px;
+  background:rgba(var(--lane-accent),.07);
+  color:rgb(var(--lane-accent))!important;
+  font-size:9px!important;
+  font-weight:900!important;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.app-shell .ticket.late .ticket-top span{
+  border-color:rgba(255,119,125,.24);
+  background:rgba(255,119,125,.11);
+  color:#ffc0c3!important;
+  animation:v64LatePulse 2.1s ease-in-out infinite;
+}
+
+.app-shell .ticket-items{
+  position:relative;
+  z-index:1;
+  display:grid!important;
+  gap:7px!important;
+  padding:10px 0 12px!important;
+  border-top:1px solid rgba(255,255,255,.05);
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.app-shell .ticket-items>div{
+  display:flex;
+  align-items:baseline;
+  gap:7px;
+  color:#cbd5dc!important;
+  font-size:12px!important;
+  line-height:1.35;
+}
+.app-shell .ticket-items strong{
+  min-width:25px;
+  color:#fff!important;
+  font-size:15px!important;
+  font-weight:900!important;
+}
+
+.app-shell .ticket small{
+  display:inline-flex;
+  align-items:center;
+  max-width:100%;
+  margin-top:11px;
+  padding:6px 8px;
+  border:1px solid rgba(255,255,255,.055);
+  border-radius:8px;
+  background:rgba(255,255,255,.025);
+  color:#8f9ba6!important;
+  font-size:9px!important;
+  font-weight:750;
+  letter-spacing:.035em;
+}
+.app-shell .ticket button{
+  min-height:38px;
+  margin-top:10px;
+  border:1px solid rgba(var(--lane-accent),.15)!important;
+  border-radius:10px!important;
+  background:rgba(var(--lane-accent),.09)!important;
+  color:#eef8fa!important;
+  font-size:10px!important;
+  font-weight:900!important;
+  letter-spacing:.03em;
+  transition:transform .18s cubic-bezier(.2,.8,.2,1),background .18s ease,border-color .18s ease;
+}
+.app-shell .ticket button:hover{
+  transform:translateY(-1px);
+  border-color:rgba(var(--lane-accent),.28)!important;
+  background:rgba(var(--lane-accent),.15)!important;
+}
+
+@keyframes v64LatePulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,119,125,0)}
+  50%{box-shadow:0 0 0 5px rgba(255,119,125,.055),0 0 18px rgba(255,119,125,.08)}
+}
+
+@media(max-width:900px){
+  .app-shell .kds-board{
+    grid-auto-columns:minmax(275px,82vw);
+    scroll-snap-type:x mandatory;
+    padding-bottom:18px;
+  }
+  .app-shell .kds-column{max-height:none;min-height:430px}
+  .app-shell .kds-title{top:0}
+}
+
+@media(max-width:560px){
+  .app-shell .kds-board{grid-auto-columns:86vw;gap:8px}
+  .app-shell .kds-column{border-radius:17px!important}
+  .app-shell .ticket{margin:7px!important;border-radius:14px!important}
+  .app-shell .ticket-top span{min-height:25px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .app-shell .ticket,.app-shell .ticket button{transition:none!important}
+  .app-shell .ticket:hover,.app-shell .ticket button:hover{transform:none!important}
+  .app-shell .ticket.late .ticket-top span{animation:none!important}
+  .app-shell .kds-board{scroll-behavior:auto}
+}
