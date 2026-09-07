@@ -124,6 +124,62 @@
   pointer-events: none;
 }
 
+/* The last explored signal becomes ambient light only; it never preselects an answer. */
+.journey-section {
+  --exploration-aura: rgba(255, 255, 255, 0.025);
+  --exploration-line: rgba(255, 255, 255, 0.11);
+}
+
+html[data-discovery-signal="orders"] .journey-section {
+  --exploration-aura: rgba(255, 189, 89, 0.115);
+  --exploration-line: rgba(255, 211, 145, 0.2);
+}
+
+html[data-discovery-signal="production"] .journey-section {
+  --exploration-aura: rgba(110, 231, 199, 0.105);
+  --exploration-line: rgba(167, 243, 224, 0.2);
+}
+
+html[data-discovery-signal="stock"] .journey-section {
+  --exploration-aura: rgba(159, 122, 234, 0.115);
+  --exploration-line: rgba(196, 181, 253, 0.2);
+}
+
+html[data-discovery-signal="margin"] .journey-section {
+  --exploration-aura: rgba(251, 113, 133, 0.1);
+  --exploration-line: rgba(253, 164, 175, 0.2);
+}
+
+html[data-discovery-signal] .journey-stage,
+html[data-discovery-signal] .signal-preview {
+  border-color: var(--exploration-line);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.08),
+    0 42px 120px rgba(0, 0, 0, 0.24),
+    0 0 92px var(--exploration-aura);
+  transition:
+    border-color 0.65s ease,
+    box-shadow 0.8s ease;
+}
+
+html[data-discovery-signal] .journey-map {
+  border-color: var(--exploration-line);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.06),
+    0 0 42px var(--exploration-aura);
+  transition:
+    border-color 0.65s ease,
+    box-shadow 0.8s ease;
+}
+
+html[data-discovery-signal] .signal-preview__halo {
+  opacity: 0.82;
+  filter: saturate(1.12) drop-shadow(0 0 32px var(--exploration-aura));
+  transition:
+    opacity 0.6s ease,
+    filter 0.8s ease;
+}
+
 .journey-option,
 .solution-node {
   transform: translateZ(0);
@@ -210,7 +266,11 @@
   .discovery-hero__bento,
   .journey-option,
   .solution-node,
-  .discovery-primary::after {
+  .discovery-primary::after,
+  html[data-discovery-signal] .journey-stage,
+  html[data-discovery-signal] .signal-preview,
+  html[data-discovery-signal] .journey-map,
+  html[data-discovery-signal] .signal-preview__halo {
     transition-duration: 0.01ms !important;
   }
   .discovery-hero__visual:hover,
