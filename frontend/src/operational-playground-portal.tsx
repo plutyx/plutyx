@@ -11,7 +11,16 @@ const signalLabels = [
   ["Venda sem sobra", "margin"],
 ] as const;
 
-function rememberSignal(signal: string) {
+type DiscoverySignal = (typeof signalLabels)[number][1];
+
+function applySignalAura(signal?: string) {
+  const valid = signalLabels.some(([, id]) => id === signal);
+  if (valid && signal) document.documentElement.dataset.discoverySignal = signal;
+  else delete document.documentElement.dataset.discoverySignal;
+}
+
+function rememberSignal(signal: DiscoverySignal) {
+  applySignalAura(signal);
   try {
     const key = "c360_discovery_exploration";
     const previous = JSON.parse(localStorage.getItem(key) || "{}") as {
@@ -37,6 +46,17 @@ function rememberSignal(signal: string) {
 
 export function DiscoveryPlaygroundPortal() {
   const [host, setHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(
+        localStorage.getItem("c360_discovery_exploration") || "{}",
+      ) as { last_signal?: string };
+      applySignalAura(stored.last_signal);
+    } catch {
+      applySignalAura();
+    }
+  }, []);
 
   useEffect(() => {
     let ownedHost: HTMLElement | null = null;
