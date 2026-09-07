@@ -31,6 +31,17 @@ export function DiscoveryProgressRail() {
   const reduceMotion = Boolean(useReducedMotion());
   const [active, setActive] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [desktop, setDesktop] = useState(() =>
+    typeof window === "undefined" ? true : window.matchMedia("(min-width: 768px)").matches,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const onMediaChange = () => setDesktop(media.matches);
+    onMediaChange();
+    media.addEventListener("change", onMediaChange);
+    return () => media.removeEventListener("change", onMediaChange);
+  }, []);
 
   useEffect(() => {
     const sync = () => {
@@ -95,11 +106,7 @@ export function DiscoveryProgressRail() {
         <motion.span
           aria-hidden="true"
           className="absolute bottom-1.5 left-1.5 h-px bg-gradient-to-r from-amber-200 via-emerald-200 to-violet-300 md:bottom-auto md:left-1/2 md:top-2 md:w-px md:-translate-x-1/2 md:bg-gradient-to-b"
-          animate={
-            typeof window !== "undefined" && window.innerWidth >= 768
-              ? { height: `calc(${progress}% - 1rem)`, width: 1 }
-              : { width: `calc(${progress}% - .75rem)`, height: 1 }
-          }
+          animate={desktop ? { height: `${progress}%`, width: 1 } : { width: `${progress}%`, height: 1 }}
           transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 120, damping: 22 }}
         />
         {steps.map((step, index) => {
