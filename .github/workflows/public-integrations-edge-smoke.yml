@@ -1,0 +1,60 @@
+name: public-integrations-edge-smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/edge/cozinha360-public-integrations-v58/**'
+      - '.github/workflows/public-integrations-edge-smoke.yml'
+  pull_request:
+    paths:
+      - 'supabase/edge/cozinha360-public-integrations-v58/**'
+      - '.github/workflows/public-integrations-edge-smoke.yml'
+
+jobs:
+  public-integration-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-public-integrations-v58
+    steps:
+      - name: Public catalog is live
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$EDGE/livez")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-public-integrations-v58" and x["version"]=="5.8.0"' "$body"
+
+      - name: Catalog service is ready
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$EDGE/readyz")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["catalog"]=="ready" and x["version"]=="5.8.0"' "$body"
+
+      - name: Public capabilities expose state, never credentials
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$EDGE/capabilities")"
+          python - "$body" <<'PY'
+          import json,sys
+          x=json.loads(sys.argv[1])
+          assert x['ok'] is True
+          assert x['version']=='5.8.0'
+          assert x['secrets_exposed'] is False
+          assert x['total_count']==5
+          assert 0 <= x['ready_count'] <= x['total_count']
+          providers=x['providers']
+          assert {p['id'] for p in providers} == {'whatsapp','ifood','mercadopago','google','meta_ads'}
+          allowed={'id','name','mode','authorization','partner_access','platform_ready','state','user_action'}
+          forbidden=('secret','token','password','client_id','client_secret','access_key','refresh')
+          for p in providers:
+              assert set(p) <= allowed
+              assert isinstance(p['platform_ready'], bool)
+              assert p['state'] in {'ready_to_authorize','platform_setup_required'}
+              assert p['user_action'] in {'authorize_account','none'}
+              serialized=json.dumps(p).lower()
+              assert not any(key in serialized for key in forbidden)
+          PY
+
+      - name: Unsupported mutation is rejected
+        run: |
+          status="$(curl --silent --output /tmp/public-integrations-post.json --write-out '%{http_code}' -X POST "$EDGE/capabilities")"
+          test "$status" = "405"
+          python -c 'import json; x=json.load(open("/tmp/public-integrations-post.json")); assert "detail" in x'
