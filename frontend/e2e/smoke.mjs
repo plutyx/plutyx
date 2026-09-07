@@ -2,6 +2,51 @@ import { chromium, request as playwrightRequest } from 'playwright'
 
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+const KDS_EDGE_PREFIX = 'https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54'
+
+// O customer journey roda contra a API local. O KDS v5.4 de produção vive em Edge Function,
+// então, neste teste integrado, roteamos apenas a leitura da fila para o backend local e
+// fornecemos configurações SLA neutras. O journey dedicado kds-sla-v54.mjs continua testando
+// separadamente o contrato completo de SLA, PATCH explícito e responsividade da v5.4.
+await page.route(`${KDS_EDGE_PREFIX}/**`, async route => {
+  const request = route.request()
+  const url = new URL(request.url())
+  const edgeMarker = '/functions/v1/cozinha360-kds-v54'
+  const path = url.pathname.slice(url.pathname.indexOf(edgeMarker) + edgeMarker.length)
+  const businessMatch = path.match(/^\/businesses\/(\d+)\/kds(?:\/settings)?$/)
+  const businessId = Number(businessMatch?.[1] || 0)
+
+  if (!businessId) {
+    return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ detail: 'KDS E2E route not found' }) })
+  }
+
+  if (path.endsWith('/kds/settings')) {
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        business_id: businessId,
+        default_kds_sla_minutes: 20,
+        products: [],
+        channels: [],
+      }),
+    })
+  }
+
+  const authorization = request.headers()['authorization'] || ''
+  const response = await fetch(`http://127.0.0.1:8000${path}`, {
+    method: request.method(),
+    headers: {
+      Authorization: authorization,
+      'Content-Type': 'application/json',
+    },
+  })
+  return route.fulfill({
+    status: response.status,
+    contentType: response.headers.get('content-type') || 'application/json',
+    body: await response.text(),
+  })
+})
 
 try {
   await page.goto('http://127.0.0.1:5173', { waitUntil: 'networkidle' })
