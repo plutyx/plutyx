@@ -31,9 +31,11 @@ jobs:
           VITE_AUTOPILOT_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-autopilot-v37
           VITE_DELIVERY_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42/cozinha360-delivery-v40
           VITE_SETUP_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-setup-v42
+          VITE_PURCHASES_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v51
+          VITE_SUPPLIERS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-suppliers-v52
         run: npm run build
       - name: Verify production release marker
-        run: grep -F '<meta name="c360-release" content="5.0.0"' dist/index.html
+        run: grep -F '<meta name="c360-release" content="5.2.0"' dist/index.html
       - name: Verify production Edge endpoints are bundled
         run: |
           grep -R -F 'cozinha360-autopilot-v37' dist/assets/*.js >/dev/null
@@ -41,7 +43,11 @@ jobs:
           grep -R -F 'cozinha360-delivery-v40' dist/assets/*.js >/dev/null
           grep -R -F 'cozinha360-setup-v42' dist/assets/*.js >/dev/null
           grep -R -F 'cozinha360-intelligence-v50' dist/assets/*.js >/dev/null
+          grep -R -F 'cozinha360-purchases-v51' dist/assets/*.js >/dev/null
+          grep -R -F 'cozinha360-suppliers-v52' dist/assets/*.js >/dev/null
           grep -R -F 'Conte o estoque. O 360 explica a diferença.' dist/assets/*.js >/dev/null
+          grep -R -F 'Compre pelo alvo. Não pelo susto.' dist/assets/*.js >/dev/null
+          grep -R -F 'Escolha por custo real, não por hábito.' dist/assets/*.js >/dev/null
           grep -R -F 'Configuração inteligente' dist/assets/*.js >/dev/null
       - name: Upload production frontend bundle
         uses: actions/upload-artifact@v4
