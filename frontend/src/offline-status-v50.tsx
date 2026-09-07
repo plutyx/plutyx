@@ -10,6 +10,7 @@ function when(raw:string){try{return new Intl.DateTimeFormat('pt-BR',{day:'2-dig
 
 export function OfflineQueueStatus(){
  const token=localStorage.getItem('c360_token')||''
+ if(sessionStorage.getItem('c360-cycle-v61-open')===null)sessionStorage.setItem('c360-cycle-v61-open','0')
  const[online,setOnline]=useState(()=>navigator.onLine),[items,setItems]=useState<OfflineQuickOrder[]>(()=>readOfflineQueue()),[open,setOpen]=useState(false),[syncing,setSyncing]=useState(false),[notice,setNotice]=useState('')
  function refresh(){setOnline(navigator.onLine);setItems(readOfflineQueue())}
  async function sync(){if(!token||!navigator.onLine||syncing)return;setSyncing(true);setNotice('');try{const r=await flushOfflineOrders(token);refresh();if(r.synced)setNotice(`${r.synced} pedido${r.synced===1?'':'s'} sincronizado${r.synced===1?'':'s'} com o servidor.`);else if(r.auth_required)setNotice('Entre novamente para sincronizar os pedidos deste dispositivo.');else if(r.stopped_reason)setNotice(r.stopped_reason);else setNotice('Fila já está sincronizada.')}finally{setSyncing(false)}}
