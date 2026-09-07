@@ -21,6 +21,21 @@ await page.route('**/api/businesses/1/dashboard',route=>route.fulfill(json({puls
 try{
   await page.goto('http://127.0.0.1:5173/?cash=1',{waitUntil:'networkidle'})
   await page.getByRole('heading',{name:'Quanto precisa vender para o caixa respirar?',exact:true}).waitFor({timeout:15000})
+
+  const flow=page.locator('[data-cash-flow-v68]')
+  await flow.waitFor({state:'visible',timeout:10000})
+  await flow.getByRole('heading',{name:'Veja para onde o dinheiro foi.',exact:true}).waitFor()
+  await flow.getByText('FLUXO OBSERVADO · 30 DIAS',{exact:true}).waitFor()
+  await flow.getByText('60% da receita observada',{exact:true}).waitFor()
+  await flow.getByText('40% de margem de contribuição',{exact:true}).waitFor()
+  await flow.getByText('CONFERIDA',{exact:true}).waitFor()
+  await flow.getByText('receita − variável = contribuição',{exact:true}).waitFor()
+  await flow.getByText('Fluxo observado, não DRE contábil.',{exact:true}).waitFor()
+  const flowText=(await flow.innerText()).replace(/\u00a0/g,' ')
+  for(const amount of ['R$ 900,00','R$ 540,00','R$ 360,00']){
+    if(!flowText.includes(amount))throw new Error(`money flow missing observed amount ${amount}: ${flowText}`)
+  }
+
   await page.getByText('R$ 2.749',{exact:true}).waitFor()
   await page.getByText('230 pedidos/mês',{exact:true}).first().waitFor()
   const projected=page.locator('.cash-result').filter({hasText:'Resultado projetado'})
@@ -30,8 +45,16 @@ try{
   await capacity.getByText('9',{exact:true}).waitFor()
   const runway=page.locator('.cash-result').filter({hasText:'Runway de caixa'})
   await runway.locator('strong').getByText('2.3 meses',{exact:true}).waitFor()
+
+  await page.setViewportSize({width:390,height:844})
+  await page.reload({waitUntil:'networkidle'})
+  const mobileFlow=page.locator('[data-cash-flow-v68]')
+  await mobileFlow.waitFor({state:'visible',timeout:10000})
+  const box=await mobileFlow.boundingBox()
+  if(!box||box.x<0||box.width>390)throw new Error(`cash flow overflows mobile viewport: ${JSON.stringify(box)}`)
+
   await page.screenshot({path:'/tmp/cozinha360-cash-engine.png',fullPage:true})
-  console.log('cash and margin monthly model ok')
+  console.log('cash and margin monthly model + live money flow ok')
 }catch(error){
   await page.screenshot({path:'/tmp/cozinha360-cash-engine-failure.png',fullPage:true}).catch(()=>{})
   console.error(error);process.exitCode=1
