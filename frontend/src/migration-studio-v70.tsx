@@ -25,6 +25,7 @@ type Resource = {
   available: boolean;
   count: number;
   conflicts: number;
+  review_required?: number;
   error?: string | null;
   consent_policy?: string;
 };
@@ -32,7 +33,7 @@ type Preview = {
   resources: { products: Resource; inputs: Resource; customers: Resource };
   samples: {
     products: Array<{ name: string; category?: string }>;
-    inputs: Array<{ name: string; unit?: string; quantity?: string }>;
+    inputs: Array<{ name: string; unit?: string; quantity?: string; needs_review?: boolean }>;
     customers: Array<{ name: string; visits?: number; favorite_product?: string }>;
   };
   warnings: string[];
@@ -51,12 +52,13 @@ type MigrationStatus = {
 type ApplyResult = {
   result: {
     products: { created: number; skipped: number };
-    inputs: { created: number; skipped: number };
+    inputs: { created: number; skipped: number; review?: number };
     customers: { created: number; skipped: number; consent_reset: number };
   };
   review_required?: {
     product_channel_prices?: boolean;
     customer_marketing_consent?: boolean;
+    invalid_input_numbers?: number;
     unknown_fields_not_imported?: boolean;
   };
 };
@@ -87,6 +89,10 @@ const steps: Array<{ id: StepId; label: string; icon: typeof KeyRound }> = [
   { id: "review", label: "REVISAR", icon: ShieldCheck },
   { id: "bring", label: "TRAZER", icon: DatabaseZap },
 ];
+
+function reviewLabel(count: number) {
+  return count === 1 ? "1 precisa revisão" : `${count} precisam revisão`;
+}
 
 function MigrationStudio({ businessId }: { businessId: number }) {
   const reduced = Boolean(useReducedMotion());
@@ -190,11 +196,15 @@ function MigrationStudio({ businessId }: { businessId: number }) {
     setBusy("disconnect");
     setError("");
     try {
-      await migrationRequest(`/businesses/${businessId}/takeat`, token, { method: "DELETE" });
+      const response = await migrationRequest(`/businesses/${businessId}/takeat`, token, { method: "DELETE" });
       setStatus(null);
       setPreview(null);
       setResult(null);
-      setNotice("Migração encerrada e credenciais locais removidas.");
+      setNotice(
+        response?.remote_revoke?.required
+          ? "Tokens locais removidos. Para encerrar todas as sessões emitidas pela chave, revogue-a também no AI Builders da Takeat."
+          : "Migração encerrada e credenciais locais removidas.",
+      );
       await loadStatus(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível encerrar a migração");
@@ -204,11 +214,12 @@ function MigrationStudio({ businessId }: { businessId: number }) {
   }
 
   const totals = useMemo(() => {
-    if (!preview) return { count: 0, conflicts: 0 };
+    if (!preview) return { count: 0, conflicts: 0, review: 0 };
     const rows = Object.values(preview.resources);
     return {
       count: rows.reduce((sum, item) => sum + Number(item.count || 0), 0),
       conflicts: rows.reduce((sum, item) => sum + Number(item.conflicts || 0), 0),
+      review: rows.reduce((sum, item) => sum + Number(item.review_required || 0), 0),
     };
   }, [preview]);
 
@@ -308,7 +319,7 @@ function MigrationStudio({ businessId }: { businessId: number }) {
           <div className="migration70-overview">
             <div><span>ENCONTRADOS</span><strong>{totals.count}</strong><small>registros legíveis</small></div>
             <div className={totals.conflicts ? "attention" : ""}><span>JÁ EXISTEM</span><strong>{totals.conflicts}</strong><small>serão pulados, não sobrescritos</small></div>
-            <div><span>ESCRITOS ATÉ AGORA</span><strong>{result ? Object.values(result.result).reduce((sum, item) => sum + Number(item.created || 0), 0) : 0}</strong><small>{result ? "importação concluída" : "preview não grava"}</small></div>
+            <div className={totals.review ? "attention" : ""}><span>REVISÃO HUMANA</span><strong>{totals.review}</strong><small>{totals.review ? "não viram zero nem são importados no escuro" : "nenhum número inválido detectado"}</small></div>
           </div>
 
           <div className="migration70-resources">
@@ -352,7 +363,7 @@ function MigrationStudio({ businessId }: { businessId: number }) {
             </div>
             <div>
               <span><TriangleAlert size={13} /> O QUE NÃO SERÁ INFERIDO</span>
-              <b>Preço por canal, consentimento e campos sem equivalência exigem revisão humana.</b>
+              <b>{totals.review ? `${reviewLabel(totals.review)} antes de entrar no estoque. ` : ""}Preço por canal, consentimento e campos sem equivalência exigem revisão humana.</b>
             </div>
           </div>
 
@@ -367,7 +378,14 @@ function MigrationStudio({ businessId }: { businessId: number }) {
           ) : (
             <div className="migration70-complete">
               <div className="migration70-complete-orb"><Sparkles size={24} /></div>
-              <div><span>MIGRAÇÃO CONCLUÍDA</span><h3>A operação chegou. Agora revise só o que pede decisão.</h3><p>{result.result.products.created} produtos · {result.result.inputs.created} insumos · {result.result.customers.created} clientes criados.</p></div>
+              <div>
+                <span>MIGRAÇÃO CONCLUÍDA</span>
+                <h3>A operação chegou. Agora revise só o que pede decisão.</h3>
+                <p>
+                  {result.result.products.created} produtos · {result.result.inputs.created} insumos · {result.result.customers.created} clientes criados.
+                  {Number(result.result.inputs.review || result.review_required?.invalid_input_numbers || 0) > 0 && ` ${reviewLabel(Number(result.result.inputs.review || result.review_required?.invalid_input_numbers || 0))} no estoque.`}
+                </p>
+              </div>
               <div className="migration70-next"><a href="/?margin=1">Revisar preços <ArrowRight size={13} /></a><a href="/?crm=1">Revisar relações <ArrowRight size={13} /></a></div>
             </div>
           )}
@@ -401,6 +419,7 @@ function ResourceCard({ icon: Icon, title, eyebrow, resource, selected, onToggle
   sensitive?: boolean;
 }) {
   const reduced = Boolean(useReducedMotion());
+  const review = Number(resource.review_required || 0);
   return (
     <motion.button
       type="button"
@@ -420,6 +439,7 @@ function ResourceCard({ icon: Icon, title, eyebrow, resource, selected, onToggle
       <h3>{title}</h3>
       <div className="migration70-resource-count"><strong>{resource.count || 0}</strong><span>encontrados</span></div>
       <div className={`migration70-conflicts ${resource.conflicts ? "has" : ""}`}>{resource.conflicts || 0} já existem</div>
+      {review > 0 && <div className="migration70-conflicts has"><TriangleAlert size={10} /> {reviewLabel(review)}</div>}
       <div className="migration70-samples">{samples.slice(0, 3).map((sample) => <span key={sample}>{sample}</span>)}</div>
       <p>{resource.error || note}</p>
     </motion.button>
