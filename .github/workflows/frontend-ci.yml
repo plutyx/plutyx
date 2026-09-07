@@ -48,7 +48,7 @@ jobs:
           grep -R -F 'Conte o estoque. O 360 explica a diferença.' dist/assets/*.js >/dev/null
           grep -R -F 'Compre pelo alvo. Não pelo susto.' dist/assets/*.js >/dev/null
           grep -R -F 'PREVISÃO OPERACIONAL' dist/assets/*.js >/dev/null
-          grep -R -F 'Escolha por custo real, não por hábito.' dist/assets/*.js >/dev/null
+          grep -R -F 'Saiba com quem comprar antes de faltar.' dist/assets/*.js >/dev/null
           grep -R -F 'Configuração inteligente' dist/assets/*.js >/dev/null
       - name: Upload production frontend bundle
         uses: actions/upload-artifact@v4
