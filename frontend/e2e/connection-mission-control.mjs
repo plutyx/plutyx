@@ -120,8 +120,13 @@ try {
   await ifood.click();
   const ifoodCard = page.locator(".cx-card").filter({ has: page.getByRole("heading", { name: "iFood", exact: true }) });
   await ifoodCard.waitFor();
-  const top = await ifoodCard.evaluate((element) => element.getBoundingClientRect().top);
-  if (top < -200 || top > 1100) throw new Error(`Mission Control did not guide viewport to iFood card: top=${top}`);
+  await page.waitForFunction(() => {
+    const cards = Array.from(document.querySelectorAll(".cx-card"));
+    const card = cards.find((element) => element.querySelector("h2")?.textContent?.trim() === "iFood");
+    if (!card) return false;
+    const top = card.getBoundingClientRect().top;
+    return top >= -200 && top <= 1100;
+  }, undefined, { timeout: 2500 });
 
   const beforeFuture = await page.evaluate(() => window.scrollY);
   await future.click();
