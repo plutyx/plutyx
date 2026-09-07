@@ -108,10 +108,10 @@ Deno.serve(async(req:Request)=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors})
  const path=routePath(req),method=req.method,url=new URL(req.url)
  try{
-  if(path==='/livez'&&method==='GET')return json({ok:true,service:SLUG,version:'5.1.0'})
+  if(path==='/livez'&&method==='GET')return json({ok:true,service:SLUG,version:'5.1.1'})
   if(path==='/readyz'&&method==='GET'){
    const{error}=await admin.from('purchases').select('id',{head:true,count:'exact'})
-   return error?fail('database_not_ready',503):json({ok:true,database:'ready',version:'5.1.0'})
+   return error?fail('database_not_ready',503):json({ok:true,database:'ready',version:'5.1.1'})
   }
   const auth=await authUser(req);if(!auth)return fail('Sessão inválida',401)
   const profile:any=await ensureProfile(auth)
@@ -127,7 +127,11 @@ Deno.serve(async(req:Request)=>{
   }
   if(match&&method==='POST'){
    const businessId=Number(match[1]);if(!await member(profile.id,businessId,['owner','admin']))return fail('Somente owner/admin',403)
-   const payload=await body(req),authorization=req.headers.get('Authorization')||''
+   const payload=await body(req),authorization=req.headers.get('Authorization')||'',supplierId=Math.max(0,int(payload.supplier_id))
+   if(supplierId){
+    const{data:supplier,error}=await admin.from('suppliers').select('id').eq('id',supplierId).eq('business_id',businessId).eq('soft_deleted',false).maybeSingle()
+    if(error)throw error;if(!supplier)return fail('Fornecedor não pertence a esta operação',422);payload.supplier_id=supplierId
+   }else payload.supplier_id=null
    const response=await fetch(`${CORE}/businesses/${businessId}/purchases`,{method:'POST',headers:{'Content-Type':'application/json',...(authorization?{Authorization:authorization}:{})},body:JSON.stringify(payload)})
    const responseBody=await response.json().catch(()=>({detail:'Resposta inválida do núcleo'}))
    return json(responseBody,response.status)
