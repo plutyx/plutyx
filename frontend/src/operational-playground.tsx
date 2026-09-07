@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
- type SignalId = "orders" | "production" | "stock" | "margin";
+type SignalId = "orders" | "production" | "stock" | "margin";
 
 type Signal = {
   id: SignalId;
@@ -179,6 +179,114 @@ function FlowNode({
   );
 }
 
+const fingerprintNodes: Record<SignalId, { x: string; y: string }> = {
+  orders: { x: "14%", y: "18%" },
+  production: { x: "86%", y: "18%" },
+  stock: { x: "14%", y: "82%" },
+  margin: { x: "86%", y: "82%" },
+};
+
+function ExplorationFingerprint({
+  explored,
+  activeId,
+}: {
+  explored: SignalId[];
+  activeId: SignalId;
+}) {
+  const reduceMotion = Boolean(useReducedMotion());
+  const connected = explored.length;
+  return (
+    <div className="relative z-10 mt-4 overflow-hidden rounded-[1.5rem] border border-white/[0.08] bg-black/20 p-4 backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-4">
+        <span className="flex items-center gap-2 text-[0.58rem] font-black tracking-[0.14em] text-white/40">
+          <Radar size={14} className="text-emerald-200" /> MAPA DE ATENÇÃO
+        </span>
+        <span className="text-[0.58rem] font-black tracking-[0.12em] text-white/35">
+          {connected === 4 ? "COMPLETO" : `${connected}/4 CONECTADOS`}
+        </span>
+      </div>
+
+      <div className="relative mx-auto mt-3 h-40 w-full max-w-[31rem]" aria-label={`${connected} de 4 sinais conectados`}>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 100 100"
+          className="absolute inset-0 size-full overflow-visible"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="attention-line" x1="0" x2="1">
+              <stop offset="0" stopColor="rgba(255,189,89,.75)" />
+              <stop offset=".5" stopColor="rgba(110,231,199,.75)" />
+              <stop offset="1" stopColor="rgba(159,122,234,.75)" />
+            </linearGradient>
+          </defs>
+          {signals.map((signal) => {
+            const node = fingerprintNodes[signal.id];
+            const x = parseFloat(node.x);
+            const y = parseFloat(node.y);
+            const lit = explored.includes(signal.id);
+            return (
+              <motion.line
+                key={signal.id}
+                x1="50"
+                y1="50"
+                x2={x}
+                y2={y}
+                stroke="url(#attention-line)"
+                strokeWidth={lit ? 0.8 : 0.35}
+                strokeDasharray={lit ? "0" : "2.5 4"}
+                initial={false}
+                animate={{ opacity: lit ? 0.7 : 0.12, pathLength: lit ? 1 : 0.45 }}
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 90, damping: 20 }}
+              />
+            );
+          })}
+        </svg>
+
+        <motion.div
+          className="absolute left-1/2 top-1/2 grid size-[4.8rem] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-emerald-100/15 bg-slate-950/75 text-center shadow-[0_0_55px_rgba(110,231,199,.08)] backdrop-blur-2xl"
+          animate={
+            reduceMotion
+              ? undefined
+              : { scale: connected >= 2 ? [1, 1.045, 1] : 1 }
+          }
+          transition={{ duration: 2.8, repeat: connected >= 2 ? Infinity : 0, ease: "easeInOut" }}
+        >
+          <span className="grid gap-0.5">
+            <b className="text-lg font-black text-white">{connected || "·"}</b>
+            <small className="text-[0.48rem] font-black tracking-[0.14em] text-white/30">
+              {connected >= 2 ? "PADRÃO" : "SINAIS"}
+            </small>
+          </span>
+        </motion.div>
+
+        {signals.map((signal) => {
+          const Icon = signal.icon;
+          const node = fingerprintNodes[signal.id];
+          const lit = explored.includes(signal.id);
+          const active = activeId === signal.id;
+          return (
+            <motion.div
+              key={signal.id}
+              className={`absolute grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border backdrop-blur-xl ${
+                lit
+                  ? `border-white/20 bg-white/[0.09] ${signal.accent}`
+                  : "border-white/[0.07] bg-slate-950/65 text-white/20"
+              }`}
+              style={{ left: node.x, top: node.y, boxShadow: lit ? `0 0 28px ${signal.glow}` : undefined }}
+              animate={{ scale: active ? 1.14 : lit ? 1 : 0.88, opacity: lit || active ? 1 : 0.55 }}
+              transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 240, damping: 18 }}
+              aria-hidden="true"
+            >
+              <Icon size={15} />
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function OperationalPlayground({ onContinue }: { onContinue: () => void }) {
   const reduceMotion = Boolean(useReducedMotion());
   const [activeId, setActiveId] = useState<SignalId>("orders");
@@ -189,6 +297,12 @@ export function OperationalPlayground({ onContinue }: { onContinue: () => void }
   );
   const ActiveIcon = active.icon;
   const progress = Math.round((explored.length / signals.length) * 100);
+  const continueLabel =
+    explored.length === 4
+      ? "Mapa completo · revelar rota"
+      : explored.length >= 2
+        ? "Transformar meu padrão em rota"
+        : "Seguir com este sinal";
 
   function selectSignal(id: SignalId) {
     setActiveId(id);
@@ -276,6 +390,8 @@ export function OperationalPlayground({ onContinue }: { onContinue: () => void }
             <FlowNode marker="03 · AGIR" label={active.action} icon={Layers3} delay={0.12} />
           </div>
 
+          <ExplorationFingerprint explored={explored} activeId={activeId} />
+
           <div className="relative z-10 mt-4 grid gap-3 sm:grid-cols-2">
             <motion.div
               key={`${active.id}-before`}
@@ -310,19 +426,29 @@ export function OperationalPlayground({ onContinue }: { onContinue: () => void }
             <div className="flex items-center gap-3">
               <TimerReset size={17} className="text-amber-200" />
               <span className="grid gap-0.5">
-                <b className="text-xs text-white/80">Você não precisa conhecer o sistema.</b>
-                <small className="text-[0.68rem] text-white/35">O próximo passo apenas transforma o que você sentiu em uma rota.</small>
+                <b className="text-xs text-white/80">
+                  {explored.length >= 2 ? "Seu padrão começa a aparecer." : "Você não precisa conhecer o sistema."}
+                </b>
+                <small className="text-[0.68rem] text-white/35">
+                  {explored.length >= 2
+                    ? "Continue explorando ou transforme o que já percebeu em uma rota."
+                    : "O próximo passo apenas transforma o que você sentiu em uma rota."}
+                </small>
               </span>
             </div>
             <motion.button
               type="button"
               onClick={onContinue}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-100/25 bg-amber-200 px-4 text-xs font-black text-slate-950 shadow-[0_12px_35px_rgba(255,189,89,.12)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-200"
+              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-xs font-black text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-200 ${
+                explored.length >= 2
+                  ? "border-emerald-100/30 bg-emerald-200 shadow-[0_12px_40px_rgba(110,231,199,.14)]"
+                  : "border-amber-100/25 bg-amber-200 shadow-[0_12px_35px_rgba(255,189,89,.12)]"
+              }`}
               whileHover={reduceMotion ? undefined : { y: -2, scale: 1.012 }}
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
               transition={{ type: "spring", stiffness: 260, damping: 18 }}
             >
-              Transformar em rota <ArrowRight size={15} />
+              {continueLabel} <ArrowRight size={15} />
             </motion.button>
           </div>
         </motion.div>
