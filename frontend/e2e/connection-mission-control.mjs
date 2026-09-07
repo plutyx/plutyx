@@ -3,6 +3,7 @@ import { chromium } from "playwright";
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 const json = (body) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+const today = new Date().toISOString();
 
 await page.addInitScript(() => {
   localStorage.setItem("c360_token", "browser-test-token");
@@ -21,6 +22,46 @@ await page.route("**/api/me", (route) =>
   ),
 );
 await page.route("**/api/businesses/1/memory", (route) => route.fulfill(json({ business_id: 1, states: {} })));
+await page.route("**/api/businesses/1/orders", (route) =>
+  route.fulfill(
+    json([
+      { id: 101, status: "production", source: "whatsapp", total_cents: 2800, contribution_cents: 1200, paid: true, delayed: false, inventory_consumed: true, created_at: today },
+      { id: 102, status: "confirmed", source: "ifood", total_cents: 2400, contribution_cents: 900, paid: false, delayed: false, inventory_consumed: false, created_at: today },
+    ]),
+  ),
+);
+await page.route("**/api/businesses/1/kds", (route) =>
+  route.fulfill(
+    json({
+      orders: [
+        { id: 102, status: "confirmed", source: "ifood", total_cents: 2400, age_minutes: 4, delayed: false, version: 1, items: [{ product_id: 1, name: "Wrap", quantity: 1 }] },
+      ],
+    }),
+  ),
+);
+await page.route("**/api/businesses/1/inventory/alerts", (route) =>
+  route.fulfill(
+    json([
+      { ingredient_id: 7, name: "Frango", unit: "g", on_hand_milliunits: 800, par_level_milliunits: 1000, reorder_target_milliunits: 3000, suggested_purchase_milliunits: 2200, severity: "high" },
+    ]),
+  ),
+);
+await page.route("**/api/businesses/1/dashboard", (route) =>
+  route.fulfill(
+    json({
+      pulse: { revenue_cents: 5200, contribution_cents: 2100, loss_cents: 0 },
+      open_orders: 1,
+      delay_rate: 0,
+      error_rate: 0,
+      next_action: { code: "inventory", title: "Repor frango", severity: "high" },
+    }),
+  ),
+);
+await page.route("**/api/businesses/1/finance/summary?days=30", (route) =>
+  route.fulfill(
+    json({ period_days: 30, revenue_cents: 5200, variable_costs_cents: 3100, contribution_cents: 2100, contribution_margin_bps: 4038, loss_cents: 0, purchases_landed_cents: 0, order_count: 2 }),
+  ),
+);
 
 const profile = {
   business_id: 1,
@@ -104,6 +145,18 @@ try {
   const operatorState = await page.evaluate(() => document.documentElement.dataset.c360Operator);
   if (operatorState !== "1") throw new Error("operator experience v6.0 was not activated for authenticated app");
 
+  const cycle = page.locator("[data-operational-cycle-v61]");
+  await cycle.waitFor({ state: "attached", timeout: 10000 });
+  await cycle.getByText("O ciclo inteiro deixou sinal real.", { exact: true }).waitFor({ timeout: 10000 });
+  await cycle.locator('[data-operational-cycle-step="sale"]').getByText("2 hoje", { exact: true }).waitFor();
+  await cycle.locator('[data-operational-cycle-step="kitchen"]').getByText("1 em preparo", { exact: true }).waitFor();
+  await cycle.locator('[data-operational-cycle-step="stock"]').getByText("1 atenção", { exact: true }).waitFor();
+  await cycle.locator('[data-operational-cycle-step="cash"]').getByText(/52,00/).waitFor();
+  await cycle.locator('[data-operational-cycle-step="margin"]').getByText("40%", { exact: true }).waitFor();
+  await cycle.getByText("WhatsApp", { exact: true }).first().waitFor();
+  await cycle.getByText("iFood", { exact: true }).first().waitFor();
+  await cycle.getByRole("button", { name: "Recolher fluxo vivo" }).click();
+
   const mission = page.locator("[data-connection-mission-control]");
   await mission.getByText("MISSION CONTROL", { exact: true }).waitFor({ timeout: 10000 });
   await mission.getByText("2 ATIVAS", { exact: true }).waitFor();
@@ -157,7 +210,7 @@ try {
   if (local.intent?.providers?.includes("99food")) throw new Error("future priority leaked into executable connection intent");
 
   await page.screenshot({ path: "/tmp/cozinha360-connection-mission-control.png", fullPage: true });
-  console.log("Mission Control + operator experience v6.0 map live/ready/degraded/platform/future states without auto-authorization");
+  console.log("Mission Control + operator experience v6.0 + live operational cycle v6.1 are coherent and executable");
 } catch (error) {
   await page.screenshot({ path: "/tmp/cozinha360-connection-mission-control-failure.png", fullPage: true }).catch(() => {});
   console.error(error);
