@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./app";
 import { KitchenAlerts } from "./kitchen-alerts";
 import { InventoryStockEditor } from "./inventory-editor";
+import { InventoryHeatmapPortal } from "./inventory-heatmap-v67";
 import { SessionAwareControls } from "./operator-launcher-v38";
 import { OfflineQueueStatus } from "./offline-status-v50";
 import { prepareOperatingMemory } from "./operating-memory";
@@ -141,7 +142,7 @@ function Root() {
   if (params.get("connections") === "1") return <OperatorRoute><><ConnectionsHubRoute /><IntegrationSetupLauncher /></></OperatorRoute>;
   if (params.get("plan") === "1") return <OperatorRoute alerts={false}><SubscriptionStatusRoute /></OperatorRoute>;
   if (params.get("autopilot") === "1") return <OperatorRoute><Autopilot360Route /></OperatorRoute>;
-  return <><App /><DiscoveryPlaygroundPortal /><PlugPlayGalaxyPortal /><LivingOperationFlowPortal /><IntegrationRealityRibbonPortal /><TabHashBridge /><KitchenAlerts /><InventoryStockEditor /><SessionAwareControls guestHelper={false} /><OfflineQueueStatus /></>;
+  return <><App /><DiscoveryPlaygroundPortal /><PlugPlayGalaxyPortal /><LivingOperationFlowPortal /><IntegrationRealityRibbonPortal /><TabHashBridge /><KitchenAlerts /><InventoryStockEditor /><InventoryHeatmapPortal /><SessionAwareControls guestHelper={false} /><OfflineQueueStatus /></>;
 }
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator) || !import.meta.env.PROD) return;
