@@ -86,8 +86,8 @@ async function history(businessId:number,limit:number){
  const ingredientIds=[...new Set((purchases||[]).map((x:any)=>Number(x.ingredient_id)).filter(Boolean))]
  const supplierIds=[...new Set((purchases||[]).map((x:any)=>Number(x.supplier_id)).filter(Boolean))]
  let ingredients:any[]=[];let suppliers:any[]=[]
- if(ingredientIds.length){const result=await admin.from('ingredients').select('id,name,unit').in('id',ingredientIds);if(result.error)throw result.error;ingredients=result.data||[]}
- if(supplierIds.length){const result=await admin.from('suppliers').select('id,name').in('id',supplierIds);if(result.error)throw result.error;suppliers=result.data||[]}
+ if(ingredientIds.length){const result=await admin.from('ingredients').select('id,name,unit').eq('business_id',businessId).eq('soft_deleted',false).in('id',ingredientIds);if(result.error)throw result.error;ingredients=result.data||[]}
+ if(supplierIds.length){const result=await admin.from('suppliers').select('id,name').eq('business_id',businessId).eq('soft_deleted',false).in('id',supplierIds);if(result.error)throw result.error;suppliers=result.data||[]}
  const ingredientMap=new Map(ingredients.map((x:any)=>[Number(x.id),x])),supplierMap=new Map(suppliers.map((x:any)=>[Number(x.id),x]))
  const rows=(purchases||[]).map((row:any)=>{
   const ingredient:any=ingredientMap.get(Number(row.ingredient_id))||{},supplier:any=supplierMap.get(Number(row.supplier_id))||{}
@@ -108,10 +108,10 @@ Deno.serve(async(req:Request)=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors})
  const path=routePath(req),method=req.method,url=new URL(req.url)
  try{
-  if(path==='/livez'&&method==='GET')return json({ok:true,service:SLUG,version:'5.1.1'})
+  if(path==='/livez'&&method==='GET')return json({ok:true,service:SLUG,version:'5.1.2'})
   if(path==='/readyz'&&method==='GET'){
    const{error}=await admin.from('purchases').select('id',{head:true,count:'exact'})
-   return error?fail('database_not_ready',503):json({ok:true,database:'ready',version:'5.1.1'})
+   return error?fail('database_not_ready',503):json({ok:true,database:'ready',version:'5.1.2'})
   }
   const auth=await authUser(req);if(!auth)return fail('Sessão inválida',401)
   const profile:any=await ensureProfile(auth)
