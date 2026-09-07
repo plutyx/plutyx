@@ -66,6 +66,9 @@ jobs:
       - name: Run discovery connection galaxy journey
         run: node frontend/e2e/discovery-galaxy.mjs
 
+      - name: Run living operation flow journey
+        run: node frontend/e2e/living-operation-flow.mjs
+
       - name: Run discovery intent handoff journey
         run: node frontend/e2e/connection-intent-handoff.mjs
 
@@ -125,6 +128,8 @@ jobs:
             /tmp/cozinha360-discovery-route.png
             /tmp/cozinha360-discovery-galaxy.png
             /tmp/cozinha360-discovery-galaxy-failure.png
+            /tmp/cozinha360-living-operation-flow.png
+            /tmp/cozinha360-living-operation-flow-failure.png
             /tmp/cozinha360-connection-intent-handoff.png
             /tmp/cozinha360-connection-intent-handoff-failure.png
             /tmp/cozinha360-pix-checkout.png
