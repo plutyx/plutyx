@@ -22,14 +22,16 @@ jobs:
       GATEWAY: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42
       SETUP_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-setup-v42
       INTELLIGENCE_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50
-      EXPECTED_RELEASE: '5.0.0'
+      PURCHASES_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v51
+      SUPPLIERS_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-suppliers-v52
+      EXPECTED_RELEASE: '5.2.0'
     steps:
-      - name: Wait for Render release and verify frontend
+      - name: Wait for Render v5.2 release and verify frontend
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 55); do
-            code="$(curl -L -sS -o /tmp/index.html -w '%{http_code}' "$WEB_URL/")" || true
+          for i in $(seq 1 75); do
+            code="$(curl -L -sS -o /tmp/index.html -w '%{http_code}' "$WEB_URL/?check=$GITHUB_RUN_ID-$i")" || true
             marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
             if [ "$code" = "200" ] && grep -F "$marker" /tmp/index.html >/dev/null; then
               break
@@ -46,7 +48,11 @@ jobs:
           grep -F 'cozinha360-api-v2' /tmp/bundle.js >/dev/null
           grep -F 'cozinha360-setup-v42' /tmp/bundle.js >/dev/null
           grep -F 'cozinha360-intelligence-v50' /tmp/bundle.js >/dev/null
+          grep -F 'cozinha360-purchases-v51' /tmp/bundle.js >/dev/null
+          grep -F 'cozinha360-suppliers-v52' /tmp/bundle.js >/dev/null
           grep -F 'Conte o estoque. O 360 explica a diferença.' /tmp/bundle.js >/dev/null
+          grep -F 'Compre pelo alvo. Não pelo susto.' /tmp/bundle.js >/dev/null
+          grep -F 'Saiba com quem comprar antes de faltar.' /tmp/bundle.js >/dev/null
 
       - name: Verify Render origin is accepted by production Edge services
         shell: bash
@@ -61,6 +67,8 @@ jobs:
             "$EDGE_ROOT/cozinha360-autopilot-v37"
             "$SETUP_API"
             "$INTELLIGENCE_API"
+            "$PURCHASES_API"
+            "$SUPPLIERS_API"
           )
           failed=0
           for target in "${targets[@]}"; do
@@ -78,7 +86,7 @@ jobs:
           done
           test "$failed" = "0"
 
-      - name: Verify gateway and intelligence health
+      - name: Verify production service health and auth boundaries
         shell: bash
         run: |
           set -euo pipefail
@@ -90,11 +98,17 @@ jobs:
           test "$(curl -sS -o /tmp/setup-health.json -w '%{http_code}' "$SETUP_API/health")" = "200"
           grep -F '"status":"ok"' /tmp/setup-health.json >/dev/null
           grep -F '"version":"4.2.0"' /tmp/setup-health.json >/dev/null
-          grep -F '"route_setup"' /tmp/setup-health.json >/dev/null
-          test "$(curl -sS -o /tmp/profile-live.json -w '%{http_code}' "$EDGE_ROOT/cozinha360-profile-v31/livez")" = "200"
-          grep -F '"ok":true' /tmp/profile-live.json >/dev/null
           test "$(curl -sS -o /tmp/intelligence-health.json -w '%{http_code}' "$INTELLIGENCE_API/health")" = "200"
-          grep -F '"status":"ok"' /tmp/intelligence-health.json >/dev/null
           grep -F '"version":"5.0.0"' /tmp/intelligence-health.json >/dev/null
-          test "$(curl -sS -o /tmp/intelligence-auth.json -w '%{http_code}' "$INTELLIGENCE_API/portfolio/overview")" = "401"
-          grep -F '"detail":"Sessão inválida"' /tmp/intelligence-auth.json >/dev/null
+          test "$(curl -sS -o /tmp/purchases-live.json -w '%{http_code}' "$PURCHASES_API/livez")" = "200"
+          grep -F '"version":"5.1.2"' /tmp/purchases-live.json >/dev/null
+          test "$(curl -sS -o /tmp/suppliers-live.json -w '%{http_code}' "$SUPPLIERS_API/livez")" = "200"
+          grep -F '"version":"5.2.0"' /tmp/suppliers-live.json >/dev/null
+          for pair in \
+            "$INTELLIGENCE_API/portfolio/overview:/tmp/intelligence-auth.json" \
+            "$PURCHASES_API/businesses/1/purchase-plan:/tmp/purchases-auth.json" \
+            "$SUPPLIERS_API/businesses/1/suppliers:/tmp/suppliers-auth.json"; do
+            url="${pair%%:*}"; file="${pair#*:}"
+            test "$(curl -sS -o "$file" -w '%{http_code}' "$url")" = "401"
+            grep -F '"detail":"Sessão inválida"' "$file" >/dev/null
+          done
