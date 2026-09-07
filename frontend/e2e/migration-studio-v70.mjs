@@ -129,11 +129,14 @@ try {
   if ((await inputs.getAttribute("aria-pressed")) !== "true") throw new Error("inputs should be selected by default");
   if ((await customers.getAttribute("aria-pressed")) !== "false") throw new Error("customers must start unselected because marketing consent is not inherited");
   await customers.getByText("Desligado por padrão. Consentimento de marketing será reiniciado.", { exact: true }).waitFor();
-  await studio.getByText("2", { exact: true }).first().waitFor();
-  await studio.getByText("1", { exact: true }).first().waitFor();
+  await products.getByText("2 já existem", { exact: true }).waitFor();
+  await inputs.getByText("1 já existem", { exact: true }).waitFor();
+  await inputs.getByText("1 precisa revisão", { exact: true }).waitFor();
+  await studio.getByText("REVISÃO HUMANA", { exact: true }).waitFor();
 
   await studio.getByRole("button", { name: /Trazer para o Cozinha 360/ }).click();
   await studio.getByText("MIGRAÇÃO CONCLUÍDA", { exact: true }).waitFor();
+  await studio.getByText("1 precisa revisão no estoque.", { exact: false }).waitFor();
   if (applyBodies.length !== 1 || applyBodies[0].products !== true || applyBodies[0].inputs !== true || applyBodies[0].customers !== false) {
     throw new Error(`default migration payload should exclude customers: ${JSON.stringify(applyBodies)}`);
   }
