@@ -49,6 +49,7 @@ import "./cash-engine.css";
 import "./cash-nav.css";
 import "./cash-flow-v68.css";
 import "./connections-hub.css";
+import "./migration-studio-v70.css";
 import "./subscription-status.css";
 import "./subscription-nav.css";
 import "./autopilot-360.css";
