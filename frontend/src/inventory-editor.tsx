@@ -85,7 +85,9 @@ export function InventoryStockEditor(){
           expected_version:editing.ingredient.version,
         }),
       })
+      const updatedBusinessId=editing.businessId,updatedIngredientId=editing.ingredient.id
       setEditing(null);setToast('Estoque configurado e auditado na nuvem.')
+      window.dispatchEvent(new CustomEvent('c360:inventory-updated',{detail:{businessId:updatedBusinessId,ingredientId:updatedIngredientId}}))
       setTimeout(()=>document.querySelector<HTMLButtonElement>('.header-actions .icon-btn')?.click(),0)
       setTimeout(()=>setToast(''),2400)
     }catch(e){setError(e instanceof Error?e.message:'Não foi possível salvar o estoque')}
