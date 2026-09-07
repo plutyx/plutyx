@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { OperationalPlayground } from "./operational-playground";
+import "./discovery-upgrade.css";
 
 export function DiscoveryPlaygroundPortal() {
   const [host, setHost] = useState<HTMLElement | null>(null);
