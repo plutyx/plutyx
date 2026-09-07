@@ -1,192 +1,322 @@
-import { chromium, request as playwrightRequest } from 'playwright'
+import { chromium, request as playwrightRequest } from "playwright";
 
-const browser = await chromium.launch({ headless: true })
-const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
-const KDS_EDGE_PREFIX = 'https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54'
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const KDS_EDGE_PREFIX =
+  "https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54";
 
 // O customer journey roda contra a API local. O KDS v5.4 de produção vive em Edge Function,
 // então, neste teste integrado, roteamos apenas a leitura da fila para o backend local e
 // fornecemos configurações SLA neutras. O journey dedicado kds-sla-v54.mjs continua testando
 // separadamente o contrato completo de SLA, PATCH explícito e responsividade da v5.4.
-await page.route(`${KDS_EDGE_PREFIX}/**`, async route => {
-  const request = route.request()
-  const url = new URL(request.url())
-  const edgeMarker = '/functions/v1/cozinha360-kds-v54'
-  const path = url.pathname.slice(url.pathname.indexOf(edgeMarker) + edgeMarker.length)
-  const businessMatch = path.match(/^\/businesses\/(\d+)\/kds(?:\/settings)?$/)
-  const businessId = Number(businessMatch?.[1] || 0)
+await page.route(`${KDS_EDGE_PREFIX}/**`, async (route) => {
+  const request = route.request();
+  const url = new URL(request.url());
+  const edgeMarker = "/functions/v1/cozinha360-kds-v54";
+  const path = url.pathname.slice(
+    url.pathname.indexOf(edgeMarker) + edgeMarker.length,
+  );
+  const businessMatch = path.match(/^\/businesses\/(\d+)\/kds(?:\/settings)?$/);
+  const businessId = Number(businessMatch?.[1] || 0);
 
   if (!businessId) {
-    return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ detail: 'KDS E2E route not found' }) })
+    return route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ detail: "KDS E2E route not found" }),
+    });
   }
 
-  if (path.endsWith('/kds/settings')) {
+  if (path.endsWith("/kds/settings")) {
     return route.fulfill({
       status: 200,
-      contentType: 'application/json',
+      contentType: "application/json",
       body: JSON.stringify({
         business_id: businessId,
         default_kds_sla_minutes: 20,
         products: [],
         channels: [],
       }),
-    })
+    });
   }
 
-  const authorization = request.headers()['authorization'] || ''
+  const authorization = request.headers()["authorization"] || "";
   const response = await fetch(`http://127.0.0.1:8000${path}`, {
     method: request.method(),
     headers: {
       Authorization: authorization,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
-  })
+  });
   return route.fulfill({
     status: response.status,
-    contentType: response.headers.get('content-type') || 'application/json',
+    contentType: response.headers.get("content-type") || "application/json",
     body: await response.text(),
-  })
-})
+  });
+});
 
 try {
-  await page.goto('http://127.0.0.1:5173', { waitUntil: 'networkidle' })
+  await page.goto("http://127.0.0.1:5173", { waitUntil: "networkidle" });
 
-  // Cliente novo: conta -> primeira operação.
-  await page.getByRole('button', { name: 'Ainda não tenho conta', exact: true }).click()
-  await page.getByLabel('Nome').fill('Cliente E2E')
-  await page.getByLabel('E-mail').fill('cliente-e2e@example.com')
-  await page.getByLabel('Senha').fill('senha-super-segura-123')
-  await page.getByRole('button', { name: 'Criar conta', exact: true }).click()
-  await page.getByText('Crie sua primeira operação').waitFor()
-  await page.getByPlaceholder('Ex.: Brasa da Ana').fill('Cozinha Cliente E2E')
-  await page.getByPlaceholder('Cidade').fill('Mogi das Cruzes')
-  await page.getByRole('button', { name: 'Criar negócio', exact: true }).click()
-  await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
+  // Cliente novo: experiência -> diagnóstico -> rota personalizada -> conta.
+  await page
+    .getByRole("heading", { name: /Sua cozinha já está contando uma história/ })
+    .waitFor();
+  await page.screenshot({
+    path: "/tmp/cozinha360-discovery-home.png",
+    fullPage: false,
+  });
+  await page.getByRole("button", { name: /Começar a leitura/ }).click();
+  await page.getByRole("button", { name: /Crescendo com atrito/ }).click();
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await page.getByRole("button", { name: /Margem/ }).click();
+  await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await page.getByRole("button", { name: /Proteger o lucro/ }).click();
+  await page.getByRole("button", { name: /Revelar minha rota/ }).click();
+  await page
+    .getByRole("heading", { name: "Margem consciente", exact: true })
+    .waitFor();
+  await page.screenshot({
+    path: "/tmp/cozinha360-discovery-route.png",
+    fullPage: false,
+  });
+  await page.getByRole("button", { name: /Levar esta rota comigo/ }).click();
+  await page.getByRole("dialog").waitFor();
+  await page
+    .getByRole("heading", {
+      name: "Leve sua rota para a operação.",
+      exact: true,
+    })
+    .waitFor();
+  await page.getByLabel("Nome").fill("Cliente E2E");
+  await page.getByLabel("E-mail").fill("cliente-e2e@example.com");
+  await page.getByLabel("Senha").fill("senha-super-segura-123");
+  await page
+    .getByRole("button", { name: "Criar minha operação", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Dê um nome à sua operação.", exact: true })
+    .waitFor();
+  await page.getByText("Margem consciente", { exact: true }).waitFor();
+  await page.getByPlaceholder("Ex.: Brasa da Ana").fill("Cozinha Cliente E2E");
+  await page.getByPlaceholder("Cidade").fill("Mogi das Cruzes");
+  await page
+    .getByRole("button", { name: "Criar negócio", exact: true })
+    .click();
+  await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 });
 
   // Regressão visual: o workspace operacional deve começar no topo da viewport.
-  const workspaceHeader = await page.locator('.workspace > header').boundingBox()
+  const workspaceHeader = await page
+    .locator(".workspace > header")
+    .boundingBox();
   if (!workspaceHeader || workspaceHeader.y > 4) {
-    throw new Error(`workspace header not top anchored: ${JSON.stringify(workspaceHeader)}`)
+    throw new Error(
+      `workspace header not top anchored: ${JSON.stringify(workspaceHeader)}`,
+    );
   }
-  const todayHeading = await page.locator('.today-head h1').boundingBox()
+  const todayHeading = await page.locator(".today-head h1").boundingBox();
   if (!todayHeading || todayHeading.y > 180) {
-    throw new Error(`primary operator heading too low: ${JSON.stringify(todayHeading)}`)
+    throw new Error(
+      `primary operator heading too low: ${JSON.stringify(todayHeading)}`,
+    );
   }
 
   // Estoque: ingrediente + configuração do mínimo/alvo em drawer touch-friendly.
-  await page.getByRole('button', { name: 'Custos', exact: true }).click()
-  await page.getByPlaceholder('Ingrediente').fill('Frango E2E')
-  await page.getByPlaceholder('Preço pacote R$').fill('10.00')
-  await page.getByPlaceholder('Qtd útil').fill('1000')
-  await page.getByRole('button', { name: 'Ingrediente', exact: true }).click()
-  await page.getByText('Frango E2E').waitFor()
+  await page.getByRole("button", { name: "Custos", exact: true }).click();
+  await page.getByPlaceholder("Ingrediente").fill("Frango E2E");
+  await page.getByPlaceholder("Preço pacote R$").fill("10.00");
+  await page.getByPlaceholder("Qtd útil").fill("1000");
+  await page.getByRole("button", { name: "Ingrediente", exact: true }).click();
+  await page.getByText("Frango E2E").waitFor();
 
-  const ingredientRow = page.locator('.row').filter({ hasText: 'Frango E2E' })
-  await ingredientRow.getByRole('button', { name: 'Estoque', exact: true }).click()
-  const stockDialog=page.getByRole('dialog')
-  await stockDialog.waitFor()
-  await stockDialog.getByRole('heading', { name: 'Frango E2E', exact: true }).waitFor()
-  await stockDialog.getByLabel(/Estoque atual/).fill('1000')
-  await stockDialog.getByLabel(/Nível mínimo/).fill('300')
-  await stockDialog.getByLabel(/Alvo de reposição/).fill('1000')
-  await page.screenshot({ path: '/tmp/cozinha360-inventory-drawer.png', fullPage: true })
-  await stockDialog.getByRole('button', { name: 'Salvar estoque', exact: true }).click()
-  await page.getByText(/Estoque configurado/).waitFor()
-  await ingredientRow.getByText(/1000 g em estoque · mínimo 300/).waitFor()
+  const ingredientRow = page.locator(".row").filter({ hasText: "Frango E2E" });
+  await ingredientRow
+    .getByRole("button", { name: "Estoque", exact: true })
+    .click();
+  const stockDialog = page.getByRole("dialog");
+  await stockDialog.waitFor();
+  await stockDialog
+    .getByRole("heading", { name: "Frango E2E", exact: true })
+    .waitFor();
+  await stockDialog.getByLabel(/Estoque atual/).fill("1000");
+  await stockDialog.getByLabel(/Nível mínimo/).fill("300");
+  await stockDialog.getByLabel(/Alvo de reposição/).fill("1000");
+  await page.screenshot({
+    path: "/tmp/cozinha360-inventory-drawer.png",
+    fullPage: true,
+  });
+  await stockDialog
+    .getByRole("button", { name: "Salvar estoque", exact: true })
+    .click();
+  await page.getByText(/Estoque configurado/).waitFor();
+  await ingredientRow.getByText(/1000 g em estoque · mínimo 300/).waitFor();
 
   // Produto + ficha técnica.
-  await page.getByRole('button', { name: 'Produtos', exact: true }).click()
-  await page.getByPlaceholder('Nome do produto').fill('Wrap E2E')
-  await page.getByPlaceholder('Categoria').fill('wrap')
-  await page.getByRole('button', { name: 'Produto', exact: true }).click()
-  const productRow = page.locator('.row-button').filter({ hasText: 'Wrap E2E' })
-  await productRow.waitFor()
-  await productRow.click()
-  await page.locator('.recipe-panel select').selectOption({ label: 'Frango E2E' })
-  await page.getByPlaceholder('Quantidade usada').fill('200')
-  await page.getByRole('button', { name: 'Salvar ingrediente', exact: true }).click()
-  await page.getByText('Ficha técnica atualizada.').waitFor()
+  await page.getByRole("button", { name: "Produtos", exact: true }).click();
+  await page.getByPlaceholder("Nome do produto").fill("Wrap E2E");
+  await page.getByPlaceholder("Categoria").fill("wrap");
+  await page.getByRole("button", { name: "Produto", exact: true }).click();
+  const productRow = page
+    .locator(".row-button")
+    .filter({ hasText: "Wrap E2E" });
+  await productRow.waitFor();
+  await productRow.click();
+  await page
+    .locator(".recipe-panel select")
+    .selectOption({ label: "Frango E2E" });
+  await page.getByPlaceholder("Quantidade usada").fill("200");
+  await page
+    .getByRole("button", { name: "Salvar ingrediente", exact: true })
+    .click();
+  await page.getByText("Ficha técnica atualizada.").waitFor();
 
   // O cliente não digita custo variável. O atalho usa a ficha técnica e envia o pedido ao KDS.
-  await page.getByRole('link', { name: '+ Pedido rápido', exact: true }).click()
-  await page.locator('.quick-heading .eyebrow').getByText(/PEDIDO RÁPIDO/).waitFor()
-  await page.getByLabel('Produto').selectOption({ label: 'Wrap E2E' })
-  await page.getByText(/R\$\s*2,00/).first().waitFor()
-  await page.getByLabel('Quantidade').fill('2')
-  await page.getByLabel('Preço por unidade').fill('20.00')
-  await page.getByLabel('Origem').selectOption('whatsapp')
-  await page.getByRole('button', { name: 'Registrar no KDS', exact: true }).click()
-  await page.getByText(/Pedido #\d+ (confirmado pelo servidor|registrado)/).waitFor()
-  await page.getByText(/R\$\s*36,00/).first().waitFor()
+  await page
+    .getByRole("link", { name: "+ Pedido rápido", exact: true })
+    .click();
+  await page
+    .locator(".quick-heading .eyebrow")
+    .getByText(/PEDIDO RÁPIDO/)
+    .waitFor();
+  await page.getByLabel("Produto").selectOption({ label: "Wrap E2E" });
+  await page
+    .getByText(/R\$\s*2,00/)
+    .first()
+    .waitFor();
+  await page.getByLabel("Quantidade").fill("2");
+  await page.getByLabel("Preço por unidade").fill("20.00");
+  await page.getByLabel("Origem").selectOption("whatsapp");
+  await page
+    .getByRole("button", { name: "Registrar no KDS", exact: true })
+    .click();
+  await page
+    .getByText(/Pedido #\d+ (confirmado pelo servidor|registrado)/)
+    .waitFor();
+  await page
+    .getByText(/R\$\s*36,00/)
+    .first()
+    .waitFor();
 
   // Cozinha de Bolso 360 virou uma camada viva: diagnóstico, marco 30 e CPA Guard.
-  await page.goto('http://127.0.0.1:5173/?system360=1', { waitUntil: 'networkidle' })
-  await page.getByRole('heading', { name: 'O manual agora lê a sua operação.', exact: true }).waitFor({ timeout: 15000 })
-  await page.getByText('OS 5 MOTORES', { exact: true }).waitFor()
-  await page.getByText('30 pedidos pagos antes de ampliar no escuro.', { exact: true }).waitFor()
-  await page.getByText('Teste que cabe no caixa.', { exact: true }).waitFor()
-  await page.screenshot({ path: '/tmp/cozinha360-system360.png', fullPage: true })
-  await page.getByRole('link', { name: 'Operação', exact: true }).click()
-  await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
+  await page.goto("http://127.0.0.1:5173/?system360=1", {
+    waitUntil: "networkidle",
+  });
+  await page
+    .getByRole("heading", {
+      name: "O manual agora lê a sua operação.",
+      exact: true,
+    })
+    .waitFor({ timeout: 15000 });
+  await page.getByText("OS 5 MOTORES", { exact: true }).waitFor();
+  await page
+    .getByText("30 pedidos pagos antes de ampliar no escuro.", { exact: true })
+    .waitFor();
+  await page.getByText("Teste que cabe no caixa.", { exact: true }).waitFor();
+  await page.screenshot({
+    path: "/tmp/cozinha360-system360.png",
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "Operação", exact: true }).click();
+  await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 });
 
   // Modo cozinha: o mesmo pedido vira uma lista de produção agrupada por produto.
-  await page.goto('http://127.0.0.1:5173/?kitchen=1', { waitUntil: 'networkidle' })
-  await page.getByRole('heading', { name: 'Produção agrupada.', exact: true }).waitFor({ timeout: 15000 })
-  const batchCard=page.locator('.batch-card').filter({ hasText: 'Wrap E2E' })
-  await batchCard.waitFor()
-  await batchCard.locator('.batch-qty strong').getByText('2', { exact: true }).waitFor()
+  await page.goto("http://127.0.0.1:5173/?kitchen=1", {
+    waitUntil: "networkidle",
+  });
+  await page
+    .getByRole("heading", { name: "Produção agrupada.", exact: true })
+    .waitFor({ timeout: 15000 });
+  const batchCard = page.locator(".batch-card").filter({ hasText: "Wrap E2E" });
+  await batchCard.waitFor();
+  await batchCard
+    .locator(".batch-qty strong")
+    .getByText("2", { exact: true })
+    .waitFor();
   // Status chips expressam unidades do produto, não quantidade de pedidos.
-  await batchCard.getByText(/2 novo/).waitFor()
-  await page.screenshot({ path: '/tmp/cozinha360-kitchen-batch.png', fullPage: true })
-  await page.getByRole('link', { name: 'Voltar à operação', exact: true }).click()
-  await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 })
+  await batchCard.getByText(/2 novo/).waitFor();
+  await page.screenshot({
+    path: "/tmp/cozinha360-kitchen-batch.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("link", { name: "Voltar à operação", exact: true })
+    .click();
+  await page.getByText(/DECISÃO DE HOJE/).waitFor({ timeout: 15000 });
 
   // Atravessa o KDS até conclusão.
-  await page.getByRole('button', { name: 'Pedidos', exact: true }).click()
-  for (const label of ['Confirmado', 'Produção', 'Conferência', 'Entrega', 'Concluído']) {
-    const ticket = page.locator('.ticket').first()
-    await ticket.waitFor()
-    await ticket.getByRole('button', { name: label, exact: true }).click()
-    await page.waitForTimeout(250)
+  await page.getByRole("button", { name: "Pedidos", exact: true }).click();
+  for (const label of [
+    "Confirmado",
+    "Produção",
+    "Conferência",
+    "Entrega",
+    "Concluído",
+  ]) {
+    const ticket = page.locator(".ticket").first();
+    await ticket.waitFor();
+    await ticket.getByRole("button", { name: label, exact: true }).click();
+    await page.waitForTimeout(250);
   }
-  await page.getByText('Pedido concluído e estoque teórico atualizado.').waitFor()
+  await page
+    .getByText("Pedido concluído e estoque teórico atualizado.")
+    .waitFor();
 
   // Como cliente, espero ver venda, contribuição derivada e estoque consumido.
-  await page.getByRole('button', { name: 'Financeiro', exact: true }).click()
-  await page.getByText(/R\$\s*40,00/).first().waitFor()
-  await page.getByText(/R\$\s*36,00/).first().waitFor()
+  await page.getByRole("button", { name: "Financeiro", exact: true }).click();
+  await page
+    .getByText(/R\$\s*40,00/)
+    .first()
+    .waitFor();
+  await page
+    .getByText(/R\$\s*36,00/)
+    .first()
+    .waitFor();
 
-  await page.getByRole('button', { name: 'Custos', exact: true }).click()
-  await page.locator('.row').filter({ hasText: 'Frango E2E' }).getByText(/600 g em estoque/).waitFor()
+  await page.getByRole("button", { name: "Custos", exact: true }).click();
+  await page
+    .locator(".row")
+    .filter({ hasText: "Frango E2E" })
+    .getByText(/600 g em estoque/)
+    .waitFor();
 
   // Readiness e onboarding são condições do produto, não apenas uma tela carregada.
-  const token = await page.evaluate(() => localStorage.getItem('c360_token'))
-  if (!token) throw new Error('missing browser auth token')
+  const token = await page.evaluate(() => localStorage.getItem("c360_token"));
+  if (!token) throw new Error("missing browser auth token");
   const api = await playwrightRequest.newContext({
-    baseURL: 'http://127.0.0.1:8000',
+    baseURL: "http://127.0.0.1:8000",
     extraHTTPHeaders: { Authorization: `Bearer ${token}` },
-  })
-  const me = await api.get('/me')
-  if (!me.ok()) throw new Error(`me returned ${me.status()}`)
-  const businessId = (await me.json()).businesses[0].id
-  const onboarding = await api.get(`/businesses/${businessId}/onboarding`)
-  if (!onboarding.ok()) throw new Error(`onboarding returned ${onboarding.status()}`)
-  const onboardingBody = await onboarding.json()
-  if (!onboardingBody.setup_complete || onboardingBody.progress_percent !== 100) {
-    throw new Error(`unexpected onboarding: ${JSON.stringify(onboardingBody)}`)
+  });
+  const me = await api.get("/me");
+  if (!me.ok()) throw new Error(`me returned ${me.status()}`);
+  const businessId = (await me.json()).businesses[0].id;
+  const onboarding = await api.get(`/businesses/${businessId}/onboarding`);
+  if (!onboarding.ok())
+    throw new Error(`onboarding returned ${onboarding.status()}`);
+  const onboardingBody = await onboarding.json();
+  if (
+    !onboardingBody.setup_complete ||
+    onboardingBody.progress_percent !== 100
+  ) {
+    throw new Error(`unexpected onboarding: ${JSON.stringify(onboardingBody)}`);
   }
-  const ready = await api.get('/readyz')
-  if (!ready.ok()) throw new Error(`readyz returned ${ready.status()}`)
-  const readyBody = await ready.json()
-  if (readyBody.schema !== 'current') throw new Error(`unexpected readiness: ${JSON.stringify(readyBody)}`)
-  await api.dispose()
+  const ready = await api.get("/readyz");
+  if (!ready.ok()) throw new Error(`readyz returned ${ready.status()}`);
+  const readyBody = await ready.json();
+  if (readyBody.schema !== "current")
+    throw new Error(`unexpected readiness: ${JSON.stringify(readyBody)}`);
+  await api.dispose();
 
-  await page.screenshot({ path: '/tmp/cozinha360-e2e-success.png', fullPage: true })
-  console.log('browser customer journey ok')
+  await page.screenshot({
+    path: "/tmp/cozinha360-e2e-success.png",
+    fullPage: true,
+  });
+  console.log("browser customer journey ok");
 } catch (error) {
-  await page.screenshot({ path: '/tmp/cozinha360-e2e-failure.png', fullPage: true }).catch(() => {})
-  console.error(error)
-  process.exitCode = 1
+  await page
+    .screenshot({ path: "/tmp/cozinha360-e2e-failure.png", fullPage: true })
+    .catch(() => {});
+  console.error(error);
+  process.exitCode = 1;
 } finally {
-  await browser.close()
+  await browser.close();
 }
