@@ -1,6 +1,7 @@
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { request } from "./app";
+import { ConnectionActivationQueue } from "./connection-activation-queue";
 import { ConnectionsHubRoute } from "./connections-hub";
 
 type ProviderId = "whatsapp" | "ifood" | "mercadopago" | "google" | "meta_ads";
@@ -70,12 +71,14 @@ async function profileRequest(path: string, options: RequestInit, token: string)
 export function PersonalizedConnectionsRoute() {
   const [ready, setReady] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [hasIntent, setHasIntent] = useState(() => Boolean(readIntent()));
 
   useEffect(() => {
     let cancelled = false;
     async function prepare() {
       const token = localStorage.getItem("c360_token") || "";
       const intent = readIntent();
+      setHasIntent(Boolean(intent));
       if (!token || !intent) {
         if (!cancelled) setReady(true);
         return;
@@ -117,7 +120,7 @@ export function PersonalizedConnectionsRoute() {
         );
         if (!cancelled) setRestored(true);
       } catch {
-        // Failure to restore discovery preferences must never block the real hub.
+        // Discovery handoff must never block the real connection hub.
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -140,16 +143,7 @@ export function PersonalizedConnectionsRoute() {
 
   return (
     <>
-      {restored && (
-        <div className="fixed left-1/2 top-4 z-[120] flex -translate-x-1/2 items-center gap-3 rounded-full border border-emerald-100/20 bg-slate-950/85 px-4 py-2.5 text-xs font-bold text-emerald-100 shadow-[0_18px_70px_rgba(0,0,0,.35)] backdrop-blur-2xl">
-          <span className="grid size-7 place-items-center rounded-full bg-emerald-200 text-slate-950">
-            <Check size={14} strokeWidth={3} />
-          </span>
-          <span className="flex items-center gap-2">
-            <Sparkles size={14} /> Sua rota da exploração já veio com você.
-          </span>
-        </div>
-      )}
+      {hasIntent && <ConnectionActivationQueue restored={restored} />}
       <ConnectionsHubRoute />
     </>
   );
