@@ -8,6 +8,7 @@ import { OfflineQueueStatus } from "./offline-status-v50";
 import { prepareOperatingMemory } from "./operating-memory";
 import { DiscoveryPlaygroundPortal } from "./operational-playground-portal";
 import { PlugPlayGalaxyPortal } from "./plug-play-galaxy-portal";
+import { LivingOperationFlowPortal } from "./living-operation-flow";
 import "./tailwind.css";
 import "./styles.css";
 import "./market.css";
@@ -343,6 +344,7 @@ function Root() {
       <App />
       <DiscoveryPlaygroundPortal />
       <PlugPlayGalaxyPortal />
+      <LivingOperationFlowPortal />
       <TabHashBridge />
       <KitchenAlerts />
       <InventoryStockEditor />
