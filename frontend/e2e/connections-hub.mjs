@@ -11,8 +11,8 @@ let testCalls=0
 let savedPlan=null
 let googleDegraded=false
 let failNextGoogle=false
-let googleLastSuccess='2026-09-01T12:00:00Z'
-let ifoodLastSuccess='2026-09-06T02:10:00Z'
+let googleLastSuccess=new Date(Date.now()-48*60*60*1000).toISOString()
+let ifoodLastSuccess=new Date().toISOString()
 let profile={business_id:1,order_source:'direct',use_mercadopago:true,use_google:true,use_meta_ads:false,configured_at:null,updated_by_user_id:null}
 const recommended=()=>[...(profile.order_source==='whatsapp'?['whatsapp']:profile.order_source==='ifood'?['ifood']:profile.order_source==='mixed'?['whatsapp','ifood']:[]),...(profile.use_mercadopago?['mercadopago']:[]),...(profile.use_google?['google']:[]),...(profile.use_meta_ads?['meta_ads']:[])]
 const provider=(key,name,category,connection=null,platformReady=true)=>({key,name,category,impact:'Impacto operacional explicado em linguagem simples.',why:'Conexão segura sem copiar token para o navegador.',mode:key==='ifood'?'device_code':'oauth',eta:'~2 min',platform_ready:platformReady,missing:platformReady?[]:['PROVIDER_PLATFORM_APPROVAL'],optional_missing:[],connection})
@@ -20,7 +20,7 @@ await page.route('**/cozinha360-profile-v31/**',async route=>{
  const req=route.request(),path=new URL(req.url()).pathname,method=req.method()
  if(path.endsWith('/businesses/1/profile')&&method==='GET')return route.fulfill(json({profile,recommended_order:recommended(),internal_order_ready:profile.order_source==='direct'}))
  if(path.endsWith('/businesses/1/profile')&&method==='PUT'){
-   savedPlan=req.postDataJSON();profile={...profile,...savedPlan,configured_at:'2026-09-06T02:20:00Z',updated_by_user_id:1}
+   savedPlan=req.postDataJSON();profile={...profile,...savedPlan,configured_at:new Date().toISOString(),updated_by_user_id:1}
    return route.fulfill(json({profile,recommended_order:recommended(),internal_order_ready:profile.order_source==='direct'}))
  }
  return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:`profile mock route not found: ${method} ${path}`})})
@@ -32,9 +32,9 @@ await page.route('**/cozinha360-integrations-v29/**',async route=>{
  if(path.endsWith('/google/test')&&method==='POST'){
    testCalls++
    if(failNextGoogle){failNextGoogle=false;googleDegraded=true;return route.fulfill({status:502,contentType:'application/json',body:JSON.stringify({detail:'Google recusou a credencial',status:'degraded'})})}
-   googleDegraded=false;googleLastSuccess='2026-09-06T02:25:00Z';return route.fulfill(json({ok:true,status:'active'}))
+   googleDegraded=false;googleLastSuccess=new Date().toISOString();return route.fulfill(json({ok:true,status:'active'}))
  }
- if(path.endsWith('/ifood/test')&&method==='POST'){testCalls++;ifoodLastSuccess='2026-09-06T02:25:00Z';return route.fulfill(json({ok:true,status:'active'}))}
+ if(path.endsWith('/ifood/test')&&method==='POST'){testCalls++;ifoodLastSuccess=new Date().toISOString();return route.fulfill(json({ok:true,status:'active'}))}
  if(path.endsWith('/businesses/1/integrations')&&method==='GET')return route.fulfill(json({business_id:1,recommended_order:['whatsapp','mercadopago','google','ifood','meta_ads'],providers:[
    provider('whatsapp','WhatsApp Business','Vendas & CRM'),
    provider('mercadopago','Mercado Pago / Pix','Pagamentos',null,false),
