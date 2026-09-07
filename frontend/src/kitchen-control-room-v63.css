@@ -1,0 +1,217 @@
+/* Cozinha 360 v6.3 — competitor-informed control room without copying its layout.
+   Existing semantic classes and E2E selectors stay intact; this layer only raises
+   scan speed, depth, priority visibility and touch ergonomics. */
+
+.batch-shell{
+  --k63-glass:rgba(15,20,27,.72);
+  --k63-line:rgba(255,255,255,.075);
+  --k63-line-strong:rgba(255,255,255,.13);
+  --k63-cyan:#77e5ef;
+  --k63-green:#76e4ad;
+  --k63-amber:#f5c667;
+  --k63-red:#ff777d;
+  background:
+    radial-gradient(circle at 12% -12%,rgba(119,229,239,.09),transparent 28rem),
+    radial-gradient(circle at 82% 3%,rgba(118,228,173,.06),transparent 30rem),
+    radial-gradient(circle at 55% 90%,rgba(167,139,250,.045),transparent 36rem),
+    #080d13;
+  background-attachment:fixed;
+}
+
+.batch-topbar{
+  height:68px;
+  border-bottom-color:rgba(255,255,255,.065);
+  background:rgba(7,12,18,.78);
+  box-shadow:0 16px 45px rgba(0,0,0,.16),inset 0 -1px rgba(255,255,255,.025);
+  backdrop-filter:blur(28px) saturate(135%);
+  -webkit-backdrop-filter:blur(28px) saturate(135%);
+}
+
+.batch-topbar>a,
+.batch-topbar>b,
+.batch-topbar select,
+.batch-topbar button{
+  transition:transform .22s cubic-bezier(.2,.75,.2,1),border-color .22s ease,background .22s ease,color .22s ease;
+}
+.batch-topbar>a:hover{color:white;transform:translateX(-2px)}
+.batch-topbar button:hover{transform:translateY(-1px);border-color:rgba(119,229,239,.22);background:rgba(119,229,239,.06);color:var(--k63-cyan)}
+
+.batch-page{width:min(1500px,100%);padding:30px 30px 112px}
+.batch-hero{
+  position:relative;
+  overflow:hidden;
+  align-items:center;
+  min-height:190px;
+  margin-bottom:14px;
+  padding:26px 28px;
+  border:1px solid var(--k63-line);
+  border-radius:28px;
+  background:linear-gradient(135deg,rgba(255,255,255,.052),rgba(255,255,255,.018));
+  box-shadow:0 30px 80px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.055);
+  backdrop-filter:blur(24px) saturate(130%);
+  -webkit-backdrop-filter:blur(24px) saturate(130%);
+}
+.batch-hero:before,.batch-hero:after{content:"";position:absolute;pointer-events:none;border-radius:999px;filter:blur(60px)}
+.batch-hero:before{width:280px;height:180px;left:-70px;top:-100px;background:rgba(119,229,239,.095)}
+.batch-hero:after{width:300px;height:190px;right:5%;bottom:-150px;background:rgba(118,228,173,.07)}
+.batch-hero>div{position:relative;z-index:1}
+.batch-hero h1{font-size:clamp(38px,5vw,66px);font-weight:820;letter-spacing:-.065em;background:linear-gradient(180deg,#fff,#bfc8d2 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.batch-hero p{max-width:760px;color:#8996a4}
+.batch-hero p b{color:#e7edf2}
+.batch-live{
+  min-width:210px;
+  padding:13px 15px;
+  border-color:rgba(118,228,173,.14);
+  border-radius:16px;
+  background:rgba(7,13,18,.5);
+  box-shadow:inset 0 1px rgba(255,255,255,.04),0 16px 40px rgba(0,0,0,.14)
+}
+.batch-live i{background:var(--k63-green);box-shadow:0 0 0 6px rgba(118,228,173,.07),0 0 25px rgba(118,228,173,.22);animation:k63LivePulse 2.4s ease-in-out infinite}
+
+.batch-metrics{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:10px;
+}
+.batch-metric{
+  position:relative;
+  overflow:hidden;
+  min-height:94px;
+  border-color:var(--k63-line);
+  border-radius:18px;
+  background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(255,255,255,.018));
+  box-shadow:inset 0 1px rgba(255,255,255,.045),0 16px 40px rgba(0,0,0,.11);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .28s ease;
+}
+.batch-metric:after{content:"";position:absolute;inset:auto -30% -70% 20%;height:90%;background:radial-gradient(circle,rgba(119,229,239,.07),transparent 66%);pointer-events:none}
+.batch-metric:hover{transform:translateY(-3px);border-color:rgba(119,229,239,.15);box-shadow:inset 0 1px rgba(255,255,255,.06),0 24px 55px rgba(0,0,0,.16)}
+.batch-metric i{border:1px solid rgba(119,229,239,.12);background:rgba(119,229,239,.055);color:var(--k63-cyan)}
+.batch-metric strong{font-size:28px;font-weight:850}
+.batch-metric.danger{border-color:rgba(255,119,125,.25);background:linear-gradient(145deg,rgba(255,119,125,.085),rgba(255,255,255,.018))}
+
+.sla54-overview{
+  border-radius:19px!important;
+  border-color:var(--k63-line)!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.045),rgba(255,255,255,.018))!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.04),0 18px 45px rgba(0,0,0,.11)!important;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+}
+.sla54-overview.warning{border-color:rgba(245,198,103,.24)!important;box-shadow:0 0 55px rgba(245,198,103,.045),inset 0 1px rgba(255,255,255,.04)!important}
+.sla54-overview.danger{border-color:rgba(255,119,125,.28)!important;box-shadow:0 0 60px rgba(255,119,125,.055),inset 0 1px rgba(255,255,255,.04)!important}
+
+.batch-command-row{
+  position:sticky;
+  top:80px;
+  z-index:22;
+  margin:12px 0 12px;
+  padding:7px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:15px;
+  background:rgba(8,13,19,.69);
+  box-shadow:0 18px 50px rgba(0,0,0,.14);
+  backdrop-filter:blur(24px) saturate(130%);
+  -webkit-backdrop-filter:blur(24px) saturate(130%);
+}
+.batch-view-switch{border:0;background:transparent;padding:0}
+.batch-view-switch button{min-height:40px;border-radius:10px;padding-inline:14px}
+.batch-view-switch button.active{border-color:rgba(119,229,239,.12);background:rgba(119,229,239,.075);color:#f7fbfd;box-shadow:inset 0 1px rgba(255,255,255,.05),0 9px 24px rgba(0,0,0,.16)}
+.batch-view-switch button.active svg{color:var(--k63-cyan)}
+.batch-coverage{min-height:40px;border-radius:10px}
+
+.batch-strip{
+  border-color:var(--k63-line);
+  border-radius:14px;
+  background:rgba(255,255,255,.025);
+  backdrop-filter:blur(16px);
+}
+
+.batch-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:stretch}
+.batch-card{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  min-height:276px;
+  padding:17px;
+  border:1px solid var(--k63-line);
+  border-top:1px solid rgba(255,255,255,.12);
+  border-radius:22px;
+  background:linear-gradient(155deg,rgba(25,32,41,.88),rgba(10,15,21,.94));
+  box-shadow:inset 0 1px rgba(255,255,255,.052),0 20px 50px rgba(0,0,0,.14);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  content-visibility:auto;
+  contain-intrinsic-size:300px;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),border-color .28s ease,box-shadow .28s ease;
+}
+.batch-card:before{content:"";position:absolute;z-index:-1;width:180px;height:180px;right:-90px;top:-100px;border-radius:999px;background:rgba(119,229,239,.055);filter:blur(35px);pointer-events:none}
+.batch-card:hover{transform:translateY(-4px);border-color:rgba(119,229,239,.16);box-shadow:inset 0 1px rgba(255,255,255,.065),0 30px 70px rgba(0,0,0,.2)}
+.batch-card.late{border-color:rgba(255,119,125,.32);border-top-color:rgba(255,119,125,.7);background:linear-gradient(155deg,rgba(71,25,30,.34),rgba(10,15,21,.96) 46%);box-shadow:0 0 55px rgba(255,119,125,.055),0 24px 55px rgba(0,0,0,.17)}
+.batch-card.late:before{background:rgba(255,119,125,.11)}
+.batch-qty strong{font-size:52px;font-weight:900;color:#f5f9fc;text-shadow:0 0 32px rgba(119,229,239,.12)}
+.batch-qty span{font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.batch-late{border-color:rgba(255,119,125,.24);background:rgba(255,119,125,.1);color:#ffc3c5;box-shadow:0 0 28px rgba(255,119,125,.08)}
+.batch-card h2{margin:15px 0 11px;font-size:20px;font-weight:820;letter-spacing:-.035em;color:#f2f6f9}
+.batch-statuses span{border-color:rgba(255,255,255,.075);background:rgba(255,255,255,.035);color:#aeb8c2;padding:5px 8px}
+.batch-orders{border-top-color:rgba(255,255,255,.06)}
+.batch-orders b{border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.045);color:#dce3e8}
+.batch-card footer{border-top:0}
+
+.component-grid{gap:12px}
+.component-card{
+  border-color:var(--k63-line);
+  border-top-color:rgba(255,255,255,.1);
+  border-radius:20px;
+  background:linear-gradient(155deg,rgba(24,31,39,.86),rgba(10,15,21,.94));
+  box-shadow:inset 0 1px rgba(255,255,255,.045),0 20px 50px rgba(0,0,0,.12);
+  backdrop-filter:blur(18px);
+  transition:transform .26s cubic-bezier(.2,.8,.2,1),border-color .26s ease;
+}
+.component-card:hover{transform:translateY(-3px);border-color:rgba(119,229,239,.14)}
+.component-card.shortage{border-color:rgba(255,119,125,.28);background:linear-gradient(155deg,rgba(69,26,31,.31),rgba(10,15,21,.95) 48%)}
+.component-card.below_par{border-color:rgba(245,198,103,.23);background:linear-gradient(155deg,rgba(70,54,24,.22),rgba(10,15,21,.95) 48%)}
+.component-card.covered{border-color:rgba(118,228,173,.16)}
+.component-need>div,.component-buy{border-color:rgba(255,255,255,.065);background:rgba(4,9,14,.4)}
+
+.batch-empty,.batch-loader{
+  border-color:var(--k63-line);
+  background:rgba(15,20,27,.72);
+  box-shadow:0 25px 75px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.05);
+  backdrop-filter:blur(24px);
+}
+
+@keyframes k63LivePulse{
+  0%,100%{box-shadow:0 0 0 5px rgba(118,228,173,.06),0 0 16px rgba(118,228,173,.12)}
+  50%{box-shadow:0 0 0 9px rgba(118,228,173,.025),0 0 30px rgba(118,228,173,.25)}
+}
+
+@media(max-width:800px){
+  .batch-topbar{height:60px}
+  .batch-page{padding:14px 12px 112px}
+  .batch-hero{min-height:0;padding:20px;border-radius:22px}
+  .batch-hero h1{font-size:42px}
+  .batch-command-row{top:68px;border-radius:13px}
+  .batch-grid,.component-grid{grid-template-columns:1fr 1fr}
+  .batch-card{min-height:246px;border-radius:18px}
+  .batch-qty strong{font-size:46px}
+}
+
+@media(max-width:560px){
+  .batch-hero{padding:18px}
+  .batch-hero h1{font-size:39px}
+  .batch-metrics{gap:7px}
+  .batch-metric{min-height:82px;padding:10px;border-radius:15px}
+  .batch-metric strong{font-size:24px}
+  .batch-command-row{position:sticky;top:66px;padding:6px}
+  .batch-grid,.component-grid{grid-template-columns:1fr}
+  .batch-card{min-height:235px;padding:15px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .batch-live i{animation:none}
+  .batch-topbar>a,.batch-topbar>b,.batch-topbar select,.batch-topbar button,.batch-metric,.batch-card,.component-card{transition:none!important}
+  .batch-topbar>a:hover,.batch-topbar button:hover,.batch-metric:hover,.batch-card:hover,.component-card:hover{transform:none!important}
+  .batch-shell{background-attachment:scroll}
+}
