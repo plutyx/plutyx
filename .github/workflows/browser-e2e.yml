@@ -105,6 +105,9 @@ jobs:
       - name: Run live integration passport v6.5
         run: node frontend/e2e/integration-passport-v65.mjs
 
+      - name: Run Migration Studio v7.0
+        run: node frontend/e2e/migration-studio-v70.mjs
+
       - name: Run PagBank Connect v5.9 journey
         run: node frontend/e2e/pagbank-connect-v59.mjs
 
@@ -165,6 +168,8 @@ jobs:
             /tmp/cozinha360-integration-missions-v62-failure.png
             /tmp/cozinha360-integration-passport-v65.png
             /tmp/cozinha360-integration-passport-v65-failure.png
+            /tmp/cozinha360-migration-studio-v70.png
+            /tmp/cozinha360-migration-studio-v70-failure.png
             /tmp/cozinha360-pagbank-v59.png
             /tmp/cozinha360-pagbank-v59-failure.png
             /tmp/cozinha360-e2e-success.png
