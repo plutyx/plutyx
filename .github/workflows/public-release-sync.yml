@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 8
     env:
       WEB_URL: https://cozinha-360-os-v41.onrender.com
-      EXPECTED_RELEASE: '5.0.0'
+      EXPECTED_RELEASE: '5.2.0'
     steps:
       - name: Wait for exact public build
         run: |
