@@ -7,6 +7,7 @@ const today = new Date().toISOString();
 
 await page.addInitScript(() => {
   localStorage.setItem("c360_token", "browser-test-token");
+  sessionStorage.setItem("c360-cycle-v61-open", "1");
   localStorage.setItem(
     "c360_ecosystem_interest",
     JSON.stringify({ providers: ["99food"], updated_at: new Date().toISOString() }),
