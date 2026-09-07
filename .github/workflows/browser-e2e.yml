@@ -66,6 +66,9 @@ jobs:
       - name: Run kitchen-intelligence journey
         run: node frontend/e2e/kitchen-intelligence.mjs
 
+      - name: Run KDS SLA v5.4 journey
+        run: node frontend/e2e/kds-sla-v54.mjs
+
       - name: Run cash-engine journey
         run: node frontend/e2e/cash-engine.mjs
 
@@ -115,6 +118,9 @@ jobs:
             /tmp/cozinha360-kitchen-batch.png
             /tmp/cozinha360-kitchen-components.png
             /tmp/cozinha360-kitchen-components-failure.png
+            /tmp/cozinha360-kds-sla-v54.png
+            /tmp/cozinha360-kds-sla-v54-mobile.png
+            /tmp/cozinha360-kds-sla-v54-failure.png
             /tmp/cozinha360-system360.png
             /tmp/cozinha360-operating-memory.png
             /tmp/cozinha360-operating-memory-failure.png
