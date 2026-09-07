@@ -9,6 +9,7 @@ import { prepareOperatingMemory } from "./operating-memory";
 import { DiscoveryPlaygroundPortal } from "./operational-playground-portal";
 import { PlugPlayGalaxyPortal } from "./plug-play-galaxy-portal";
 import { LivingOperationFlowPortal } from "./living-operation-flow";
+import { IntegrationRealityRibbonPortal } from "./integration-reality-ribbon";
 import "./tailwind.css";
 import "./styles.css";
 import "./market.css";
@@ -345,6 +346,7 @@ function Root() {
       <DiscoveryPlaygroundPortal />
       <PlugPlayGalaxyPortal />
       <LivingOperationFlowPortal />
+      <IntegrationRealityRibbonPortal />
       <TabHashBridge />
       <KitchenAlerts />
       <InventoryStockEditor />
