@@ -96,6 +96,9 @@ jobs:
       - name: Run connection Mission Control journey
         run: node frontend/e2e/connection-mission-control.mjs
 
+      - name: Run plug-and-play integration missions v6.2
+        run: node frontend/e2e/integration-mission-path-v62.mjs
+
       - name: Run PagBank Connect v5.9 journey
         run: node frontend/e2e/pagbank-connect-v59.mjs
 
@@ -152,6 +155,8 @@ jobs:
             /tmp/cozinha360-pagbank-pix-checkout-failure.png
             /tmp/cozinha360-connection-mission-control.png
             /tmp/cozinha360-connection-mission-control-failure.png
+            /tmp/cozinha360-integration-missions-v62.png
+            /tmp/cozinha360-integration-missions-v62-failure.png
             /tmp/cozinha360-pagbank-v59.png
             /tmp/cozinha360-pagbank-v59-failure.png
             /tmp/cozinha360-e2e-success.png
