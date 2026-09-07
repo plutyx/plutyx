@@ -102,7 +102,7 @@ const CashEngineRoute = lazy(async () => ({
   default: (await import("./cash-engine")).CashEngineRoute,
 }));
 const ConnectionsHubRoute = lazy(async () => ({
-  default: (await import("./connections-hub")).ConnectionsHubRoute,
+  default: (await import("./personalized-connections-route")).PersonalizedConnectionsRoute,
 }));
 const IntegrationSetupLauncher = lazy(async () => ({
   default: (await import("./integration-setup-v42")).IntegrationSetupLauncher,
