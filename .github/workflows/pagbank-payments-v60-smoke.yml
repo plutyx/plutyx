@@ -1,0 +1,63 @@
+name: pagbank-payments-v60-smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/edge/cozinha360-pagbank-payments-v60/**'
+      - '.github/workflows/pagbank-payments-v60-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  edge-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-pagbank-payments-v60
+    steps:
+      - name: Verify public health contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(curl -fsS --retry 3 --retry-all-errors "$EDGE/health")"
+          echo "$body" | jq -e '.ok == true and .version == "6.0.0" and .provider == "pagbank"' >/dev/null
+          echo "$body" | jq -e '.capabilities.pix_create == true and .capabilities.pix_status == true and .capabilities.remote_reconciliation == true and .capabilities.webhook == false' >/dev/null
+          echo "$body" | jq -e '.privacy.payer_tax_id == "transient_not_stored"' >/dev/null
+          if echo "$body" | grep -Eqi 'client_secret|access_token|refresh_token|service_role'; then
+            echo 'health leaked a secret-shaped field'
+            exit 1
+          fi
+
+      - name: Verify browser CORS contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          headers="$(mktemp)"
+          code="$(curl -sS -o /dev/null -D "$headers" -w '%{http_code}' -X OPTIONS "$EDGE/health" \
+            -H 'Origin: https://cozinha-360-os.netlify.app' \
+            -H 'Access-Control-Request-Method: GET')"
+          test "$code" = '204'
+          grep -Eqi '^access-control-allow-origin: https://cozinha-360-os\.netlify\.app' "$headers"
+
+      - name: Verify business writes require authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          code="$(curl -sS -o "$tmp" -w '%{http_code}' -X POST "$EDGE/businesses/999999/orders/999999/pix" \
+            -H 'Content-Type: application/json' \
+            --data '{"payer_tax_id":"12345678909","payer_name":"Teste Cliente","payer_email":"teste@example.com"}')"
+          test "$code" = '401'
+          jq -e '.detail == "Sem acesso"' "$tmp" >/dev/null
+
+      - name: Verify opaque public token lookup is fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          code="$(curl -sS -o "$tmp" -w '%{http_code}' "$EDGE/pix/00000000-0000-4000-8000-000000000000")"
+          test "$code" = '404'
+          jq -e '.detail == "Cobrança não encontrada"' "$tmp" >/dev/null
