@@ -17,6 +17,11 @@ try{
 
   await page.getByRole('link',{name:'Hoje',exact:true}).click()
   await page.getByRole('heading',{name:'Seu dia em 60 segundos.',exact:true}).waitFor({timeout:15000})
+  const cockpit=page.locator('[data-today-cockpit-v66]')
+  await cockpit.waitFor({state:'visible'})
+  await cockpit.getByText('RADAR DE ATENÇÃO',{exact:true}).waitFor()
+  await cockpit.getByText('PULSO DE DECISÃO',{exact:true}).waitFor()
+  if(await cockpit.locator('.today66-node').count()<1)throw new Error('decision radar must expose at least one actionable signal')
   await page.getByText('BRIEFING OPERACIONAL',{exact:true}).waitFor()
   await page.getByRole('heading',{name:'Fila de decisões',exact:true}).waitFor()
   await page.getByRole('heading',{name:'Faça nesta ordem',exact:true}).waitFor()
@@ -46,6 +51,10 @@ try{
   await page.setViewportSize({width:390,height:844})
   await page.reload({waitUntil:'networkidle'})
   await page.getByRole('heading',{name:'Seu dia em 60 segundos.',exact:true}).waitFor({timeout:15000})
+  const mobileCockpit=page.locator('[data-today-cockpit-v66]')
+  await mobileCockpit.waitFor({state:'visible'})
+  const cockpitOverflow=await mobileCockpit.evaluate((node)=>node.scrollWidth-node.clientWidth)
+  if(cockpitOverflow>2)throw new Error(`today visual cockpit overflows its mobile container by ${cockpitOverflow}px`)
   const contentBox=await page.locator('.today39-content').boundingBox()
   if(!contentBox||contentBox.width>390||contentBox.x<0)throw new Error(`today mobile content overflows viewport: ${JSON.stringify(contentBox)}`)
   const mobileKpis=page.locator('.today39-kpis article')
@@ -53,7 +62,7 @@ try{
   if(!firstBox||!secondBox||secondBox.y<=firstBox.y)throw new Error('mobile KPI cards should stack into a scannable single column')
   await page.screenshot({path:'/tmp/cozinha360-today-attention-v39-mobile.png',fullPage:true})
 
-  console.log('today attention v3.9 journey ok')
+  console.log('today attention v3.9 + visual cockpit v6.6 journey ok')
 }catch(error){
   await page.screenshot({path:'/tmp/cozinha360-today-attention-v39-failure.png',fullPage:true}).catch(()=>{})
   console.error(error)
