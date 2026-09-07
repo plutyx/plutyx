@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
+import { GalaxyReadinessCoach } from "./galaxy-readiness-coach";
 import { PlugPlayGalaxy } from "./plug-play-galaxy";
 
 const HOST_ATTRIBUTE = "data-plug-play-galaxy-host";
@@ -41,5 +42,13 @@ export function PlugPlayGalaxyPortal() {
     };
   }, []);
 
-  return host ? createPortal(<PlugPlayGalaxy />, host) : null;
+  return host
+    ? createPortal(
+        <>
+          <PlugPlayGalaxy />
+          <GalaxyReadinessCoach />
+        </>,
+        host,
+      )
+    : null;
 }
