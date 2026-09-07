@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 8
     env:
       WEB_URL: https://cozinha-360-os-v41.onrender.com
-      EXPECTED_RELEASE: '5.3.0'
+      EXPECTED_RELEASE: '5.4.0'
     steps:
       - name: Wait for exact public build
         run: |
@@ -30,9 +30,7 @@ jobs:
               -o /tmp/release.json; then
               release="$(python -c 'import json; print(json.load(open("/tmp/release.json"))["release"])' 2>/dev/null || true)"
               commit="$(python -c 'import json; print(json.load(open("/tmp/release.json"))["commit"])' 2>/dev/null || true)"
-              if [ "$release" = "$EXPECTED_RELEASE" ] && [ "$commit" = "$expected_commit" ]; then
-                exit 0
-              fi
+              if [ "$release" = "$EXPECTED_RELEASE" ] && [ "$commit" = "$expected_commit" ]; then exit 0; fi
               echo "Public build is not this commit yet: release=${release:-missing} commit=${commit:-missing} expected=$expected_commit"
             fi
             sleep 5
