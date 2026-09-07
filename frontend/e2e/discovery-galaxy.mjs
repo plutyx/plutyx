@@ -14,13 +14,16 @@ try {
     .getByRole("heading", { name: "Sua rota acende só o que precisa.", exact: true })
     .waitFor({ timeout: 15000 });
 
-  await galaxy.getByRole("button", { name: /Mercado Pago/ }).click();
-  await galaxy.getByText("SUGERIDA", { exact: true }).first().waitFor();
+  const mercadoNode = galaxy.getByRole("button", { name: /Mercado Pago/ });
+  await mercadoNode.click();
+  await galaxy.locator("aside").getByText("SUGERIDA", { exact: true }).waitFor();
   await galaxy
     .getByRole("button", { name: /Adicionar à minha rota/ })
     .click();
 
-  await galaxy.getByRole("button", { name: /iFood/ }).click();
+  const ifoodNode = galaxy.getByRole("button", { name: /iFood/ });
+  await ifoodNode.click();
+  await galaxy.locator("aside").getByText("SUGERIDA", { exact: true }).waitFor();
   await galaxy
     .getByRole("button", { name: /Adicionar à minha rota/ })
     .click();
@@ -49,8 +52,8 @@ try {
     .getByRole("heading", { name: "Sua rota acende só o que precisa.", exact: true })
     .waitFor({ timeout: 15000 });
   await restoredGalaxy.getByText("2/5", { exact: true }).waitFor();
-  await restoredGalaxy.getByText("Mercado Pago", { exact: true }).last().waitFor();
-  await restoredGalaxy.getByText("iFood", { exact: true }).last().waitFor();
+  await restoredGalaxy.locator("aside").getByText("Mercado Pago", { exact: true }).waitFor();
+  await restoredGalaxy.locator("aside").getByRole("button", { name: /Remover da minha rota/ }).waitFor();
 
   console.log("discovery connection galaxy + explicit intent persistence ok");
 } catch (error) {
