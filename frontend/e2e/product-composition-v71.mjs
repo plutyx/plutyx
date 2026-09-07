@@ -76,15 +76,19 @@ try {
   await page.getByRole("heading", { name: "Cozinha Composição v7.1", exact: true }).waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "Produtos", exact: true }).click();
 
-  if (await page.locator("[data-product-composition-v71]").count()) {
-    throw new Error("composition map rendered before a real product was selected");
-  }
-
-  await page.locator(".row-button").filter({ hasText: "Wrap composição v7.1" }).click();
+  // The primary editor intentionally auto-selects products[0] when no productId is set.
+  // The visual map must follow that exact real selection, never invent its own default.
+  const recipePanel = page.locator(".recipe-panel");
+  await recipePanel.getByRole("heading", { name: "Wrap composição v7.1", exact: true }).waitFor({ timeout: 10000 });
   const map = page.locator("[data-product-composition-v71]");
   await map.waitFor({ state: "visible", timeout: 12000 });
   await map.getByRole("heading", { name: "Veja o produto por dentro.", exact: true }).waitFor();
+  await map.locator(".pc71-core").getByRole("heading", { name: "Wrap composição v7.1", exact: true }).waitFor();
   await map.locator(".pc71-core").getByText(/R\$\s*4,00/).waitFor();
+
+  // Explicit row selection must keep the same canonical product attached to the map.
+  await page.locator(".row-button").filter({ hasText: "Wrap composição v7.1" }).click();
+  await map.locator(".pc71-core").getByRole("heading", { name: "Wrap composição v7.1", exact: true }).waitFor();
 
   const node = map.getByRole("button", { name: /Frango composição v7\.1: 200 g na ficha; estoque cobre 5× esta ficha\. Editar ingrediente\./ });
   await node.waitFor();
@@ -118,9 +122,10 @@ try {
   await page.screenshot({ path: "/tmp/cozinha360-product-composition-v71.png", fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
+  await page.getByRole("heading", { name: "Cozinha Composição v7.1", exact: true }).waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "Produtos", exact: true }).click();
-  await page.locator(".row-button").filter({ hasText: "Wrap composição v7.1" }).click();
+  await page.locator(".recipe-panel").getByRole("heading", { name: "Wrap composição v7.1", exact: true }).waitFor({ timeout: 10000 });
   const mobileMap = page.locator("[data-product-composition-v71]");
   await mobileMap.waitFor({ state: "visible", timeout: 12000 });
   const box = await mobileMap.boundingBox();
@@ -129,7 +134,7 @@ try {
   if (overflow) throw new Error("Product composition v7.1 introduced horizontal page overflow on mobile");
   await page.screenshot({ path: "/tmp/cozinha360-product-composition-v71-mobile.png", fullPage: true });
 
-  console.log("product composition v7.1 uses real recipe, server cost, live stock coverage and the existing editor");
+  console.log("product composition v7.1 follows the real selected product, uses server cost, live stock coverage and the existing editor");
 } catch (error) {
   await page.screenshot({ path: "/tmp/cozinha360-product-composition-v71-failure.png", fullPage: true }).catch(() => {});
   console.error(error);
