@@ -65,22 +65,22 @@ const preview = {
   ok: true,
   resources: {
     products: { available: true, count: 12, conflicts: 2, error: null },
-    inputs: { available: true, count: 8, conflicts: 1, error: null },
+    inputs: { available: true, count: 8, conflicts: 1, review_required: 1, error: null },
     customers: { available: true, count: 34, conflicts: 3, error: null, consent_policy: "reset_false" },
   },
   samples: {
     products: [{ name: "Smash Clássico", category: "Burgers" }, { name: "Batata P", category: "Acompanhamentos" }],
-    inputs: [{ name: "Carne", unit: "kg", quantity: "5" }, { name: "Pão", unit: "un", quantity: "40" }],
+    inputs: [{ name: "Carne", unit: "kg", quantity: "5" }, { name: "Pão", unit: "un", quantity: "NaN", needs_review: true }],
     customers: [{ name: "Cliente A", visits: 4, favorite_product: "Smash Clássico" }, { name: "Cliente B", visits: 2, favorite_product: "Batata P" }],
   },
-  warnings: ["Produtos são importados como cadastro base; preços por canal permanecem para revisão no Cozinha 360.", "Clientes importados começam sem consentimento de marketing.", "Campos não equivalentes não são inventados nem sobrescritos."],
+  warnings: ["Produtos são importados como cadastro base; preços por canal permanecem para revisão no Cozinha 360.", "Clientes importados começam sem consentimento de marketing.", "Campos não equivalentes não são inventados nem sobrescritos.", "1 insumo(s) possuem número legado inválido e ficarão para revisão em vez de virar zero."],
 };
 
 await page.route("**/cozinha360-migration-v70/**", async (route) => {
   const req = route.request();
   const path = new URL(req.url()).pathname;
   if (req.method() === "GET" && path.endsWith("/businesses/1/takeat/status")) {
-    return route.fulfill(json({ ok: true, version: "7.0.0", provider: "takeat_import", connection: connected ? { provider: "takeat_import", status: "active", display_name: "Takeat · importação", external_account_ref: null, last_success_at: new Date().toISOString(), last_error: null } : null, scopes: connected ? ["products:read", "inputs:read", "clube:read"] : [], auth: { current: "api_key_exchange", recommended_for_saas: "oauth_pkce", client_id_configured: false } }));
+    return route.fulfill(json({ ok: true, version: "7.0.1", provider: "takeat_import", connection: connected ? { provider: "takeat_import", status: "active", display_name: "Takeat · importação", external_account_ref: null, last_success_at: new Date().toISOString(), last_error: null } : null, scopes: connected ? ["products:read", "inputs:read", "clube:read"] : [], auth: { current: "api_key_exchange", recommended_for_saas: "oauth_pkce", client_id_configured: false } }));
   }
   if (req.method() === "POST" && path.endsWith("/businesses/1/takeat/connect")) {
     connectBody = req.postDataJSON();
@@ -91,11 +91,11 @@ await page.route("**/cozinha360-migration-v70/**", async (route) => {
   if (req.method() === "POST" && path.endsWith("/businesses/1/takeat/apply")) {
     const body = req.postDataJSON();
     applyBodies.push(body);
-    return route.fulfill(json({ ok: true, result: { products: { created: body.products ? 10 : 0, skipped: body.products ? 2 : 0 }, inputs: { created: body.inputs ? 7 : 0, skipped: body.inputs ? 1 : 0 }, customers: { created: body.customers ? 31 : 0, skipped: body.customers ? 3 : 0, consent_reset: body.customers ? 31 : 0 } }, review_required: { product_channel_prices: Boolean(body.products), customer_marketing_consent: Boolean(body.customers), unknown_fields_not_imported: true } }));
+    return route.fulfill(json({ ok: true, result: { products: { created: body.products ? 10 : 0, skipped: body.products ? 2 : 0 }, inputs: { created: body.inputs ? 6 : 0, skipped: body.inputs ? 1 : 0, review: body.inputs ? 1 : 0 }, customers: { created: body.customers ? 31 : 0, skipped: body.customers ? 3 : 0, consent_reset: body.customers ? 31 : 0 } }, review_required: { product_channel_prices: Boolean(body.products), customer_marketing_consent: Boolean(body.customers), invalid_input_numbers: body.inputs ? 1 : 0, unknown_fields_not_imported: true } }));
   }
   if (req.method() === "DELETE" && path.endsWith("/businesses/1/takeat")) {
     connected = false;
-    return route.fulfill(json({ ok: true, connection: { provider: "takeat_import", status: "inactive" } }));
+    return route.fulfill(json({ ok: true, connection: { provider: "takeat_import", status: "inactive" }, local_tokens_removed: true, remote_revoke: { required: true, action: "revoke_api_key_in_takeat_ai_builders" } }));
   }
   return route.fulfill(json({ detail: `migration mock route not found: ${req.method()} ${path}` }, 404));
 });
@@ -113,7 +113,8 @@ try {
   await studio.getByRole("button", { name: "Autorizar e ler minha operação", exact: true }).click();
   await studio.getByText("Leitura concluída. Nada foi gravado ainda.", { exact: true }).waitFor({ timeout: 10000 });
   if (!connectBody || connectBody.api_key !== migrationKey) throw new Error(`one-time Takeat key was not sent to connect endpoint: ${JSON.stringify(connectBody)}`);
-  if ((await keyInput.inputValue()) !== "") throw new Error("Takeat API key remained in the form after authorization");
+  await keyInput.waitFor({ state: "detached", timeout: 5000 });
+  if (await studio.getByLabel("Chave Takeat").count()) throw new Error("Takeat API key field remained in the DOM after authorization");
   const persistedSecrets = await page.evaluate(() => [...Object.entries(localStorage), ...Object.entries(sessionStorage)].map(([key, value]) => `${key}:${value}`).join("\n"));
   if (persistedSecrets.includes("tk_test_browser_e2e_migration_key")) throw new Error("Takeat API key leaked into browser storage");
 
@@ -158,7 +159,7 @@ try {
   if (!box || box.x < 0 || box.width > 390) throw new Error(`Migration Studio overflows mobile viewport: ${JSON.stringify(box)}`);
 
   await page.screenshot({ path: "/tmp/cozinha360-migration-studio-v70.png", fullPage: true });
-  console.log("Migration Studio v7.0 keeps Takeat key ephemeral, previews first, and requires explicit customer import consent reset");
+  console.log("Migration Studio v7.0.1 keeps Takeat key ephemeral, previews first, surfaces invalid inputs, and requires explicit customer import consent reset");
 } catch (error) {
   await page.screenshot({ path: "/tmp/cozinha360-migration-studio-v70-failure.png", fullPage: true }).catch(() => {});
   console.error(error);
