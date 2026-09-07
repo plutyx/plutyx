@@ -55,9 +55,10 @@ try {
   const flow = page.locator("[data-living-operation-flow]");
   await flow.getByRole("heading", { name: "Veja sua operação respirar.", exact: true }).waitFor({ timeout: 15000 });
   await flow.getByText("1 CONEXÕES NA ROTA", { exact: true }).waitFor();
-  await flow.getByText("Mercado Pago", { exact: true }).waitFor();
 
-  if (await flow.getByText("WhatsApp", { exact: true }).count()) {
+  const selectedRoute = flow.getByRole("complementary").filter({ hasText: "CONEXÕES QUE VOCÊ ESCOLHEU" });
+  await selectedRoute.getByText("Mercado Pago", { exact: true }).waitFor();
+  if (await selectedRoute.getByText("WhatsApp", { exact: true }).count()) {
     throw new Error("living flow surfaced a provider the user did not choose");
   }
 
