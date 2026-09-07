@@ -99,6 +99,11 @@ try {
   await page.goto("http://127.0.0.1:5173/?connections=1", { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Conecte sua operação, não APIs.", exact: true }).waitFor({ timeout: 15000 });
 
+  const operatorExperience = page.locator('[data-operator-experience="v6.0"]');
+  await operatorExperience.waitFor({ state: "attached", timeout: 10000 });
+  const operatorState = await page.evaluate(() => document.documentElement.dataset.c360Operator);
+  if (operatorState !== "1") throw new Error("operator experience v6.0 was not activated for authenticated app");
+
   const mission = page.locator("[data-connection-mission-control]");
   await mission.getByText("MISSION CONTROL", { exact: true }).waitFor({ timeout: 10000 });
   await mission.getByText("2 ATIVAS", { exact: true }).waitFor();
@@ -128,8 +133,16 @@ try {
     return top >= -200 && top <= 1100;
   }, undefined, { timeout: 2500 });
 
+  await mission.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => {
+    const node = document.querySelector('[data-connection-mission-control]');
+    if (!node) return false;
+    const rect = node.getBoundingClientRect();
+    return rect.bottom > 0 && rect.top < window.innerHeight;
+  });
   const beforeFuture = await page.evaluate(() => window.scrollY);
   await future.click();
+  await page.waitForTimeout(160);
   const afterFuture = await page.evaluate(() => window.scrollY);
   if (Math.abs(afterFuture - beforeFuture) > 40) {
     throw new Error("future partner priority attempted to navigate to an executable connector card");
@@ -144,7 +157,7 @@ try {
   if (local.intent?.providers?.includes("99food")) throw new Error("future priority leaked into executable connection intent");
 
   await page.screenshot({ path: "/tmp/cozinha360-connection-mission-control.png", fullPage: true });
-  console.log("Mission Control maps live/ready/degraded/platform/future states without auto-authorization");
+  console.log("Mission Control + operator experience v6.0 map live/ready/degraded/platform/future states without auto-authorization");
 } catch (error) {
   await page.screenshot({ path: "/tmp/cozinha360-connection-mission-control-failure.png", fullPage: true }).catch(() => {});
   console.error(error);
