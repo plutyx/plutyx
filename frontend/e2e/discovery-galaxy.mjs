@@ -52,8 +52,19 @@ try {
     .getByRole("heading", { name: "Sua rota acende só o que precisa.", exact: true })
     .waitFor({ timeout: 15000 });
   await restoredGalaxy.getByText("2/5", { exact: true }).waitFor();
+
+  // Persistence is global to the constellation, while the detail panel intentionally
+  // reopens on its default node. Re-select the planned provider before asserting its CTA.
+  await restoredGalaxy.getByRole("button", { name: /Mercado Pago/ }).click();
   await restoredGalaxy.locator("aside").getByText("Mercado Pago", { exact: true }).waitFor();
   await restoredGalaxy.locator("aside").getByRole("button", { name: /Remover da minha rota/ }).waitFor();
+
+  const restoredIntent = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("c360_discovery_connection_intent") || "null"),
+  );
+  if (!restoredIntent?.providers?.includes("mercadopago") || !restoredIntent?.providers?.includes("ifood")) {
+    throw new Error(`connection intent was not restored after reload: ${JSON.stringify(restoredIntent)}`);
+  }
 
   console.log("discovery connection galaxy + explicit intent persistence ok");
 } catch (error) {
