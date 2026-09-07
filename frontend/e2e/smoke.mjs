@@ -67,20 +67,37 @@ try {
     fullPage: false,
   });
   await page.getByRole("button", { name: /Começar a leitura/ }).click();
-  await page.getByRole("button", { name: /Crescendo com atrito/ }).click();
-  await page.getByRole("button", { name: "Continuar", exact: true }).click();
-  await page.getByRole("button", { name: /Margem/ }).click();
-  await page.getByRole("button", { name: "Continuar", exact: true }).click();
-  await page.getByRole("button", { name: /Proteger o lucro/ }).click();
-  await page.getByRole("button", { name: /Revelar minha rota/ }).click();
-  await page
+
+  // A home possui uma constelação interativa com rótulos repetidos (ex.: Margem).
+  // O percurso deve interagir somente com o mapa de diagnóstico para manter o teste
+  // semântico e resiliente à expansão visual das demais seções da página.
+  const discoveryJourney = page.locator("#mapa-da-operacao");
+  await discoveryJourney
+    .getByRole("button", { name: /Crescendo com atrito/ })
+    .click();
+  await discoveryJourney
+    .getByRole("button", { name: "Continuar", exact: true })
+    .click();
+  await discoveryJourney.getByRole("button", { name: /Margem/ }).click();
+  await discoveryJourney
+    .getByRole("button", { name: "Continuar", exact: true })
+    .click();
+  await discoveryJourney
+    .getByRole("button", { name: /Proteger o lucro/ })
+    .click();
+  await discoveryJourney
+    .getByRole("button", { name: /Revelar minha rota/ })
+    .click();
+  await discoveryJourney
     .getByRole("heading", { name: "Margem consciente", exact: true })
     .waitFor();
   await page.screenshot({
     path: "/tmp/cozinha360-discovery-route.png",
     fullPage: false,
   });
-  await page.getByRole("button", { name: /Levar esta rota comigo/ }).click();
+  await discoveryJourney
+    .getByRole("button", { name: /Levar esta rota comigo/ })
+    .click();
   await page.getByRole("dialog").waitFor();
   await page
     .getByRole("heading", {
