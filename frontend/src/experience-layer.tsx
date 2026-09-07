@@ -25,7 +25,7 @@ const capabilityItems = [
 ];
 
 export function ExperienceLayer() {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = Boolean(useReducedMotion());
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, {
     stiffness: 120,
@@ -102,7 +102,7 @@ export function KitchenOrb({
 }: KitchenOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = Boolean(useReducedMotion());
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -115,6 +115,8 @@ export function KitchenOrb({
     let intersectionObserver: IntersectionObserver | undefined;
     let cleanupScene = () => {};
     let sceneStarted = false;
+    let nearViewport = !("IntersectionObserver" in window);
+    let syncSceneVisibility: (() => void) | undefined;
 
     const startScene = () => {
       if (sceneStarted || disposed) return;
@@ -122,22 +124,29 @@ export function KitchenOrb({
       void import("three")
         .then((THREE) => {
           if (disposed) return;
+
+          const smallViewport = window.matchMedia("(max-width: 760px)").matches;
           const scene = new THREE.Scene();
           const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
           camera.position.set(0, 0, compact ? 5.5 : 5);
           const renderer = new THREE.WebGLRenderer({
             canvas,
             alpha: true,
-            antialias: true,
+            antialias: !smallViewport,
             powerPreference: "high-performance",
           });
-          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+          renderer.setPixelRatio(
+            Math.min(window.devicePixelRatio, smallViewport ? 1.2 : 1.6),
+          );
           renderer.outputColorSpace = THREE.SRGBColorSpace;
 
           const group = new THREE.Group();
           scene.add(group);
           const core = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(compact ? 1.03 : 1.15, 5),
+            new THREE.IcosahedronGeometry(
+              compact ? 1.03 : 1.15,
+              smallViewport ? 3 : 5,
+            ),
             new THREE.MeshPhysicalMaterial({
               color: 0x151d2b,
               emissive: 0x2b173d,
@@ -150,7 +159,12 @@ export function KitchenOrb({
           );
           group.add(core);
           const ring = new THREE.Mesh(
-            new THREE.TorusGeometry(compact ? 1.5 : 1.68, 0.018, 12, 150),
+            new THREE.TorusGeometry(
+              compact ? 1.5 : 1.68,
+              0.018,
+              12,
+              smallViewport ? 90 : 150,
+            ),
             new THREE.MeshBasicMaterial({
               color: 0xffbd59,
               transparent: true,
@@ -160,7 +174,12 @@ export function KitchenOrb({
           ring.rotation.set(1.1, 0.15, 0.3);
           group.add(ring);
           const ringTwo = new THREE.Mesh(
-            new THREE.TorusGeometry(compact ? 1.28 : 1.43, 0.01, 10, 120),
+            new THREE.TorusGeometry(
+              compact ? 1.28 : 1.43,
+              0.01,
+              10,
+              smallViewport ? 72 : 120,
+            ),
             new THREE.MeshBasicMaterial({
               color: 0x6ee7c7,
               transparent: true,
@@ -171,7 +190,7 @@ export function KitchenOrb({
           group.add(ringTwo);
 
           const pointsGeometry = new THREE.BufferGeometry();
-          const pointCount = compact ? 90 : 150;
+          const pointCount = smallViewport ? 64 : compact ? 90 : 150;
           const positions = new Float32Array(pointCount * 3);
           for (let i = 0; i < pointCount; i += 1) {
             const radius = 1.85 + Math.random() * 0.72;
@@ -214,7 +233,8 @@ export function KitchenOrb({
               0.55;
           };
           if (!reduceMotion)
-            host.addEventListener("pointermove", onPointerMove);
+            host.addEventListener("pointermove", onPointerMove, { passive: true });
+
           const resize = () => {
             const width = Math.max(host.clientWidth, 1);
             const height = Math.max(host.clientHeight, 1);
@@ -228,8 +248,9 @@ export function KitchenOrb({
           resize();
 
           const startedAt = performance.now();
+          let running = false;
           const render = (now: number) => {
-            if (disposed) return;
+            if (disposed || !running) return;
             const elapsed = (now - startedAt) / 1000;
             group.rotation.y += (pointer.x - group.rotation.y) * 0.025;
             group.rotation.x += (-pointer.y - group.rotation.x) * 0.025;
@@ -241,9 +262,31 @@ export function KitchenOrb({
             renderer.render(scene, camera);
             animationFrame = window.requestAnimationFrame(render);
           };
-          if (!reduceMotion)
-            animationFrame = window.requestAnimationFrame(render);
+          const syncAnimation = () => {
+            if (reduceMotion) {
+              running = false;
+              window.cancelAnimationFrame(animationFrame);
+              renderer.render(scene, camera);
+              return;
+            }
+            const shouldRun =
+              nearViewport && document.visibilityState === "visible";
+            if (shouldRun && !running) {
+              running = true;
+              animationFrame = window.requestAnimationFrame(render);
+            } else if (!shouldRun && running) {
+              running = false;
+              window.cancelAnimationFrame(animationFrame);
+            }
+          };
+          const onVisibilityChange = () => syncAnimation();
+          document.addEventListener("visibilitychange", onVisibilityChange);
+          syncSceneVisibility = syncAnimation;
+          syncAnimation();
+
           cleanupScene = () => {
+            running = false;
+            document.removeEventListener("visibilitychange", onVisibilityChange);
             host.removeEventListener("pointermove", onPointerMove);
             resizeObserver?.disconnect();
             window.cancelAnimationFrame(animationFrame);
@@ -266,11 +309,11 @@ export function KitchenOrb({
     if ("IntersectionObserver" in window) {
       intersectionObserver = new IntersectionObserver(
         ([entry]) => {
-          if (!entry.isIntersecting) return;
-          startScene();
-          intersectionObserver?.disconnect();
+          nearViewport = entry.isIntersecting;
+          if (nearViewport) startScene();
+          syncSceneVisibility?.();
         },
-        { rootMargin: "240px 0px" },
+        { rootMargin: "180px 0px" },
       );
       intersectionObserver.observe(host);
     } else {
@@ -300,10 +343,15 @@ export function KitchenOrb({
       />
       <div className="pointer-events-none absolute inset-x-4 bottom-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-[0.68rem] font-bold tracking-[0.14em] text-white/65 backdrop-blur-xl">
         <span className="flex items-center gap-2">
-          <i className="size-1.5 animate-pulse rounded-full bg-c360-mint shadow-[0_0_12px_rgba(110,231,199,.95)]" />
+          <i
+            className={
+              "size-1.5 rounded-full bg-c360-mint shadow-[0_0_12px_rgba(110,231,199,.95)] " +
+              (reduceMotion ? "" : "animate-pulse")
+            }
+          />
           NÚCLEO 360
         </span>
-        <span>INTERATIVO</span>
+        <span>{reduceMotion ? "ESTÁTICO" : "INTERATIVO"}</span>
       </div>
     </div>
   );
@@ -339,11 +387,17 @@ export function ScrollRevealText({
   className?: string;
 }) {
   const ref = useRef<HTMLParagraphElement>(null);
+  const reduceMotion = Boolean(useReducedMotion());
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start 92%", "end 44%"],
   });
   const words = children.split(" ");
+
+  if (reduceMotion) {
+    return <p className={"scroll-reveal-text " + className}>{children}</p>;
+  }
+
   return (
     <p ref={ref} className={"scroll-reveal-text " + className}>
       {words.map((word, index) => (
@@ -360,6 +414,7 @@ export function ScrollRevealText({
 }
 
 export function StickyCapabilityStack() {
+  const reduceMotion = Boolean(useReducedMotion());
   const cards = [
     {
       icon: <ShoppingBag />,
@@ -394,9 +449,11 @@ export function StickyCapabilityStack() {
             " sticky overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.055] p-5 backdrop-blur-2xl"
           }
           style={{ top: 1.5 + index + "rem" }}
-          initial={{ opacity: 0.45, y: 44, scale: 0.94 }}
-          whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ amount: 0.35 }}
+          initial={
+            reduceMotion ? false : { opacity: 0.45, y: 44, scale: 0.94 }
+          }
+          whileInView={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
+          viewport={{ amount: 0.35, once: true }}
           transition={{ type: "spring", stiffness: 160, damping: 24 }}
         >
           <div className="flex items-start justify-between gap-5">
