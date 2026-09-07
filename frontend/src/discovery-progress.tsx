@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import { Compass, Eye, Map, Radar, Sparkles } from "lucide-react";
+import { Activity, Compass, Eye, Map, PlugZap, Radar } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 
 type Step = {
@@ -19,10 +19,16 @@ const steps: Step[] = [
   },
   { id: "mapear", label: "Mapear", selector: "#mapa-da-operacao", icon: Map },
   {
-    id: "visualizar",
-    label: "Visualizar",
-    selector: ".solution-section",
-    icon: Sparkles,
+    id: "conectar",
+    label: "Conectar",
+    selector: "[data-plug-play-galaxy-host] section",
+    icon: PlugZap,
+  },
+  {
+    id: "simular",
+    label: "Simular",
+    selector: "[data-living-operation-flow]",
+    icon: Activity,
   },
   { id: "decidir", label: "Decidir", selector: ".future-section", icon: Compass },
 ];
@@ -92,7 +98,7 @@ export function DiscoveryProgressRail() {
   return (
     <motion.nav
       aria-label="Progresso da experiência"
-      className="pointer-events-none fixed bottom-5 left-1/2 z-[80] w-[min(34rem,calc(100%-1.5rem))] -translate-x-1/2 md:bottom-auto md:left-5 md:top-1/2 md:w-auto md:translate-x-0 md:-translate-y-1/2"
+      className="pointer-events-none fixed bottom-5 left-1/2 z-[80] w-[min(38rem,calc(100%-1.5rem))] -translate-x-1/2 md:bottom-auto md:left-5 md:top-1/2 md:w-auto md:translate-x-0 md:-translate-y-1/2"
       initial={false}
       animate={{ opacity: visible ? 1 : 0, y: visible ? 0 : 12 }}
       transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 180, damping: 24 }}
@@ -120,7 +126,7 @@ export function DiscoveryProgressRail() {
               onClick={() => goTo(step)}
               aria-current={isActive ? "step" : undefined}
               aria-label={`Ir para ${step.label}`}
-              className={`group relative z-10 grid size-10 place-items-center rounded-[.9rem] border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 md:size-11 ${
+              className={`group relative z-10 grid size-9 place-items-center rounded-[.82rem] border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 sm:size-10 md:size-11 ${
                 isActive
                   ? "border-emerald-100/25 bg-emerald-100 text-slate-950 shadow-[0_0_34px_rgba(110,231,199,.16)]"
                   : done
@@ -131,7 +137,7 @@ export function DiscoveryProgressRail() {
               whileTap={reduceMotion ? undefined : { scale: 0.94 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
             >
-              <Icon size={16} />
+              <Icon size={15} />
               <span className="pointer-events-none absolute bottom-[calc(100%+.5rem)] left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-slate-950/90 px-2 py-1 text-[.58rem] font-black tracking-[.08em] text-white/75 shadow-xl backdrop-blur-xl group-hover:block md:bottom-auto md:left-[calc(100%+.65rem)] md:top-1/2 md:translate-x-0 md:-translate-y-1/2">
                 {step.label}
               </span>
