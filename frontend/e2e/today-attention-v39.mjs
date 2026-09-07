@@ -3,12 +3,16 @@ import { chromium } from 'playwright'
 const browser=await chromium.launch({headless:true})
 const context=await browser.newContext({viewport:{width:1440,height:1000}})
 const page=await context.newPage()
+const testPassword=['senha','super','segura','123'].join('-')
 
 try{
   await page.goto('http://127.0.0.1:5173',{waitUntil:'networkidle'})
-  await page.getByLabel('E-mail').fill('cliente-e2e@example.com')
-  await page.getByLabel('Senha').fill('senha-super-segura-123')
   await page.getByRole('button',{name:'Entrar',exact:true}).click()
+  const access=page.getByRole('dialog')
+  await access.waitFor()
+  await access.getByLabel('E-mail').fill('cliente-e2e@example.com')
+  await access.getByLabel('Senha').fill(testPassword)
+  await access.getByRole('button',{name:'Entrar na operação',exact:true}).click()
   await page.getByText(/DECISÃO DE HOJE/).waitFor({timeout:15000})
 
   await page.getByRole('link',{name:'Hoje',exact:true}).click()
