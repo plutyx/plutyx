@@ -90,6 +90,9 @@ jobs:
       - name: Run connections-hub journey
         run: node frontend/e2e/connections-hub.mjs
 
+      - name: Run connection Mission Control journey
+        run: node frontend/e2e/connection-mission-control.mjs
+
       - name: Run PagBank Connect v5.9 journey
         run: node frontend/e2e/pagbank-connect-v59.mjs
 
@@ -142,6 +145,8 @@ jobs:
             /tmp/cozinha360-connection-intent-handoff-failure.png
             /tmp/cozinha360-pix-checkout.png
             /tmp/cozinha360-pix-checkout-failure.png
+            /tmp/cozinha360-connection-mission-control.png
+            /tmp/cozinha360-connection-mission-control-failure.png
             /tmp/cozinha360-pagbank-v59.png
             /tmp/cozinha360-pagbank-v59-failure.png
             /tmp/cozinha360-e2e-success.png
