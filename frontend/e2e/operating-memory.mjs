@@ -37,8 +37,17 @@ try{
 
   await page.evaluate(key=>localStorage.removeItem(key),key)
   if(await page.evaluate(key=>localStorage.getItem(key),key)!==null)throw new Error('local cache was not cleared')
-  await page.reload({waitUntil:'networkidle'})
+
+  // The app intentionally has background portals/readers after boot, so "networkidle"
+  // is not a reliable product-ready signal. Wait for DOM + the real workspace + the
+  // memory value itself to be hydrated from the server instead.
+  await page.reload({waitUntil:'domcontentloaded',timeout:15000})
   await page.getByText(/DECISÃO DE HOJE/).waitFor({timeout:15000})
+  await page.waitForFunction(({key})=>{
+    const raw=localStorage.getItem(key)
+    if(!raw)return false
+    try{return JSON.parse(raw).metrics?.clicks==='42'}catch{return false}
+  },{key},{timeout:15000})
   const restored=await page.evaluate(key=>localStorage.getItem(key),key)
   if(!restored||JSON.parse(restored).metrics?.clicks!=='42')throw new Error(`server memory was not hydrated: ${restored}`)
 
