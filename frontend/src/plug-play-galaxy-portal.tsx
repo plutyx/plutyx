@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
+import { EcosystemExpansionOrbit } from "./ecosystem-expansion-orbit";
 import { GalaxyReadinessCoach } from "./galaxy-readiness-coach";
 import { PlugPlayGalaxy } from "./plug-play-galaxy";
 
@@ -47,6 +48,7 @@ export function PlugPlayGalaxyPortal() {
         <>
           <PlugPlayGalaxy />
           <GalaxyReadinessCoach />
+          <EcosystemExpansionOrbit />
         </>,
         host,
       )
