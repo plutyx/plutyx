@@ -164,8 +164,9 @@ try {
     if (state !== "done") throw new Error(`integration mission ${key} did not derive real completion: ${state}`);
   }
 
-  await path.getByText(/R\$\s*32,00 de receita/).waitFor();
-  await path.getByText(/R\$\s*14,00 de contribuição/).waitFor();
+  const resultSummary = path.getByRole("paragraph").filter({ hasText: /R\$\s*32,00 de receita/ });
+  await resultSummary.waitFor();
+  await resultSummary.filter({ hasText: /R\$\s*14,00 de contribuição/ }).waitFor();
 
   const cycle = page.locator("[data-operational-cycle-v61]");
   await cycle.getByRole("button", { name: "Abrir fluxo vivo da operação" }).waitFor();
