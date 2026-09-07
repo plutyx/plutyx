@@ -113,15 +113,15 @@ function focusRecipeIngredient(ingredient: Ingredient, reduced: boolean) {
   }
 }
 
-function ProductCompositionMap({ businessId, product, ingredients, revision }: {
+function ProductCompositionMap({ businessId, product, revision }: {
   businessId: number;
   product: Product;
-  ingredients: Ingredient[];
   revision: number;
 }) {
   const reduced = Boolean(useReducedMotion());
   const token = localStorage.getItem("c360_token") || "";
   const [recipe, setRecipe] = useState<RecipeRow[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [cost, setCost] = useState<CostPreview | null>(null);
   const [costError, setCostError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -133,9 +133,13 @@ function ProductCompositionMap({ businessId, product, ingredients, revision }: {
     setBusy(true);
     setCostError("");
     try {
-      const raw = await request(`/businesses/${businessId}/products/${product.id}/recipe`, {}, token);
+      const [rawRecipe, rawIngredients] = await Promise.all([
+        request(`/businesses/${businessId}/products/${product.id}/recipe`, {}, token),
+        request(`/businesses/${businessId}/ingredients`, {}, token),
+      ]);
       if (id !== requestId.current) return;
-      setRecipe(Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : []);
+      setRecipe(Array.isArray(rawRecipe) ? rawRecipe : Array.isArray(rawRecipe?.items) ? rawRecipe.items : []);
+      setIngredients(Array.isArray(rawIngredients) ? rawIngredients as Ingredient[] : []);
       try {
         const next = await intelligenceRequest(`/businesses/${businessId}/products/${product.id}/cost-preview`, {}, token) as CostPreview;
         if (id !== requestId.current) return;
@@ -148,6 +152,7 @@ function ProductCompositionMap({ businessId, product, ingredients, revision }: {
     } catch {
       if (id === requestId.current) {
         setRecipe([]);
+        setIngredients([]);
         setCost(null);
         setCostError("Não foi possível ler esta ficha agora.");
       }
@@ -338,7 +343,7 @@ function ProductCompositionMap({ businessId, product, ingredients, revision }: {
 
       <footer className="pc71-foot">
         <span><BadgeDollarSign size={12} /> Custo calculado no servidor a partir da ficha e dos custos cadastrados.</span>
-        <span><Package size={12} /> Estoque lido da operação atual; nenhum valor é salvo por este mapa.</span>
+        <span><Package size={12} /> Estoque relido da operação ao atualizar; nenhum valor é salvo por este mapa.</span>
       </footer>
     </section>
   );
@@ -359,7 +364,6 @@ export function ProductCompositionPortal() {
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [businessId, setBusinessId] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
   const [revision, setRevision] = useState(0);
   const dataRef = useRef({ products: [] as Product[], businessId: 0 });
@@ -382,24 +386,21 @@ export function ProductCompositionPortal() {
           const me = await request("/me", {}, token);
           if (cancelled) return;
           tenantOptionsRef.current = Array.isArray(me.businesses)
-            ? me.businesses.map((item: TenantOption) => ({ id: Number(item.id), name: String(item.name || "") })).filter((item: TenantOption) => item.id > 0)
+            ? me.businesses
+              .map((item: TenantOption) => ({ id: Number(item.id), name: String(item.name || "") }))
+              .filter((item: TenantOption) => item.id > 0)
             : [];
         }
         const active = visibleTenant(tenantOptionsRef.current);
         if (!active || cancelled) return;
         if (!force && dataRef.current.businessId === active.id && dataRef.current.products.length) return;
         const requestId = ++tenantRequestRef.current;
-        const [nextProducts, nextIngredients] = await Promise.all([
-          request(`/businesses/${active.id}/products`, {}, token),
-          request(`/businesses/${active.id}/ingredients`, {}, token),
-        ]);
+        const nextProducts = await request(`/businesses/${active.id}/products`, {}, token);
         if (cancelled || requestId !== tenantRequestRef.current) return;
         const productRows = Array.isArray(nextProducts) ? nextProducts as Product[] : [];
-        const ingredientRows = Array.isArray(nextIngredients) ? nextIngredients as Ingredient[] : [];
         dataRef.current = { products: productRows, businessId: active.id };
         setBusinessId(active.id);
         setProducts(productRows);
-        setIngredients(ingredientRows);
         sync(false);
       } catch {
         // The primary Products editor remains usable if the visual map cannot resolve data.
@@ -431,7 +432,6 @@ export function ProductCompositionPortal() {
           const next = resolveProduct(panel);
           if (next) setProduct(next);
           setRevision((value) => value + 1);
-          void loadTenant(true);
         }, 120);
       });
       panelObserver.observe(panel, { childList: true, subtree: true, characterData: true });
@@ -502,5 +502,5 @@ export function ProductCompositionPortal() {
   }, [products, businessId]);
 
   if (!host || !businessId || !product) return null;
-  return createPortal(<ProductCompositionMap businessId={businessId} product={product} ingredients={ingredients} revision={revision} />, host);
+  return createPortal(<ProductCompositionMap businessId={businessId} product={product} revision={revision} />, host);
 }
