@@ -1,3 +1,5 @@
+-- C360_SUPABASE_PLATFORM_ONLY
+-- Requires Supabase pg_cron, pg_net and Vault. Domain migrations remain portable PostgreSQL.
 begin;
 
 create extension if not exists pg_cron;
