@@ -60,6 +60,9 @@ jobs:
       - name: Run browser customer journey
         run: node frontend/e2e/smoke.mjs
 
+      - name: Run progressive Pix checkout journey
+        run: node frontend/e2e/pix-checkout-experience.mjs
+
       - name: Run discovery connection galaxy journey
         run: node frontend/e2e/discovery-galaxy.mjs
 
@@ -124,6 +127,8 @@ jobs:
             /tmp/cozinha360-discovery-galaxy-failure.png
             /tmp/cozinha360-connection-intent-handoff.png
             /tmp/cozinha360-connection-intent-handoff-failure.png
+            /tmp/cozinha360-pix-checkout.png
+            /tmp/cozinha360-pix-checkout-failure.png
             /tmp/cozinha360-e2e-success.png
             /tmp/cozinha360-e2e-failure.png
             /tmp/cozinha360-inventory-drawer.png
