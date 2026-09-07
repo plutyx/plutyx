@@ -27,6 +27,7 @@ import "./inventory-editor.css";
 import "./module-flow-v183.css";
 import "./kitchen-batch.css";
 import "./kds-sla-v54.css";
+import "./kitchen-control-room-v63.css";
 import "./system360.css";
 import "./shell-v20.css";
 import "./playbook-lab.css";
