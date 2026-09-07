@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { request } from "./app";
 import { ConnectionActivationQueue } from "./connection-activation-queue";
 import { ConnectionsHubRoute } from "./connections-hub";
+import { PagBankConnectionCardPortal } from "./pagbank-connection-card";
 
 type ProviderId = "whatsapp" | "ifood" | "mercadopago" | "google" | "meta_ads";
 type Intent = { providers: ProviderId[]; signal?: string; updated_at?: string };
@@ -145,6 +146,7 @@ export function PersonalizedConnectionsRoute() {
     <>
       {hasIntent && <ConnectionActivationQueue restored={restored} />}
       <ConnectionsHubRoute />
+      <PagBankConnectionCardPortal />
     </>
   );
 }
