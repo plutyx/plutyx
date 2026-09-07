@@ -8,7 +8,7 @@ function releaseIdentity(): Plugin {
     closeBundle() {
       const commit = process.env.RENDER_GIT_COMMIT || process.env.GITHUB_SHA || 'local'
       const payload = {
-        release: '5.0.0',
+        release: '5.2.0',
         commit,
         built_at: new Date().toISOString(),
         provider: process.env.RENDER ? 'render' : process.env.GITHUB_ACTIONS ? 'github-actions' : 'local',
