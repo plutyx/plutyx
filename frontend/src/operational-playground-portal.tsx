@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { DiscoveryProgressRail } from "./discovery-progress";
 import { OperationalPlayground } from "./operational-playground";
 import "./discovery-upgrade.css";
 
@@ -89,28 +90,31 @@ export function DiscoveryPlaygroundPortal() {
 
   if (!host) return null;
   return createPortal(
-    <OperationalPlayground
-      onContinue={() => {
-        try {
-          const current = JSON.parse(
-            localStorage.getItem("c360_discovery_exploration") || "{}",
-          );
-          localStorage.setItem(
-            "c360_discovery_exploration",
-            JSON.stringify({
-              ...current,
-              continued_to_map: true,
-              continued_at: new Date().toISOString(),
-            }),
-          );
-        } catch {
-          // The journey does not depend on storage.
-        }
-        document
-          .getElementById("mapa-da-operacao")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }}
-    />,
+    <>
+      <OperationalPlayground
+        onContinue={() => {
+          try {
+            const current = JSON.parse(
+              localStorage.getItem("c360_discovery_exploration") || "{}",
+            );
+            localStorage.setItem(
+              "c360_discovery_exploration",
+              JSON.stringify({
+                ...current,
+                continued_to_map: true,
+                continued_at: new Date().toISOString(),
+              }),
+            );
+          } catch {
+            // The journey does not depend on storage.
+          }
+          document
+            .getElementById("mapa-da-operacao")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      />
+      <DiscoveryProgressRail />
+    </>,
     host,
   );
 }
