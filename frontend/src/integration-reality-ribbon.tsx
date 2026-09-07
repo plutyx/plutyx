@@ -87,7 +87,7 @@ export function IntegrationRealityRibbon() {
   return (
     <motion.section
       aria-label="Estado real das integrações escolhidas"
-      className="relative z-[3] mx-auto -mt-[clamp(3rem,5vw,5rem)] mb-[clamp(5rem,9vw,9rem)] w-[min(1360px,calc(100%-2rem))] overflow-hidden rounded-[2rem] border border-white/[0.08] bg-white/[0.035] p-4 shadow-[0_30px_100px_rgba(0,0,0,.24),inset_0_1px_rgba(255,255,255,.06)] backdrop-blur-3xl sm:p-5"
+      className="relative z-[4] mx-auto -mt-[clamp(5rem,8vw,7.5rem)] mb-[clamp(2rem,4vw,4rem)] w-[min(1360px,calc(100%-2rem))] overflow-hidden rounded-[2rem] border border-white/[0.08] bg-slate-950/55 p-4 shadow-[0_30px_100px_rgba(0,0,0,.24),inset_0_1px_rgba(255,255,255,.06)] backdrop-blur-3xl sm:p-5"
       initial={reduceMotion ? false : { opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.25 }}
@@ -154,22 +154,22 @@ export function IntegrationRealityRibbonPortal() {
 
   useEffect(() => {
     function syncHost() {
-      const anchor = document.querySelector<HTMLElement>("[data-living-operation-flow-host]");
+      const galaxyHost = document.querySelector<HTMLElement>("[data-plug-play-galaxy-host]");
       const existing = document.querySelector<HTMLElement>(`[${HOST_ATTRIBUTE}]`);
-      if (!anchor) {
+      if (!galaxyHost) {
         existing?.remove();
         setHost(null);
         return;
       }
       if (existing) {
-        if (existing.previousElementSibling !== anchor) anchor.insertAdjacentElement("afterend", existing);
+        if (existing.parentElement !== galaxyHost) galaxyHost.appendChild(existing);
         setHost(existing);
         return;
       }
       const next = document.createElement("div");
       next.setAttribute(HOST_ATTRIBUTE, "");
-      next.className = "relative z-[3]";
-      anchor.insertAdjacentElement("afterend", next);
+      next.className = "relative z-[4]";
+      galaxyHost.appendChild(next);
       setHost(next);
     }
 
