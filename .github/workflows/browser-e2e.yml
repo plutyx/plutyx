@@ -96,6 +96,9 @@ jobs:
       - name: Run Compras 360 v5.1 journey
         run: node frontend/e2e/purchases-360-v51.mjs
 
+      - name: Run Fornecedores 360 v5.2 journey
+        run: node frontend/e2e/suppliers-360-v52.mjs
+
       - name: Run safe offline order v5.0 journey
         run: node frontend/e2e/offline-order-v50.mjs
 
@@ -138,6 +141,9 @@ jobs:
             /tmp/cozinha360-purchases-v51.png
             /tmp/cozinha360-purchases-v51-mobile.png
             /tmp/cozinha360-purchases-v51-failure.png
+            /tmp/cozinha360-suppliers-v52.png
+            /tmp/cozinha360-suppliers-v52-mobile.png
+            /tmp/cozinha360-suppliers-v52-failure.png
             /tmp/cozinha360-offline-v50.png
             /tmp/cozinha360-offline-v50-failure.png
             /tmp/cozinha360-api.log
