@@ -27,6 +27,7 @@ import { OfflineQueueStatus } from './offline-status-v50'
 import { Network360Route } from './network-360-v50'
 import { SmartCMVRoute } from './smart-cmv-v50'
 import { Purchases360Route } from './purchases-360-v51'
+import { Suppliers360Route } from './suppliers-360-v52'
 import { prepareOperatingMemory } from './operating-memory'
 import './styles.css'
 import './market.css'
@@ -70,6 +71,7 @@ import './offline-status-v50.css'
 import './network-360-v50.css'
 import './smart-cmv-v50.css'
 import './purchases-360-v51.css'
+import './suppliers-360-v52.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
 function TabHashBridge(){
@@ -98,6 +100,7 @@ function Root(){
   if(params.get('network')==='1')return <OperatorRoute><Network360Route/></OperatorRoute>
   if(params.get('cmv')==='1')return <OperatorRoute><SmartCMVRoute/></OperatorRoute>
   if(params.get('purchases')==='1')return <OperatorRoute><Purchases360Route/></OperatorRoute>
+  if(params.get('suppliers')==='1')return <OperatorRoute><Suppliers360Route/></OperatorRoute>
   if(params.get('today')==='1')return <OperatorRoute><TodayAttentionRoute/></OperatorRoute>
   if(params.get('delivery')==='1')return <OperatorRoute><DeliveryOSMarketRoute/></OperatorRoute>
   if(params.get('quick')==='1')return <OperatorRoute><QuickOrderRoute/></OperatorRoute>
