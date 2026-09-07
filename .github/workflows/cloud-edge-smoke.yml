@@ -24,6 +24,7 @@ jobs:
       INTELLIGENCE_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50
       PURCHASES_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v53
       SUPPLIERS_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-suppliers-v52
+      KDS_EDGE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54
     steps:
       - name: Liveness
         run: |
@@ -110,3 +111,14 @@ jobs:
           status="$(curl --silent --output /tmp/suppliers-auth.json --write-out '%{http_code}' "$SUPPLIERS_EDGE/businesses/1/suppliers")"
           test "$status" = "401"
           python -c 'import json; x=json.load(open("/tmp/suppliers-auth.json")); assert x.get("detail")=="Sessão inválida"'
+      - name: KDS v5.4 SLA service is live and database-ready
+        run: |
+          live="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$KDS_EDGE/livez")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-kds-v54" and x["version"]=="5.4.0"' "$live"
+          ready="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$KDS_EDGE/readyz")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["database"]=="ready" and x["sla_columns"]=="ready" and x["version"]=="5.4.0"' "$ready"
+      - name: KDS tenant routes require auth
+        run: |
+          status="$(curl --silent --output /tmp/kds-auth.json --write-out '%{http_code}' "$KDS_EDGE/businesses/1/kds")"
+          test "$status" = "401"
+          python -c 'import json; x=json.load(open("/tmp/kds-auth.json")); assert x.get("detail")=="Sessão inválida"'
