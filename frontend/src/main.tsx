@@ -71,6 +71,7 @@ import './offline-status-v50.css'
 import './network-360-v50.css'
 import './smart-cmv-v50.css'
 import './purchases-360-v51.css'
+import './purchases-360-v53.css'
 import './suppliers-360-v52.css'
 
 const tabLabels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
