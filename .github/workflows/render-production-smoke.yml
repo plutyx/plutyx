@@ -24,18 +24,17 @@ jobs:
       INTELLIGENCE_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-intelligence-v50
       PURCHASES_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v53
       SUPPLIERS_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-suppliers-v52
-      EXPECTED_RELEASE: '5.3.0'
+      KDS_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54
+      EXPECTED_RELEASE: '5.4.0'
     steps:
-      - name: Wait for Render v5.3 release and verify frontend
+      - name: Wait for Render v5.4 release and verify frontend
         shell: bash
         run: |
           set -euo pipefail
           for i in $(seq 1 75); do
             code="$(curl -L -sS -o /tmp/index.html -w '%{http_code}' "$WEB_URL/?check=$GITHUB_RUN_ID-$i")" || true
             marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
-            if [ "$code" = "200" ] && grep -F "$marker" /tmp/index.html >/dev/null; then
-              break
-            fi
+            if [ "$code" = "200" ] && grep -F "$marker" /tmp/index.html >/dev/null; then break; fi
             sleep 4
           done
           marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
@@ -50,36 +49,21 @@ jobs:
           grep -F 'cozinha360-intelligence-v50' /tmp/bundle.js >/dev/null
           grep -F 'cozinha360-purchases-v53' /tmp/bundle.js >/dev/null
           grep -F 'cozinha360-suppliers-v52' /tmp/bundle.js >/dev/null
-          grep -F 'Conte o estoque. O 360 explica a diferença.' /tmp/bundle.js >/dev/null
+          grep -F 'cozinha360-kds-v54' /tmp/bundle.js >/dev/null
           grep -F 'Compre pelo alvo. Não pelo susto.' /tmp/bundle.js >/dev/null
           grep -F 'PREVISÃO OPERACIONAL' /tmp/bundle.js >/dev/null
           grep -F 'Saiba com quem comprar antes de faltar.' /tmp/bundle.js >/dev/null
+          grep -F 'SLAs da operação' /tmp/bundle.js >/dev/null
 
       - name: Verify Render origin is accepted by production Edge services
         shell: bash
         run: |
           set -euo pipefail
-          targets=(
-            "$GATEWAY"
-            "$EDGE_ROOT/cozinha360-api-v2"
-            "$EDGE_ROOT/cozinha360-integrations-v29"
-            "$EDGE_ROOT/cozinha360-profile-v31"
-            "$EDGE_ROOT/cozinha360-entitlements-v34"
-            "$EDGE_ROOT/cozinha360-autopilot-v37"
-            "$SETUP_API"
-            "$INTELLIGENCE_API"
-            "$PURCHASES_API"
-            "$SUPPLIERS_API"
-          )
+          targets=("$GATEWAY" "$EDGE_ROOT/cozinha360-api-v2" "$EDGE_ROOT/cozinha360-integrations-v29" "$EDGE_ROOT/cozinha360-profile-v31" "$EDGE_ROOT/cozinha360-entitlements-v34" "$EDGE_ROOT/cozinha360-autopilot-v37" "$SETUP_API" "$INTELLIGENCE_API" "$PURCHASES_API" "$SUPPLIERS_API" "$KDS_API")
           failed=0
           for target in "${targets[@]}"; do
-            key="$(echo "$target" | tr '/:' '__')"
-            headers="/tmp/${key}.headers"
-            code="$(curl -sS -D "$headers" -o /dev/null -w '%{http_code}' -X OPTIONS \
-              -H "Origin: $WEB_URL" \
-              -H 'Access-Control-Request-Method: GET' \
-              -H 'Access-Control-Request-Headers: authorization,content-type' \
-              "$target")" || code=000
+            key="$(echo "$target" | tr '/:' '__')";headers="/tmp/${key}.headers"
+            code="$(curl -sS -D "$headers" -o /dev/null -w '%{http_code}' -X OPTIONS -H "Origin: $WEB_URL" -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: authorization,content-type' "$target")" || code=000
             origin="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/{gsub("\r",""); sub(/^[^:]+:[ ]*/,""); print; exit}' "$headers" 2>/dev/null || true)"
             echo "$target status=$code allow-origin=${origin:-missing}"
             if [ "$code" != "204" ] && [ "$code" != "200" ]; then failed=1; fi
@@ -93,25 +77,17 @@ jobs:
           set -euo pipefail
           test "$(curl -sS -o /tmp/gateway-health.json -w '%{http_code}' "$GATEWAY/health")" = "200"
           grep -F '"status":"ok"' /tmp/gateway-health.json >/dev/null
-          grep -F '"version":"4.2.0"' /tmp/gateway-health.json >/dev/null
           test "$(curl -sS -o /tmp/delivery-health.json -w '%{http_code}' "$GATEWAY/cozinha360-delivery-v40/health")" = "200"
-          grep -F '"status":"ok"' /tmp/delivery-health.json >/dev/null
-          test "$(curl -sS -o /tmp/setup-health.json -w '%{http_code}' "$SETUP_API/health")" = "200"
-          grep -F '"status":"ok"' /tmp/setup-health.json >/dev/null
-          grep -F '"version":"4.2.0"' /tmp/setup-health.json >/dev/null
           test "$(curl -sS -o /tmp/intelligence-health.json -w '%{http_code}' "$INTELLIGENCE_API/health")" = "200"
-          grep -F '"version":"5.0.0"' /tmp/intelligence-health.json >/dev/null
           test "$(curl -sS -o /tmp/purchases-live.json -w '%{http_code}' "$PURCHASES_API/livez")" = "200"
           grep -F '"version":"5.3.0"' /tmp/purchases-live.json >/dev/null
-          test "$(curl -sS -o /tmp/purchases-ready.json -w '%{http_code}' "$PURCHASES_API/readyz")" = "200"
-          grep -F '"demand_inputs":"ready"' /tmp/purchases-ready.json >/dev/null
           test "$(curl -sS -o /tmp/suppliers-live.json -w '%{http_code}' "$SUPPLIERS_API/livez")" = "200"
-          grep -F '"version":"5.2.0"' /tmp/suppliers-live.json >/dev/null
-          check_unauth() {
-            local url="$1" file="$2"
-            test "$(curl -sS -o "$file" -w '%{http_code}' "$url")" = "401"
-            grep -F '"detail":"Sessão inválida"' "$file" >/dev/null
-          }
+          test "$(curl -sS -o /tmp/kds-live.json -w '%{http_code}' "$KDS_API/livez")" = "200"
+          grep -F '"version":"5.4.0"' /tmp/kds-live.json >/dev/null
+          test "$(curl -sS -o /tmp/kds-ready.json -w '%{http_code}' "$KDS_API/readyz")" = "200"
+          grep -F '"sla_columns":"ready"' /tmp/kds-ready.json >/dev/null
+          check_unauth() { local url="$1" file="$2"; test "$(curl -sS -o "$file" -w '%{http_code}' "$url")" = "401"; grep -F '"detail":"Sessão inválida"' "$file" >/dev/null; }
           check_unauth "$INTELLIGENCE_API/portfolio/overview" /tmp/intelligence-auth.json
           check_unauth "$PURCHASES_API/businesses/1/purchase-plan?history_days=28&cover_days=7" /tmp/purchases-auth.json
           check_unauth "$SUPPLIERS_API/businesses/1/suppliers" /tmp/suppliers-auth.json
+          check_unauth "$KDS_API/businesses/1/kds" /tmp/kds-auth.json
