@@ -2,6 +2,12 @@ name: netlify-production-deploy
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/netlify-production-deploy.yml'
+      - 'docs/NETLIFY_RELEASE.md'
 
 permissions:
   contents: read
