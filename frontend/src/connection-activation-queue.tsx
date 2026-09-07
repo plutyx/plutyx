@@ -40,6 +40,14 @@ const labels: Record<ProviderId, string> = {
   meta_ads: "Meta Ads",
 };
 
+const providerNeedles: Record<ProviderId, string[]> = {
+  whatsapp: ["WhatsApp Business", "WhatsApp"],
+  ifood: ["iFood"],
+  mercadopago: ["Mercado Pago", "Pix"],
+  google: ["Google Business", "Google"],
+  meta_ads: ["Meta Ads"],
+};
+
 const allowed = new Set<ProviderId>([
   "whatsapp",
   "ifood",
@@ -136,6 +144,29 @@ export function ConnectionActivationQueue({
     }
   }, [providers, queue, restored]);
 
+  function focusProvider(id: ProviderId) {
+    const cards = Array.from(document.querySelectorAll<HTMLElement>(".cx-card"));
+    const needles = providerNeedles[id];
+    const target = cards.find((card) => {
+      const title = card.querySelector("h2")?.textContent?.trim() || "";
+      return needles.some((needle) => title.toLowerCase().includes(needle.toLowerCase()));
+    });
+    if (!target) return;
+    target.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "center",
+    });
+    target.setAttribute("data-route-focus", id);
+    target.animate(
+      [
+        { boxShadow: "0 0 0 0 rgba(110,231,183,0)" },
+        { boxShadow: "0 0 0 3px rgba(110,231,183,.32), 0 0 54px rgba(110,231,183,.16)" },
+        { boxShadow: "0 0 0 0 rgba(110,231,183,0)" },
+      ],
+      { duration: reduceMotion ? 1 : 1300, easing: "ease-out" },
+    ).finished.finally(() => target.removeAttribute("data-route-focus"));
+  }
+
   if (!providers.length) return null;
 
   const ready = queue.filter((item) => item.platform_ready).length;
@@ -177,9 +208,13 @@ export function ConnectionActivationQueue({
               const isReady = item.platform_ready === true;
               const checking = item.platform_ready === null;
               return (
-                <motion.div
+                <motion.button
                   key={`${item.position}-${item.id}`}
-                  className={`relative flex min-w-[13rem] items-center gap-3 rounded-[1.35rem] border p-3.5 xl:min-w-0 ${
+                  type="button"
+                  data-activation-provider={item.id}
+                  aria-label={`Ver ${labels[item.id]} no Hub`}
+                  onClick={() => focusProvider(item.id)}
+                  className={`relative flex min-w-[13rem] items-center gap-3 rounded-[1.35rem] border p-3.5 text-left outline-none transition-colors focus-visible:border-emerald-100/35 focus-visible:ring-2 focus-visible:ring-emerald-200/20 xl:min-w-0 ${
                     isNext
                       ? "border-emerald-100/20 bg-emerald-200/[0.065] shadow-[0_0_38px_rgba(110,231,183,.08)]"
                       : isReady
@@ -188,6 +223,8 @@ export function ConnectionActivationQueue({
                   }`}
                   initial={reduceMotion ? false : { opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
+                  whileHover={reduceMotion ? undefined : { y: -3, scale: 1.01 }}
+                  whileTap={reduceMotion ? undefined : { scale: 0.985 }}
                   transition={reduceMotion ? { duration: 0 } : { delay: index * 0.045, type: "spring", stiffness: 180, damping: 22 }}
                 >
                   <span className={`grid size-9 shrink-0 place-items-center rounded-xl border text-xs font-black ${isNext ? "border-emerald-100/20 bg-emerald-200 text-slate-950" : "border-white/10 bg-black/20 text-white/55"}`}>
@@ -208,9 +245,9 @@ export function ConnectionActivationQueue({
                     </span>
                   </span>
                   {index < queue.length - 1 && (
-                    <ArrowDown className="absolute -right-[1.05rem] top-1/2 z-10 hidden -translate-y-1/2 -rotate-90 text-white/15 xl:block" size={14} />
+                    <ArrowDown className="pointer-events-none absolute -right-[1.05rem] top-1/2 z-10 hidden -translate-y-1/2 -rotate-90 text-white/15 xl:block" size={14} />
                   )}
-                </motion.div>
+                </motion.button>
               );
             })}
           </div>
@@ -220,7 +257,7 @@ export function ConnectionActivationQueue({
       <div className="relative mx-auto mt-4 flex w-[min(1500px,100%)] flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/[0.05] pt-3 text-[0.52rem] font-bold text-white/30">
         <span className="flex items-center gap-1.5"><ShieldCheck size={11} /> consentimento oficial</span>
         <span className="flex items-center gap-1.5"><PlugZap size={11} /> sem copiar token</span>
-        <span className="flex items-center gap-1.5"><Sparkles size={11} /> nenhuma conexão é aberta automaticamente</span>
+        <span className="flex items-center gap-1.5"><Sparkles size={11} /> toque na rota para encontrar a integração, não para conectar sozinho</span>
       </div>
     </section>
   );
