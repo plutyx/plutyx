@@ -25,9 +25,9 @@ jobs:
       PURCHASES_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v53
       SUPPLIERS_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-suppliers-v52
       KDS_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54
-      EXPECTED_RELEASE: '5.4.0'
+      EXPECTED_RELEASE: '5.6.0'
     steps:
-      - name: Wait for Render v5.4 release and verify frontend
+      - name: Wait for Render v5.6 release and verify frontend
         shell: bash
         run: |
           set -euo pipefail

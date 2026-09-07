@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install
+      - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - name: Build production frontend bundle
         env:
@@ -36,7 +36,7 @@ jobs:
           VITE_KDS_API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54
         run: npm run build
       - name: Verify production release marker
-        run: grep -F '<meta name="c360-release" content="5.4.0"' dist/index.html
+        run: grep -F '<meta name="c360-release" content="5.6.0"' dist/index.html
       - name: Verify production Edge endpoints are bundled
         run: |
           grep -R -F 'cozinha360-autopilot-v37' dist/assets/*.js >/dev/null

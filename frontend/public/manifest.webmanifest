@@ -3,8 +3,8 @@
   "short_name": "Cozinha360",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#17100f",
-  "theme_color": "#241716",
+  "background_color": "#07090f",
+  "theme_color": "#07090f",
   "lang": "pt-BR",
   "description": "Sistema operacional simples para pequenos negócios de alimentação.",
   "icons": []

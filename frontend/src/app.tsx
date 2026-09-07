@@ -1,165 +1,2000 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import {
-  AlertTriangle, BarChart3, Boxes, ChefHat, ChevronRight, CircleDollarSign,
-  ClipboardList, CookingPot, LogOut, Package, Plus, RefreshCcw, Save, Settings,
-  ShoppingBag, SlidersHorizontal, TrendingUp, UserPlus, Users, WalletCards
-} from 'lucide-react'
+  AlertTriangle,
+  BarChart3,
+  Boxes,
+  ChefHat,
+  ChevronRight,
+  CircleDollarSign,
+  ClipboardList,
+  CookingPot,
+  LogOut,
+  Package,
+  Plus,
+  RefreshCcw,
+  Save,
+  Settings,
+  ShoppingBag,
+  SlidersHorizontal,
+  TrendingUp,
+  UserPlus,
+  Users,
+  WalletCards,
+  X,
+} from "lucide-react";
+import {
+  CapabilityMarquee,
+  ExperienceLayer,
+  KitchenOrb,
+  ScrollRevealText,
+  SystemStatusPill,
+} from "./experience-layer";
+import {
+  DiscoveryHome,
+  getStoredDiscoveryProfile,
+  type DiscoveryProfile,
+} from "./discovery-journey";
 
-const API = import.meta.env.VITE_API_URL || '/api'
+const API = import.meta.env.VITE_API_URL || "/api";
 
-export type User = { id:number; email:string; full_name:string }
-export type Business = { id:number; name:string; city:string; role:string; preferences:Record<string,unknown> }
+export type User = { id: number; email: string; full_name: string };
+export type Business = {
+  id: number;
+  name: string;
+  city: string;
+  role: string;
+  preferences: Record<string, unknown>;
+};
 export type WorkspacePreferences = {
-  hidden_modules:string[]; module_order:string[]; home_focus:string; home_widgets:string[];
-  compact_mode:boolean; role_view:string; default_product_id:number|null; theme:string
-}
+  hidden_modules: string[];
+  module_order: string[];
+  home_focus: string;
+  home_widgets: string[];
+  compact_mode: boolean;
+  role_view: string;
+  default_product_id: number | null;
+  theme: string;
+};
 export type Workspace = {
-  business:{id:number;name:string;city:string;currency:string};
-  member:{user_id:number;name:string;email:string;role:string};
-  preferences:WorkspacePreferences; modules:string[];
-  summary:{open_orders:number;production_batches:number;inventory_alerts:number;finance_30d:Finance}
+  business: { id: number; name: string; city: string; currency: string };
+  member: { user_id: number; name: string; email: string; role: string };
+  preferences: WorkspacePreferences;
+  modules: string[];
+  summary: {
+    open_orders: number;
+    production_batches: number;
+    inventory_alerts: number;
+    finance_30d: Finance;
+  };
+};
+export type Dashboard = {
+  pulse: {
+    revenue_cents: number;
+    contribution_cents: number;
+    loss_cents: number;
+  };
+  open_orders: number;
+  delay_rate: number;
+  error_rate: number;
+  next_action: { code: string; title: string; severity: string };
+};
+export type Ingredient = {
+  id: number;
+  name: string;
+  unit: string;
+  last_purchase_price_cents: number;
+  usable_qty_milliunits: number;
+  on_hand_milliunits: number;
+  par_level_milliunits: number;
+  reorder_target_milliunits: number;
+  version: number;
+};
+export type Product = {
+  id: number;
+  name: string;
+  category: string;
+  active: boolean;
+  units_per_batch: number;
+  packaging_cents_per_unit: number;
+  energy_cents_per_batch: number;
+  labor_cents_per_batch: number;
+  version: number;
+};
+export type KdsOrder = {
+  id: number;
+  status: string;
+  source: string;
+  total_cents: number;
+  age_minutes: number;
+  delayed: boolean;
+  version: number;
+  items: { product_id: number; name: string; quantity: number }[];
+};
+export type ProductionBatch = {
+  id: number;
+  product_id: number;
+  product_name: string;
+  responsible_user_id: number | null;
+  status: string;
+  planned_qty: number;
+  produced_qty: number;
+  waste_qty: number;
+  scheduled_for: string | null;
+  notes: string;
+  version: number;
+};
+export type DemandRow = {
+  product_id: number;
+  product_name: string;
+  horizon_days: number;
+  historical_units_28d: number;
+  recent_units_7d: number;
+  forecast_units: number;
+  open_committed_units: number;
+  recommended_units: number;
+  confidence: string;
+  method: string;
+};
+export type Finance = {
+  period_days?: number;
+  revenue_cents: number;
+  variable_costs_cents: number;
+  contribution_cents: number;
+  contribution_margin_bps?: number;
+  loss_cents: number;
+  purchases_landed_cents: number;
+  order_count: number;
+};
+export type Member = {
+  membership_id: number;
+  user_id: number;
+  name: string;
+  email: string;
+  role: string;
+  preferences: WorkspacePreferences;
+};
+export type InventoryAlert = {
+  ingredient_id: number;
+  name: string;
+  unit: string;
+  on_hand_milliunits: number;
+  par_level_milliunits: number;
+  reorder_target_milliunits: number;
+  suggested_purchase_milliunits: number;
+  severity: string;
+};
+export type Customer = {
+  id: number;
+  name: string;
+  phone: string;
+  email: string;
+  consent_marketing: boolean;
+  can_contact: boolean;
+};
+
+export const money = (c = 0) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+    c / 100,
+  );
+
+export async function request(
+  path: string,
+  options: RequestInit = {},
+  token?: string,
+) {
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  const body = await res.json().catch(() => ({ detail: "Resposta inválida" }));
+  if (!res.ok)
+    throw new Error(
+      typeof body.detail === "string"
+        ? body.detail
+        : "Não foi possível concluir",
+    );
+  return body;
 }
-export type Dashboard = { pulse:{revenue_cents:number;contribution_cents:number;loss_cents:number}; open_orders:number; delay_rate:number; error_rate:number; next_action:{code:string;title:string;severity:string} }
-export type Ingredient = { id:number;name:string;unit:string;last_purchase_price_cents:number;usable_qty_milliunits:number;on_hand_milliunits:number;par_level_milliunits:number;reorder_target_milliunits:number;version:number }
-export type Product = { id:number;name:string;category:string;active:boolean;units_per_batch:number;packaging_cents_per_unit:number;energy_cents_per_batch:number;labor_cents_per_batch:number;version:number }
-export type KdsOrder = { id:number;status:string;source:string;total_cents:number;age_minutes:number;delayed:boolean;version:number;items:{product_id:number;name:string;quantity:number}[] }
-export type ProductionBatch = { id:number;product_id:number;product_name:string;responsible_user_id:number|null;status:string;planned_qty:number;produced_qty:number;waste_qty:number;scheduled_for:string|null;notes:string;version:number }
-export type DemandRow = { product_id:number;product_name:string;horizon_days:number;historical_units_28d:number;recent_units_7d:number;forecast_units:number;open_committed_units:number;recommended_units:number;confidence:string;method:string }
-export type Finance = { period_days?:number;revenue_cents:number;variable_costs_cents:number;contribution_cents:number;contribution_margin_bps?:number;loss_cents:number;purchases_landed_cents:number;order_count:number }
-export type Member = { membership_id:number;user_id:number;name:string;email:string;role:string;preferences:WorkspacePreferences }
-export type InventoryAlert = { ingredient_id:number;name:string;unit:string;on_hand_milliunits:number;par_level_milliunits:number;reorder_target_milliunits:number;suggested_purchase_milliunits:number;severity:string }
-export type Customer = { id:number;name:string;phone:string;email:string;consent_marketing:boolean;can_contact:boolean }
 
-export const money=(c=0)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(c/100)
+const labels: Record<string, string> = {
+  hoje: "Hoje",
+  pedidos: "Pedidos",
+  producao: "Produção",
+  produtos: "Produtos",
+  custos: "Custos",
+  financeiro: "Financeiro",
+  clientes: "Clientes",
+  equipe: "Equipe",
+  config: "Minha área",
+};
+const icons: Record<string, React.ElementType> = {
+  hoje: BarChart3,
+  pedidos: ClipboardList,
+  producao: CookingPot,
+  produtos: Boxes,
+  custos: CircleDollarSign,
+  financeiro: WalletCards,
+  clientes: Users,
+  equipe: UserPlus,
+  config: Settings,
+};
+const statusLabel: Record<string, string> = {
+  new: "Novo",
+  confirmed: "Confirmado",
+  production: "Produção",
+  checking: "Conferência",
+  awaiting_delivery: "Entrega",
+  completed: "Concluído",
+  cancelled: "Cancelado",
+};
+const nextStatus: Record<string, string> = {
+  new: "confirmed",
+  confirmed: "production",
+  production: "checking",
+  checking: "awaiting_delivery",
+  awaiting_delivery: "completed",
+};
 
-export async function request(path:string, options:RequestInit={}, token?:string){
-  const res=await fetch(`${API}${path}`,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{ }),...(options.headers||{})}})
-  const body=await res.json().catch(()=>({detail:'Resposta inválida'}))
-  if(!res.ok) throw new Error(typeof body.detail==='string'?body.detail:'Não foi possível concluir')
-  return body
-}
+function Auth({ onAuth }: { onAuth: (token: string) => void }) {
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [accessOpen, setAccessOpen] = useState(false);
+  const [profile, setProfile] = useState<DiscoveryProfile | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const ProfileIcon = profile?.icon;
 
-const labels:Record<string,string>={hoje:'Hoje',pedidos:'Pedidos',producao:'Produção',produtos:'Produtos',custos:'Custos',financeiro:'Financeiro',clientes:'Clientes',equipe:'Equipe',config:'Minha área'}
-const icons:Record<string,React.ElementType>={hoje:BarChart3,pedidos:ClipboardList,producao:CookingPot,produtos:Boxes,custos:CircleDollarSign,financeiro:WalletCards,clientes:Users,equipe:UserPlus,config:Settings}
-const statusLabel:Record<string,string>={new:'Novo',confirmed:'Confirmado',production:'Produção',checking:'Conferência',awaiting_delivery:'Entrega',completed:'Concluído',cancelled:'Cancelado'}
-const nextStatus:Record<string,string>={new:'confirmed',confirmed:'production',production:'checking',checking:'awaiting_delivery',awaiting_delivery:'completed'}
-
-function Auth({onAuth}:{onAuth:(token:string)=>void}){
-  const [mode,setMode]=useState<'login'|'signup'>('login'); const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [name,setName]=useState(''); const [error,setError]=useState(''); const [busy,setBusy]=useState(false)
-  async function submit(e:React.FormEvent){e.preventDefault();setBusy(true);setError('');try{const body=await request(`/auth/${mode}`,{method:'POST',body:JSON.stringify(mode==='signup'?{email,password,full_name:name}:{email,password})});localStorage.setItem('c360_token',body.access_token);onAuth(body.access_token)}catch(err){setError(err instanceof Error?err.message:'Erro')}finally{setBusy(false)}}
-  return <main className="auth-shell"><section className="brand-panel"><div className="brand"><ChefHat size={28}/><span>COZINHA 360</span></div><div><span className="eyebrow">SISTEMA OPERACIONAL PARA PEQUENAS COZINHAS</span><h1>Decisão, produção e margem no mesmo lugar.</h1><p>Use o celular que você já tem. O sistema organiza pedidos, estoque, produção, demanda e financeiro sem depender de um ERP pesado.</p></div><div className="brand-proof"><b>Clareza antes de escala.</b><span>Receita não é lucro. Previsão não é promessa. Cada membro vê o que precisa para trabalhar.</span></div></section><section className="auth-card"><h2>{mode==='login'?'Entrar':'Criar sua conta'}</h2><p>{mode==='login'?'Acesse seu workspace.':'Crie sua conta para iniciar ou entrar em uma operação.'}</p><form onSubmit={submit}>{mode==='signup'&&<label>Nome<input value={name} onChange={e=>setName(e.target.value)} placeholder="Seu nome" required/></label>}<label>E-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@empresa.com" required/></label><label>Senha<input type="password" value={password} onChange={e=>setPassword(e.target.value)} minLength={10} placeholder="Mínimo 10 caracteres" required/></label>{error&&<div className="error">{error}</div>}<button className="primary" disabled={busy}>{busy?'Aguarde...':mode==='login'?'Entrar':'Criar conta'}</button></form><button className="link" onClick={()=>setMode(mode==='login'?'signup':'login')}>{mode==='login'?'Ainda não tenho conta':'Já tenho conta'}</button></section></main>
-}
-
-function EmptyBusiness({token,onCreated}:{token:string;onCreated:()=>void}){
-  const [name,setName]=useState('');const[city,setCity]=useState('');const[error,setError]=useState('')
-  async function submit(e:React.FormEvent){e.preventDefault();try{await request('/businesses',{method:'POST',body:JSON.stringify({name,city})},token);onCreated()}catch(err){setError(err instanceof Error?err.message:'Erro')}}
-  return <main className="center"><div className="empty-card"><ChefHat size={36}/><h2>Crie sua primeira operação</h2><p>Ela terá dados separados, membros próprios e workspaces personalizados.</p><form onSubmit={submit}><input value={name} onChange={e=>setName(e.target.value)} placeholder="Ex.: Brasa da Ana" required/><input value={city} onChange={e=>setCity(e.target.value)} placeholder="Cidade"/><button className="primary">Criar negócio</button>{error&&<div className="error">{error}</div>}</form></div></main>
-}
-
-export default function App(){
-  const [token,setToken]=useState(localStorage.getItem('c360_token')||'')
-  const [user,setUser]=useState<User|null>(null); const [businesses,setBusinesses]=useState<Business[]>([]); const [businessId,setBusinessId]=useState<number|null>(null)
-  const [workspace,setWorkspace]=useState<Workspace|null>(null); const [dashboard,setDashboard]=useState<Dashboard|null>(null); const [ingredients,setIngredients]=useState<Ingredient[]>([]); const [products,setProducts]=useState<Product[]>([])
-  const [kds,setKds]=useState<KdsOrder[]>([]); const [production,setProduction]=useState<ProductionBatch[]>([]); const [demand,setDemand]=useState<DemandRow[]>([]); const [finance,setFinance]=useState<Finance|null>(null); const [members,setMembers]=useState<Member[]>([]); const [alerts,setAlerts]=useState<InventoryAlert[]>([]); const [customers,setCustomers]=useState<Customer[]>([])
-  const [tab,setTab]=useState('hoje');const[loading,setLoading]=useState(true);const[notice,setNotice]=useState('');const[error,setError]=useState('')
-
-  async function loadMe(t=token){if(!t){setLoading(false);return}try{const me=await request('/me',{},t);setUser(me.user);setBusinesses(me.businesses);const id=businessId||me.businesses?.[0]?.id||null;setBusinessId(id);if(id)await loadBusiness(id,t)}catch{logout()}finally{setLoading(false)}}
-  async function loadBusiness(id:number,t=token){
-    setError('')
-    try{
-      const [w,d,i,p,k,b,dem,fin,al,cust]=await Promise.all([
-        request(`/businesses/${id}/workspace`,{},t),request(`/businesses/${id}/dashboard`,{},t),request(`/businesses/${id}/ingredients`,{},t),request(`/businesses/${id}/products`,{},t),request(`/businesses/${id}/kds`,{},t),request(`/businesses/${id}/production`,{},t),request(`/businesses/${id}/demand?horizon_days=1`,{},t),request(`/businesses/${id}/finance/summary?days=30`,{},t),request(`/businesses/${id}/inventory/alerts`,{},t),request(`/businesses/${id}/customers`,{},t)
-      ])
-      setWorkspace(w);setDashboard(d);setIngredients(i);setProducts(p);setKds(k.orders);setProduction(b);setDemand(dem.products);setFinance(fin);setAlerts(al);setCustomers(cust)
-      document.documentElement.dataset.theme=w.preferences.theme||'system'
-      if(['owner','admin'].includes(w.member.role)){try{setMembers(await request(`/businesses/${id}/members`,{},t))}catch{setMembers([])}}else setMembers([])
-      if(!w.modules.includes(tab)) setTab(w.modules[0]||'hoje')
-    }catch(err){setError(err instanceof Error?err.message:'Falha ao carregar operação')}
+  function openAccess(
+    nextMode: "login" | "signup",
+    nextProfile?: DiscoveryProfile,
+  ) {
+    setMode(nextMode);
+    setProfile(nextProfile || null);
+    setError("");
+    setAccessOpen(true);
   }
-  useEffect(()=>{loadMe()},[token])
-  function logout(){localStorage.removeItem('c360_token');setToken('');setUser(null);setBusinesses([]);setBusinessId(null);setWorkspace(null)}
-  async function refresh(msg?:string){if(businessId){if(msg)setNotice(msg);await loadBusiness(businessId)}}
-  if(loading)return <main className="center"><div className="loader">COZINHA 360</div></main>
-  if(!token)return <Auth onAuth={setToken}/>
-  if(!businesses.length)return <EmptyBusiness token={token} onCreated={()=>loadMe()}/>
-  if(!workspace)return <main className="center"><div className="empty-card"><h2>Carregando workspace</h2>{error&&<div className="error">{error}</div>}<button className="primary" onClick={()=>businessId&&loadBusiness(businessId)}>Tentar novamente</button></div></main>
 
-  const modules=workspace.modules.length?workspace.modules:['hoje']
-  return <div className={`app-shell ${workspace.preferences.compact_mode?'compact-mode':''}`}><aside><div className="brand small"><ChefHat size={24}/><span>COZINHA 360</span></div><nav>{modules.map(id=>{const Icon=icons[id]||Package;return <button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><Icon size={19}/><span>{labels[id]||id}</span></button>})}</nav><button className="logout" onClick={logout}><LogOut size={18}/>Sair</button></aside><main className="workspace"><header><div><span className="eyebrow">{workspace.business.city||'Sua operação'} · {workspace.member.role}</span><h2>{workspace.business.name}</h2></div><div className="header-actions"><button className="icon-btn" onClick={()=>refresh()} title="Atualizar"><RefreshCcw size={17}/></button><div className="user-chip">{workspace.member.name||workspace.member.email}</div></div></header>{notice&&<div className="notice">{notice}</div>}{error&&<div className="error">{error}</div>}
-    {tab==='hoje'&&<Today dashboard={dashboard} workspace={workspace} demand={demand} alerts={alerts} production={production}/>} 
-    {tab==='pedidos'&&<OrdersScreen orders={kds} products={products} businessId={workspace.business.id} token={token} onDone={refresh}/>} 
-    {tab==='producao'&&<ProductionScreen batches={production} demand={demand} products={products} members={members} workspace={workspace} token={token} onDone={refresh}/>} 
-    {tab==='produtos'&&<ProductsScreen products={products} ingredients={ingredients} businessId={workspace.business.id} role={workspace.member.role} token={token} onDone={refresh}/>} 
-    {tab==='custos'&&<CostsScreen ingredients={ingredients} alerts={alerts} businessId={workspace.business.id} role={workspace.member.role} token={token} onDone={refresh}/>} 
-    {tab==='financeiro'&&<FinanceScreen finance={finance} dashboard={dashboard}/>} 
-    {tab==='clientes'&&<CustomersScreen customers={customers} businessId={workspace.business.id} token={token} onDone={refresh}/>} 
-    {tab==='equipe'&&<TeamScreen members={members} businessId={workspace.business.id} role={workspace.member.role} token={token} onDone={refresh}/>} 
-    {tab==='config'&&<PreferencesScreen workspace={workspace} token={token} onDone={refresh}/>} 
-  </main></div>
+  useEffect(() => {
+    if (!accessOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const returnFocus = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = "hidden";
+    const timer = window.setTimeout(() => firstFieldRef.current?.focus(), 120);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setAccessOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = drawerRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      returnFocus?.focus();
+    };
+  }, [accessOpen, mode]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const body = await request(`/auth/${mode}`, {
+        method: "POST",
+        body: JSON.stringify(
+          mode === "signup"
+            ? { email, password, full_name: name }
+            : { email, password },
+        ),
+      });
+      localStorage.setItem("c360_token", body.access_token);
+      onAuth(body.access_token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <MotionConfig reducedMotion="user">
+      <main className="discovery-shell">
+        <ExperienceLayer />
+        <DiscoveryHome onAccess={openAccess} />
+        <AnimatePresence>
+          {accessOpen && (
+            <motion.div
+              className="access-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setAccessOpen(false)}
+            >
+              <motion.section
+                ref={drawerRef}
+                className="access-drawer"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="access-title"
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", stiffness: 170, damping: 25 }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="access-drawer__top">
+                  <span className="eyebrow">C360 CLOUD</span>
+                  <button
+                    type="button"
+                    aria-label="Fechar acesso"
+                    onClick={() => setAccessOpen(false)}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                {profile && ProfileIcon && mode === "signup" && (
+                  <div className="access-route-chip">
+                    <ProfileIcon size={18} />
+                    <span>
+                      <small>SUA ROTA</small>
+                      <b>{profile.name}</b>
+                    </span>
+                  </div>
+                )}
+                <h2 id="access-title">
+                  {mode === "login"
+                    ? "Continue de onde parou."
+                    : "Leve sua rota para a operação."}
+                </h2>
+                <p>
+                  {mode === "login"
+                    ? "Abra seu painel e veja o próximo movimento."
+                    : "Crie seu espaço. O diagnóstico continua com você."}
+                </p>
+                <form onSubmit={submit}>
+                  {mode === "signup" && (
+                    <label>
+                      Nome
+                      <input
+                        ref={firstFieldRef}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Como podemos chamar você?"
+                        autoComplete="name"
+                        required
+                      />
+                    </label>
+                  )}
+                  <label>
+                    E-mail
+                    <input
+                      ref={mode === "login" ? firstFieldRef : undefined}
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="voce@empresa.com"
+                      autoComplete="email"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Senha
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      minLength={10}
+                      placeholder="Mínimo 10 caracteres"
+                      autoComplete={
+                        mode === "login" ? "current-password" : "new-password"
+                      }
+                      required
+                    />
+                  </label>
+                  {error && (
+                    <div className="error" role="alert">
+                      {error}
+                    </div>
+                  )}
+                  <motion.button
+                    className="discovery-primary access-submit"
+                    disabled={busy}
+                    whileTap={!busy ? { scale: 0.985 } : undefined}
+                  >
+                    {busy
+                      ? "Abrindo..."
+                      : mode === "login"
+                        ? "Entrar na operação"
+                        : "Criar minha operação"}
+                  </motion.button>
+                </form>
+                {mode === "login" && (
+                  <a className="access-forgot" href="/?forgot=1">
+                    Esqueci minha senha
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className="access-switch"
+                  onClick={() => {
+                    setMode(mode === "login" ? "signup" : "login");
+                    setError("");
+                  }}
+                >
+                  {mode === "login"
+                    ? "Quero criar minha operação"
+                    : "Já tenho uma operação"}
+                  <ChevronRight size={16} />
+                </button>
+                <p className="access-privacy">
+                  Dados separados por empresa e protegidos pelas permissões de
+                  cada membro.
+                </p>
+              </motion.section>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </MotionConfig>
+  );
 }
 
-function Today({dashboard,workspace,demand,alerts,production}:{dashboard:Dashboard|null;workspace:Workspace;demand:DemandRow[];alerts:InventoryAlert[];production:ProductionBatch[]}){
-  const pulse=dashboard?.pulse; const top=demand.slice().sort((a,b)=>b.recommended_units-a.recommended_units)[0]; const activeProduction=production.filter(x=>['planned','in_progress'].includes(x.status)).length
-  return <section><div className="today-head"><div><span className="eyebrow">DECISÃO DE HOJE · FOCO {workspace.preferences.home_focus.toUpperCase()}</span><h1>{dashboard?.next_action.title||'Registre os primeiros dados para receber uma recomendação.'}</h1></div></div><div className={`decision ${dashboard?.next_action.severity||'info'}`}><span>{dashboard?.next_action.code==='steady'?'Operação estável':'Prioridade'}</span><b>{dashboard?.next_action.title||'Ainda sem dados suficientes'}</b></div><div className="pulse-grid four"><Metric label="Vendas 30d" value={money(pulse?.revenue_cents)} sub="receita registrada"/><Metric label="Contribuição" value={money(pulse?.contribution_cents)} sub="depois dos custos variáveis" emphasis/><Metric label="Alertas de estoque" value={String(alerts.length)} sub={alerts.length?'precisam de atenção':'sem alertas'}/><Metric label="Produção ativa" value={String(activeProduction)} sub="lotes planejados/em curso"/></div><div className="split-grid"><article className="panel"><div className="panel-head"><div><span className="eyebrow">DEMANDA</span><h3>O que preparar?</h3></div><TrendingUp size={22}/></div>{top?<div className="big-recommendation"><strong>{top.recommended_units}</strong><div><b>{top.product_name}</b><span>unidades recomendadas · confiança {top.confidence}</span></div></div>:<Empty text="Cadastre produtos e vendas por item para formar histórico."/>}<small className="explain">A previsão usa média móvel ponderada da própria operação. Não é promessa de venda.</small></article><article className="panel"><div className="panel-head"><div><span className="eyebrow">ESTOQUE</span><h3>Reposição necessária</h3></div><AlertTriangle size={22}/></div>{alerts.length?alerts.slice(0,4).map(a=><div className="mini-row" key={a.ingredient_id}><div><b>{a.name}</b><span>{a.on_hand_milliunits} / mínimo {a.par_level_milliunits}</span></div><strong>+{a.suggested_purchase_milliunits}</strong></div>):<Empty text="Nenhum ingrediente abaixo do mínimo configurado."/>}</article></div></section>
+function EmptyBusiness({
+  token,
+  onCreated,
+}: {
+  token: string;
+  onCreated: () => void;
+}) {
+  const discoveryProfile = useMemo(() => getStoredDiscoveryProfile(), []);
+  const DiscoveryIcon = discoveryProfile?.icon || ChefHat;
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [error, setError] = useState("");
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await request(
+        "/businesses",
+        { method: "POST", body: JSON.stringify({ name, city }) },
+        token,
+      );
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro");
+    }
+  }
+  return (
+    <main className="center experience-onboarding">
+      <ExperienceLayer />
+      <div className="empty-card onboarding-card">
+        <div className="onboarding-card__route">
+          <DiscoveryIcon size={25} />
+          <span>
+            <small>
+              {discoveryProfile ? "ROTA DESBLOQUEADA" : "PRIMEIRO PASSO"}
+            </small>
+            <b>{discoveryProfile?.name || "Nova operação"}</b>
+          </span>
+        </div>
+        <h2>Dê um nome à sua operação.</h2>
+        <p>
+          {discoveryProfile
+            ? `Primeira missão: ${discoveryProfile.mission}`
+            : "Ela terá dados separados, membros próprios e um mapa para começar."}
+        </p>
+        <form onSubmit={submit}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ex.: Brasa da Ana"
+            required
+          />
+          <input
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Cidade"
+          />
+          <button className="primary">Criar negócio</button>
+          {error && <div className="error">{error}</div>}
+        </form>
+      </div>
+    </main>
+  );
 }
 
-function Metric({label,value,sub,emphasis}:{label:string;value:string;sub:string;emphasis?:boolean}){return <article className={`metric ${emphasis?'emphasis':''}`}><span>{label}</span><strong>{value}</strong><small>{sub}</small></article>}
-function Empty({text}:{text:string}){return <div className="empty-inline">{text}</div>}
+export default function App() {
+  const [token, setToken] = useState(localStorage.getItem("c360_token") || "");
+  const [user, setUser] = useState<User | null>(null);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [businessId, setBusinessId] = useState<number | null>(null);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [kds, setKds] = useState<KdsOrder[]>([]);
+  const [production, setProduction] = useState<ProductionBatch[]>([]);
+  const [demand, setDemand] = useState<DemandRow[]>([]);
+  const [finance, setFinance] = useState<Finance | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [alerts, setAlerts] = useState<InventoryAlert[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [tab, setTab] = useState("hoje");
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
 
-function OrdersScreen({orders,products,businessId,token,onDone}:{orders:KdsOrder[];products:Product[];businessId:number;token:string;onDone:(m?:string)=>Promise<void>}){
-  const [show,setShow]=useState(false); const [productId,setProductId]=useState(products[0]?.id||0); const [qty,setQty]=useState(1); const [price,setPrice]=useState(''); const [cost,setCost]=useState(''); const [busy,setBusy]=useState(false); const [err,setErr]=useState('')
-  const columns=['new','confirmed','production','checking','awaiting_delivery']
-  async function advance(order:KdsOrder){const next=nextStatus[order.status];if(!next)return;try{await request(`/businesses/${businessId}/orders/${order.id}/status`,{method:'PATCH',body:JSON.stringify({status:next,expected_version:order.version})},token);await onDone(next==='completed'?'Pedido concluído e estoque teórico atualizado.':'Pedido atualizado.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  async function create(e:React.FormEvent){e.preventDefault();setBusy(true);setErr('');try{const unitPrice=Math.round(Number(price)*100),unitCost=Math.round(Number(cost)*100);const o=await request(`/businesses/${businessId}/orders`,{method:'POST',body:JSON.stringify({total_cents:unitPrice*qty,variable_cost_cents:unitCost*qty,source:'manual',paid:true})},token);await request(`/businesses/${businessId}/orders/${o.id}/items`,{method:'POST',body:JSON.stringify({product_id:productId,quantity:qty,unit_price_cents:unitPrice,unit_variable_cost_cents:unitCost})},token);setShow(false);setPrice('');setCost('');await onDone('Pedido registrado no KDS.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}finally{setBusy(false)}}
-  return <section><div className="today-head"><div><span className="eyebrow">KDS NO NAVEGADOR</span><h1>Pedidos em fluxo.</h1><p className="lead">Sem tela dedicada: celular, tablet ou computador viram o quadro da cozinha.</p></div><button className="primary compact" onClick={()=>setShow(!show)}><Plus size={17}/> Pedido</button></div>{err&&<div className="error">{err}</div>}{show&&<form className="inline-form" onSubmit={create}><select value={productId} onChange={e=>setProductId(Number(e.target.value))} required>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><input type="number" min="1" value={qty} onChange={e=>setQty(Number(e.target.value))} placeholder="Qtd"/><input type="number" step="0.01" value={price} onChange={e=>setPrice(e.target.value)} placeholder="Preço un. R$" required/><input type="number" step="0.01" value={cost} onChange={e=>setCost(e.target.value)} placeholder="Custo var. un. R$" required/><button className="primary" disabled={busy}>{busy?'Salvando...':'Registrar'}</button></form>}<div className="kds-board">{columns.map(status=><div className="kds-column" key={status}><div className="kds-title"><b>{statusLabel[status]}</b><span>{orders.filter(o=>o.status===status).length}</span></div>{orders.filter(o=>o.status===status).map(o=><article className={`ticket ${o.delayed?'late':''}`} key={o.id}><div className="ticket-top"><b>#{o.id}</b><span>{o.age_minutes} min</span></div><div className="ticket-items">{o.items.length?o.items.map((x,i)=><div key={`${x.product_id}-${i}`}><strong>{x.quantity}×</strong> {x.name}</div>):<span>Pedido sem itens detalhados</span>}</div><div className="ticket-bottom"><small>{o.source} · {money(o.total_cents)}</small>{nextStatus[o.status]&&<button onClick={()=>advance(o)}>{statusLabel[nextStatus[o.status]]}<ChevronRight size={15}/></button>}</div></article>)}</div>)}</div></section>
+  async function loadMe(t = token) {
+    if (!t) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const me = await request("/me", {}, t);
+      setUser(me.user);
+      setBusinesses(me.businesses);
+      const id = businessId || me.businesses?.[0]?.id || null;
+      setBusinessId(id);
+      if (id) await loadBusiness(id, t);
+    } catch {
+      logout();
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function loadBusiness(id: number, t = token) {
+    setError("");
+    try {
+      const [w, d, i, p, k, b, dem, fin, al, cust] = await Promise.all([
+        request(`/businesses/${id}/workspace`, {}, t),
+        request(`/businesses/${id}/dashboard`, {}, t),
+        request(`/businesses/${id}/ingredients`, {}, t),
+        request(`/businesses/${id}/products`, {}, t),
+        request(`/businesses/${id}/kds`, {}, t),
+        request(`/businesses/${id}/production`, {}, t),
+        request(`/businesses/${id}/demand?horizon_days=1`, {}, t),
+        request(`/businesses/${id}/finance/summary?days=30`, {}, t),
+        request(`/businesses/${id}/inventory/alerts`, {}, t),
+        request(`/businesses/${id}/customers`, {}, t),
+      ]);
+      setWorkspace(w);
+      setDashboard(d);
+      setIngredients(i);
+      setProducts(p);
+      setKds(k.orders);
+      setProduction(b);
+      setDemand(dem.products);
+      setFinance(fin);
+      setAlerts(al);
+      setCustomers(cust);
+      document.documentElement.dataset.theme = w.preferences.theme || "system";
+      if (["owner", "admin"].includes(w.member.role)) {
+        try {
+          setMembers(await request(`/businesses/${id}/members`, {}, t));
+        } catch {
+          setMembers([]);
+        }
+      } else setMembers([]);
+      if (!w.modules.includes(tab)) setTab(w.modules[0] || "hoje");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Falha ao carregar operação",
+      );
+    }
+  }
+  useEffect(() => {
+    loadMe();
+  }, [token]);
+  function logout() {
+    localStorage.removeItem("c360_token");
+    setToken("");
+    setUser(null);
+    setBusinesses([]);
+    setBusinessId(null);
+    setWorkspace(null);
+  }
+  async function refresh(msg?: string) {
+    if (businessId) {
+      if (msg) setNotice(msg);
+      await loadBusiness(businessId);
+    }
+  }
+  if (loading)
+    return (
+      <main className="center">
+        <div className="loader">COZINHA 360</div>
+      </main>
+    );
+  if (!token) return <Auth onAuth={setToken} />;
+  if (!businesses.length)
+    return <EmptyBusiness token={token} onCreated={() => loadMe()} />;
+  if (!workspace)
+    return (
+      <main className="center">
+        <div className="empty-card">
+          <h2>Carregando workspace</h2>
+          {error && <div className="error">{error}</div>}
+          <button
+            className="primary"
+            onClick={() => businessId && loadBusiness(businessId)}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </main>
+    );
+
+  const modules = workspace.modules.length ? workspace.modules : ["hoje"];
+  return (
+    <div
+      className={`app-shell experience-app ${workspace.preferences.compact_mode ? "compact-mode" : ""}`}
+    >
+      <ExperienceLayer />
+      <aside>
+        <div className="brand small">
+          <ChefHat size={24} />
+          <span>COZINHA 360</span>
+        </div>
+        <nav>
+          {modules.map((id) => {
+            const Icon = icons[id] || Package;
+            return (
+              <button
+                key={id}
+                className={tab === id ? "active" : ""}
+                onClick={() => setTab(id)}
+              >
+                <Icon size={19} />
+                <span>{labels[id] || id}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <button className="logout" onClick={logout}>
+          <LogOut size={18} />
+          Sair
+        </button>
+      </aside>
+      <main className="workspace">
+        <header>
+          <div>
+            <span className="eyebrow">
+              {workspace.business.city || "Sua operação"} ·{" "}
+              {workspace.member.role}
+            </span>
+            <h2>{workspace.business.name}</h2>
+          </div>
+          <div className="header-actions">
+            <button
+              className="icon-btn"
+              onClick={() => refresh()}
+              title="Atualizar"
+            >
+              <RefreshCcw size={17} />
+            </button>
+            <div className="user-chip">
+              {workspace.member.name || workspace.member.email}
+            </div>
+          </div>
+        </header>
+        {notice && <div className="notice">{notice}</div>}
+        {error && <div className="error">{error}</div>}
+        {tab === "hoje" && (
+          <Today
+            dashboard={dashboard}
+            workspace={workspace}
+            demand={demand}
+            alerts={alerts}
+            production={production}
+          />
+        )}
+        {tab === "pedidos" && (
+          <OrdersScreen
+            orders={kds}
+            products={products}
+            businessId={workspace.business.id}
+            token={token}
+            onDone={refresh}
+          />
+        )}
+        {tab === "producao" && (
+          <ProductionScreen
+            batches={production}
+            demand={demand}
+            products={products}
+            members={members}
+            workspace={workspace}
+            token={token}
+            onDone={refresh}
+          />
+        )}
+        {tab === "produtos" && (
+          <ProductsScreen
+            products={products}
+            ingredients={ingredients}
+            businessId={workspace.business.id}
+            role={workspace.member.role}
+            token={token}
+            onDone={refresh}
+          />
+        )}
+        {tab === "custos" && (
+          <CostsScreen
+            ingredients={ingredients}
+            alerts={alerts}
+            businessId={workspace.business.id}
+            role={workspace.member.role}
+            token={token}
+            onDone={refresh}
+          />
+        )}
+        {tab === "financeiro" && (
+          <FinanceScreen finance={finance} dashboard={dashboard} />
+        )}
+        {tab === "clientes" && (
+          <CustomersScreen
+            customers={customers}
+            businessId={workspace.business.id}
+            token={token}
+            onDone={refresh}
+          />
+        )}
+        {tab === "equipe" && (
+          <TeamScreen
+            members={members}
+            businessId={workspace.business.id}
+            role={workspace.member.role}
+            token={token}
+            onDone={refresh}
+          />
+        )}
+        {tab === "config" && (
+          <PreferencesScreen
+            workspace={workspace}
+            token={token}
+            onDone={refresh}
+          />
+        )}
+      </main>
+    </div>
+  );
 }
 
-function ProductionScreen({batches,demand,products,members,workspace,token,onDone}:{batches:ProductionBatch[];demand:DemandRow[];products:Product[];members:Member[];workspace:Workspace;token:string;onDone:(m?:string)=>Promise<void>}){
-  const [productId,setProductId]=useState(products[0]?.id||0);const[qty,setQty]=useState(1);const[err,setErr]=useState('')
-  const businessId=workspace.business.id
-  async function create(e:React.FormEvent){e.preventDefault();try{await request(`/businesses/${businessId}/production`,{method:'POST',body:JSON.stringify({product_id:productId,planned_qty:qty,responsible_user_id:workspace.member.user_id,notes:'Planejado pelo workspace'})},token);await onDone('Lote de produção criado.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  async function progress(b:ProductionBatch){const status=b.status==='planned'?'in_progress':'completed';try{await request(`/businesses/${businessId}/production/${b.id}`,{method:'PATCH',body:JSON.stringify({status,produced_qty:status==='completed'?b.planned_qty:b.produced_qty,waste_qty:b.waste_qty,expected_version:b.version})},token);await onDone('Produção atualizada.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  return <section><span className="eyebrow">PLANEJAMENTO DE PRODUÇÃO</span><h1>Produza pelo que os dados pedem.</h1><p className="lead">Histórico de vendas + pedidos abertos formam uma recomendação simples, auditável e sem custo de IA externa.</p>{err&&<div className="error">{err}</div>}<div className="demand-grid">{demand.map(d=><article className="demand-card" key={d.product_id}><span>{d.confidence==='high'?'Alta confiança':d.confidence==='medium'?'Confiança média':'Pouco histórico'}</span><strong>{d.recommended_units}</strong><b>{d.product_name}</b><small>{d.forecast_units} previsão + {d.open_committed_units} já comprometidas</small></article>)}</div><div className="section-title"><span className="eyebrow">NOVO LOTE</span></div><form className="inline-form" onSubmit={create}><select value={productId} onChange={e=>setProductId(Number(e.target.value))}>{products.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select><input type="number" min="0" value={qty} onChange={e=>setQty(Number(e.target.value))}/><button className="primary"><CookingPot size={17}/> Planejar</button></form><div className="table-card">{batches.length?batches.map(b=><div className="row richer" key={b.id}><div><b>{b.product_name}</b><span>{statusLabel[b.status]||b.status} · planejado {b.planned_qty} · produzido {b.produced_qty} · perda {b.waste_qty}</span></div>{['planned','in_progress'].includes(b.status)&&<button className="secondary" onClick={()=>progress(b)}>{b.status==='planned'?'Iniciar':'Concluir'}</button>}</div>):<Empty text="Nenhum lote planejado."/>}</div>{members.length>0&&<small className="explain">Equipe disponível: {members.map(m=>m.name||m.email).join(', ')}.</small>}</section>
+function Today({
+  dashboard,
+  workspace,
+  demand,
+  alerts,
+  production,
+}: {
+  dashboard: Dashboard | null;
+  workspace: Workspace;
+  demand: DemandRow[];
+  alerts: InventoryAlert[];
+  production: ProductionBatch[];
+}) {
+  const pulse = dashboard?.pulse;
+  const top = demand
+    .slice()
+    .sort((a, b) => b.recommended_units - a.recommended_units)[0];
+  const activeProduction = production.filter((x) =>
+    ["planned", "in_progress"].includes(x.status),
+  ).length;
+  return (
+    <section className="experience-today">
+      <div className="today-head">
+        <div>
+          <span className="eyebrow">
+            DECISÃO DE HOJE · FOCO{" "}
+            {workspace.preferences.home_focus.toUpperCase()}
+          </span>
+          <h1>
+            {dashboard?.next_action.title ||
+              "Registre os primeiros dados para receber uma recomendação."}
+          </h1>
+        </div>
+        <SystemStatusPill />
+      </div>
+      <div className="experience-bento">
+        <div
+          className={`decision ${dashboard?.next_action.severity || "info"}`}
+        >
+          <span>
+            {dashboard?.next_action.code === "steady"
+              ? "Operação estável"
+              : "Prioridade"}
+          </span>
+          <b>{dashboard?.next_action.title || "Ainda sem dados suficientes"}</b>
+        </div>
+        <article className="panel bento-orb">
+          <KitchenOrb compact className="h-full min-h-[19rem]" />
+        </article>
+        <Metric
+          label="Vendas 30d"
+          value={money(pulse?.revenue_cents)}
+          sub="receita registrada"
+        />
+        <Metric
+          label="Contribuição"
+          value={money(pulse?.contribution_cents)}
+          sub="depois dos custos variáveis"
+          emphasis
+        />
+        <Metric
+          label="Alertas de estoque"
+          value={String(alerts.length)}
+          sub={alerts.length ? "precisam de atenção" : "sem alertas"}
+        />
+        <Metric
+          label="Produção ativa"
+          value={String(activeProduction)}
+          sub="lotes planejados/em curso"
+        />
+      </div>
+      <CapabilityMarquee />
+      <ScrollRevealText className="parallax-kicker">
+        Venda, produção, estoque e caixa passam a responder à mesma operação.
+      </ScrollRevealText>
+      <div className="split-grid">
+        <article className="panel">
+          <div className="panel-head">
+            <div>
+              <span className="eyebrow">DEMANDA</span>
+              <h3>O que preparar?</h3>
+            </div>
+            <TrendingUp size={22} />
+          </div>
+          {top ? (
+            <div className="big-recommendation">
+              <strong>{top.recommended_units}</strong>
+              <div>
+                <b>{top.product_name}</b>
+                <span>unidades recomendadas · confiança {top.confidence}</span>
+              </div>
+            </div>
+          ) : (
+            <Empty text="Cadastre produtos e vendas por item para formar histórico." />
+          )}
+          <small className="explain">
+            A previsão usa média móvel ponderada da própria operação. Não é
+            promessa de venda.
+          </small>
+        </article>
+        <article className="panel">
+          <div className="panel-head">
+            <div>
+              <span className="eyebrow">ESTOQUE</span>
+              <h3>Reposição necessária</h3>
+            </div>
+            <AlertTriangle size={22} />
+          </div>
+          {alerts.length ? (
+            alerts.slice(0, 4).map((a) => (
+              <div className="mini-row" key={a.ingredient_id}>
+                <div>
+                  <b>{a.name}</b>
+                  <span>
+                    {a.on_hand_milliunits} / mínimo {a.par_level_milliunits}
+                  </span>
+                </div>
+                <strong>+{a.suggested_purchase_milliunits}</strong>
+              </div>
+            ))
+          ) : (
+            <Empty text="Nenhum ingrediente abaixo do mínimo configurado." />
+          )}
+        </article>
+      </div>
+    </section>
+  );
 }
 
-function ProductsScreen({products,ingredients,businessId,role,token,onDone}:{products:Product[];ingredients:Ingredient[];businessId:number;role:string;token:string;onDone:(m?:string)=>Promise<void>}){
-  const canEdit=['owner','admin'].includes(role);const[name,setName]=useState('');const[category,setCategory]=useState('');const[productId,setProductId]=useState(products[0]?.id||0);const[ingredientId,setIngredientId]=useState(ingredients[0]?.id||0);const[qty,setQty]=useState(0);const[recipe,setRecipe]=useState<any|null>(null);const[err,setErr]=useState('')
-  useEffect(()=>{if(!productId&&products[0])setProductId(products[0].id)},[products,productId]);useEffect(()=>{if(!ingredientId&&ingredients[0])setIngredientId(ingredients[0].id)},[ingredients,ingredientId])
-  async function addProduct(e:React.FormEvent){e.preventDefault();try{await request(`/businesses/${businessId}/products`,{method:'POST',body:JSON.stringify({name,category,active:true,units_per_batch:1,packaging_cents_per_unit:0,energy_cents_per_batch:0,labor_cents_per_batch:0})},token);setName('');setCategory('');await onDone('Produto criado.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  async function saveRecipe(e:React.FormEvent){e.preventDefault();try{await request(`/businesses/${businessId}/products/${productId}/recipe/${ingredientId}`,{method:'PUT',body:JSON.stringify({ingredient_id:ingredientId,qty_used_milliunits:qty})},token);await loadRecipe(productId);await onDone('Ficha técnica atualizada.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  async function loadRecipe(id:number){if(!id)return;try{setRecipe(await request(`/businesses/${businessId}/products/${id}/recipe`,{},token))}catch{setRecipe(null)}}
-  return <section><span className="eyebrow">CATÁLOGO + FICHA TÉCNICA</span><h1>Produto ligado ao custo real.</h1>{err&&<div className="error">{err}</div>}{canEdit&&<form className="inline-form" onSubmit={addProduct}><input value={name} onChange={e=>setName(e.target.value)} placeholder="Nome do produto" required/><input value={category} onChange={e=>setCategory(e.target.value)} placeholder="Categoria"/><button className="primary"><Plus size={17}/> Produto</button></form>}<div className="table-card">{products.length?products.map(p=><button className="row row-button" key={p.id} onClick={()=>{setProductId(p.id);loadRecipe(p.id)}}><div><b>{p.name}</b><span>{p.category||'Sem categoria'} · {p.active?'ativo':'inativo'} · lote {p.units_per_batch}</span></div><ChevronRight size={18}/></button>):<Empty text="Cadastre o primeiro produto."/>}</div>{productId>0&&<div className="panel recipe-panel"><div className="panel-head"><div><span className="eyebrow">RECEITA</span><h3>{products.find(p=>p.id===productId)?.name||'Produto'}</h3></div>{recipe&&<strong>{money(recipe.ingredient_cost_cents)}</strong>}</div>{recipe?.items?.map((x:any)=><div className="mini-row" key={x.ingredient_id}><div><b>{x.name}</b><span>{x.qty_used_milliunits} {ingredients.find(i=>i.id===x.ingredient_id)?.unit||''}</span></div><strong>{money(x.estimated_cost_cents)}</strong></div>)}{canEdit&&ingredients.length>0&&<form className="inline-form" onSubmit={saveRecipe}><select value={ingredientId} onChange={e=>setIngredientId(Number(e.target.value))}>{ingredients.map(i=><option value={i.id} key={i.id}>{i.name}</option>)}</select><input type="number" min="1" value={qty||''} onChange={e=>setQty(Number(e.target.value))} placeholder="Quantidade usada" required/><button className="primary"><Save size={17}/> Salvar ingrediente</button></form>}</div>}</section>
+function Metric({
+  label,
+  value,
+  sub,
+  emphasis,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <article className={`metric ${emphasis ? "emphasis" : ""}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{sub}</small>
+    </article>
+  );
+}
+function Empty({ text }: { text: string }) {
+  return <div className="empty-inline">{text}</div>;
 }
 
-function CostsScreen({ingredients,alerts,businessId,role,token,onDone}:{ingredients:Ingredient[];alerts:InventoryAlert[];businessId:number;role:string;token:string;onDone:(m?:string)=>Promise<void>}){
-  const canEdit=['owner','admin'].includes(role);const[name,setName]=useState('');const[price,setPrice]=useState('');const[usable,setUsable]=useState(1000);const[err,setErr]=useState('')
-  async function add(e:React.FormEvent){e.preventDefault();try{await request(`/businesses/${businessId}/ingredients`,{method:'POST',body:JSON.stringify({name,unit:'g',price_cents:Math.round(Number(price)*100),purchase_qty_milliunits:1000,usable_qty_milliunits:usable})},token);setName('');setPrice('');await onDone('Ingrediente criado.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  async function setStock(i:Ingredient){const onHand=prompt(`Estoque atual de ${i.name} (${i.unit})`,String(i.on_hand_milliunits));if(onHand===null)return;const par=prompt('Nível mínimo',String(i.par_level_milliunits));if(par===null)return;const target=prompt('Alvo de reposição',String(i.reorder_target_milliunits||Number(par)));if(target===null)return;try{await request(`/businesses/${businessId}/ingredients/${i.id}/inventory`,{method:'PATCH',body:JSON.stringify({on_hand_milliunits:Number(onHand),par_level_milliunits:Number(par),reorder_target_milliunits:Number(target),expected_version:i.version})},token);await onDone('Estoque configurado.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  return <section><div className="today-head"><div><span className="eyebrow">ESTOQUE DE INGREDIENTE</span><h1>Saiba o que está acabando.</h1><p className="lead">Nível mínimo e alvo de reposição ficam no núcleo — sem add-on de inventário.</p></div></div>{err&&<div className="error">{err}</div>}{canEdit&&<form className="inline-form" onSubmit={add}><input value={name} onChange={e=>setName(e.target.value)} placeholder="Ingrediente" required/><input type="number" step="0.01" value={price} onChange={e=>setPrice(e.target.value)} placeholder="Preço pacote R$" required/><input type="number" value={usable} onChange={e=>setUsable(Number(e.target.value))} placeholder="Qtd útil"/><button className="primary"><Plus size={17}/> Ingrediente</button></form>}<div className="table-card">{ingredients.length?ingredients.map(i=>{const alert=alerts.find(a=>a.ingredient_id===i.id);return <div className={`row richer ${alert?'alert-row':''}`} key={i.id}><div><b>{i.name}</b><span>{i.on_hand_milliunits} {i.unit} em estoque · mínimo {i.par_level_milliunits} · ref. compra {money(i.last_purchase_price_cents)}</span></div><div className="row-actions">{alert&&<span className="warning-chip">repor +{alert.suggested_purchase_milliunits}</span>}{canEdit&&<button className="secondary" onClick={()=>setStock(i)}><SlidersHorizontal size={15}/> Estoque</button>}</div></div>}):<Empty text="Cadastre ingredientes para começar."/>}</div></section>
+function OrdersScreen({
+  orders,
+  products,
+  businessId,
+  token,
+  onDone,
+}: {
+  orders: KdsOrder[];
+  products: Product[];
+  businessId: number;
+  token: string;
+  onDone: (m?: string) => Promise<void>;
+}) {
+  const [show, setShow] = useState(false);
+  const [productId, setProductId] = useState(products[0]?.id || 0);
+  const [qty, setQty] = useState(1);
+  const [price, setPrice] = useState("");
+  const [cost, setCost] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const columns = [
+    "new",
+    "confirmed",
+    "production",
+    "checking",
+    "awaiting_delivery",
+  ];
+  async function advance(order: KdsOrder) {
+    const next = nextStatus[order.status];
+    if (!next) return;
+    try {
+      await request(
+        `/businesses/${businessId}/orders/${order.id}/status`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            status: next,
+            expected_version: order.version,
+          }),
+        },
+        token,
+      );
+      await onDone(
+        next === "completed"
+          ? "Pedido concluído e estoque teórico atualizado."
+          : "Pedido atualizado.",
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr("");
+    try {
+      const unitPrice = Math.round(Number(price) * 100),
+        unitCost = Math.round(Number(cost) * 100);
+      const o = await request(
+        `/businesses/${businessId}/orders`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            total_cents: unitPrice * qty,
+            variable_cost_cents: unitCost * qty,
+            source: "manual",
+            paid: true,
+          }),
+        },
+        token,
+      );
+      await request(
+        `/businesses/${businessId}/orders/${o.id}/items`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            product_id: productId,
+            quantity: qty,
+            unit_price_cents: unitPrice,
+            unit_variable_cost_cents: unitCost,
+          }),
+        },
+        token,
+      );
+      setShow(false);
+      setPrice("");
+      setCost("");
+      await onDone("Pedido registrado no KDS.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section>
+      <div className="today-head">
+        <div>
+          <span className="eyebrow">KDS NO NAVEGADOR</span>
+          <h1>Pedidos em fluxo.</h1>
+          <p className="lead">
+            Sem tela dedicada: celular, tablet ou computador viram o quadro da
+            cozinha.
+          </p>
+        </div>
+        <button className="primary compact" onClick={() => setShow(!show)}>
+          <Plus size={17} /> Pedido
+        </button>
+      </div>
+      {err && <div className="error">{err}</div>}
+      {show && (
+        <form className="inline-form" onSubmit={create}>
+          <select
+            value={productId}
+            onChange={(e) => setProductId(Number(e.target.value))}
+            required
+          >
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="1"
+            value={qty}
+            onChange={(e) => setQty(Number(e.target.value))}
+            placeholder="Qtd"
+          />
+          <input
+            type="number"
+            step="0.01"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Preço un. R$"
+            required
+          />
+          <input
+            type="number"
+            step="0.01"
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
+            placeholder="Custo var. un. R$"
+            required
+          />
+          <button className="primary" disabled={busy}>
+            {busy ? "Salvando..." : "Registrar"}
+          </button>
+        </form>
+      )}
+      <div className="kds-board">
+        {columns.map((status) => (
+          <div className="kds-column" key={status}>
+            <div className="kds-title">
+              <b>{statusLabel[status]}</b>
+              <span>{orders.filter((o) => o.status === status).length}</span>
+            </div>
+            {orders
+              .filter((o) => o.status === status)
+              .map((o) => (
+                <article
+                  className={`ticket ${o.delayed ? "late" : ""}`}
+                  key={o.id}
+                >
+                  <div className="ticket-top">
+                    <b>#{o.id}</b>
+                    <span>{o.age_minutes} min</span>
+                  </div>
+                  <div className="ticket-items">
+                    {o.items.length ? (
+                      o.items.map((x, i) => (
+                        <div key={`${x.product_id}-${i}`}>
+                          <strong>{x.quantity}×</strong> {x.name}
+                        </div>
+                      ))
+                    ) : (
+                      <span>Pedido sem itens detalhados</span>
+                    )}
+                  </div>
+                  <div className="ticket-bottom">
+                    <small>
+                      {o.source} · {money(o.total_cents)}
+                    </small>
+                    {nextStatus[o.status] && (
+                      <button onClick={() => advance(o)}>
+                        {statusLabel[nextStatus[o.status]]}
+                        <ChevronRight size={15} />
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
-function FinanceScreen({finance,dashboard}:{finance:Finance|null;dashboard:Dashboard|null}){
-  const f=finance;const margin=(f?.contribution_margin_bps||0)/100
-  return <section><span className="eyebrow">FINANCEIRO OPERACIONAL · 30 DIAS</span><h1>Receita é entrada. Contribuição é o que sobra da operação variável.</h1><div className="pulse-grid four"><Metric label="Receita" value={money(f?.revenue_cents)} sub={`${f?.order_count||0} pedidos pagos`}/><Metric label="Custos variáveis" value={money(f?.variable_costs_cents)} sub="registrados nos pedidos"/><Metric label="Contribuição" value={money(f?.contribution_cents)} sub={`${margin.toFixed(1)}% da receita`} emphasis/><Metric label="Compras" value={money(f?.purchases_landed_cents)} sub="produto + frete + tributos"/></div><div className="split-grid"><article className="panel"><span className="eyebrow">PERDAS</span><h3>{money(f?.loss_cents)}</h3><p>Desperdícios registrados reduzem caixa mesmo quando não aparecem no faturamento.</p></article><article className="panel"><span className="eyebrow">QUALIDADE OPERACIONAL</span><h3>{Math.round((dashboard?.delay_rate||0)*100)}% atraso · {Math.round((dashboard?.error_rate||0)*100)}% erro</h3><p>O financeiro e a operação precisam conversar antes de acelerar tráfego.</p></article></div></section>
+function ProductionScreen({
+  batches,
+  demand,
+  products,
+  members,
+  workspace,
+  token,
+  onDone,
+}: {
+  batches: ProductionBatch[];
+  demand: DemandRow[];
+  products: Product[];
+  members: Member[];
+  workspace: Workspace;
+  token: string;
+  onDone: (m?: string) => Promise<void>;
+}) {
+  const [productId, setProductId] = useState(products[0]?.id || 0);
+  const [qty, setQty] = useState(1);
+  const [err, setErr] = useState("");
+  const businessId = workspace.business.id;
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await request(
+        `/businesses/${businessId}/production`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            product_id: productId,
+            planned_qty: qty,
+            responsible_user_id: workspace.member.user_id,
+            notes: "Planejado pelo workspace",
+          }),
+        },
+        token,
+      );
+      await onDone("Lote de produção criado.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  async function progress(b: ProductionBatch) {
+    const status = b.status === "planned" ? "in_progress" : "completed";
+    try {
+      await request(
+        `/businesses/${businessId}/production/${b.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            status,
+            produced_qty:
+              status === "completed" ? b.planned_qty : b.produced_qty,
+            waste_qty: b.waste_qty,
+            expected_version: b.version,
+          }),
+        },
+        token,
+      );
+      await onDone("Produção atualizada.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  return (
+    <section>
+      <span className="eyebrow">PLANEJAMENTO DE PRODUÇÃO</span>
+      <h1>Produza pelo que os dados pedem.</h1>
+      <p className="lead">
+        Histórico de vendas + pedidos abertos formam uma recomendação simples,
+        auditável e sem custo de IA externa.
+      </p>
+      {err && <div className="error">{err}</div>}
+      <div className="demand-grid">
+        {demand.map((d) => (
+          <article className="demand-card" key={d.product_id}>
+            <span>
+              {d.confidence === "high"
+                ? "Alta confiança"
+                : d.confidence === "medium"
+                  ? "Confiança média"
+                  : "Pouco histórico"}
+            </span>
+            <strong>{d.recommended_units}</strong>
+            <b>{d.product_name}</b>
+            <small>
+              {d.forecast_units} previsão + {d.open_committed_units} já
+              comprometidas
+            </small>
+          </article>
+        ))}
+      </div>
+      <div className="section-title">
+        <span className="eyebrow">NOVO LOTE</span>
+      </div>
+      <form className="inline-form" onSubmit={create}>
+        <select
+          value={productId}
+          onChange={(e) => setProductId(Number(e.target.value))}
+        >
+          {products.map((p) => (
+            <option value={p.id} key={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          min="0"
+          value={qty}
+          onChange={(e) => setQty(Number(e.target.value))}
+        />
+        <button className="primary">
+          <CookingPot size={17} /> Planejar
+        </button>
+      </form>
+      <div className="table-card">
+        {batches.length ? (
+          batches.map((b) => (
+            <div className="row richer" key={b.id}>
+              <div>
+                <b>{b.product_name}</b>
+                <span>
+                  {statusLabel[b.status] || b.status} · planejado{" "}
+                  {b.planned_qty} · produzido {b.produced_qty} · perda{" "}
+                  {b.waste_qty}
+                </span>
+              </div>
+              {["planned", "in_progress"].includes(b.status) && (
+                <button className="secondary" onClick={() => progress(b)}>
+                  {b.status === "planned" ? "Iniciar" : "Concluir"}
+                </button>
+              )}
+            </div>
+          ))
+        ) : (
+          <Empty text="Nenhum lote planejado." />
+        )}
+      </div>
+      {members.length > 0 && (
+        <small className="explain">
+          Equipe disponível: {members.map((m) => m.name || m.email).join(", ")}.
+        </small>
+      )}
+    </section>
+  );
 }
 
-function CustomersScreen({customers,businessId,token,onDone}:{customers:Customer[];businessId:number;token:string;onDone:(m?:string)=>Promise<void>}){
-  const[name,setName]=useState('');const[phone,setPhone]=useState('');const[email,setEmail]=useState('');const[consent,setConsent]=useState(false);const[err,setErr]=useState('')
-  async function add(e:React.FormEvent){e.preventDefault();try{await request(`/businesses/${businessId}/customers`,{method:'POST',body:JSON.stringify({name,phone,email,consent_marketing:consent})},token);setName('');setPhone('');setEmail('');setConsent(false);await onDone('Cliente salvo.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  return <section><span className="eyebrow">RECOMPRA COM CONSENTIMENTO</span><h1>Cliente não é lista de spam.</h1>{err&&<div className="error">{err}</div>}<form className="inline-form" onSubmit={add}><input value={name} onChange={e=>setName(e.target.value)} placeholder="Nome" required/><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Telefone"/><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="E-mail"/><label className="check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> Aceitou marketing</label><button className="primary">Salvar</button></form><div className="table-card">{customers.length?customers.map(c=><div className="row" key={c.id}><div><b>{c.name}</b><span>{c.phone||c.email||'sem contato'} · {c.can_contact?'contato permitido':'sem consentimento'}</span></div></div>):<Empty text="Nenhum cliente cadastrado."/>}</div></section>
+function ProductsScreen({
+  products,
+  ingredients,
+  businessId,
+  role,
+  token,
+  onDone,
+}: {
+  products: Product[];
+  ingredients: Ingredient[];
+  businessId: number;
+  role: string;
+  token: string;
+  onDone: (m?: string) => Promise<void>;
+}) {
+  const canEdit = ["owner", "admin"].includes(role);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [productId, setProductId] = useState(products[0]?.id || 0);
+  const [ingredientId, setIngredientId] = useState(ingredients[0]?.id || 0);
+  const [qty, setQty] = useState(0);
+  const [recipe, setRecipe] = useState<any | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    if (!productId && products[0]) setProductId(products[0].id);
+  }, [products, productId]);
+  useEffect(() => {
+    if (!ingredientId && ingredients[0]) setIngredientId(ingredients[0].id);
+  }, [ingredients, ingredientId]);
+  async function addProduct(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await request(
+        `/businesses/${businessId}/products`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name,
+            category,
+            active: true,
+            units_per_batch: 1,
+            packaging_cents_per_unit: 0,
+            energy_cents_per_batch: 0,
+            labor_cents_per_batch: 0,
+          }),
+        },
+        token,
+      );
+      setName("");
+      setCategory("");
+      await onDone("Produto criado.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  async function saveRecipe(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await request(
+        `/businesses/${businessId}/products/${productId}/recipe/${ingredientId}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            ingredient_id: ingredientId,
+            qty_used_milliunits: qty,
+          }),
+        },
+        token,
+      );
+      await loadRecipe(productId);
+      await onDone("Ficha técnica atualizada.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  async function loadRecipe(id: number) {
+    if (!id) return;
+    try {
+      setRecipe(
+        await request(
+          `/businesses/${businessId}/products/${id}/recipe`,
+          {},
+          token,
+        ),
+      );
+    } catch {
+      setRecipe(null);
+    }
+  }
+  return (
+    <section>
+      <span className="eyebrow">CATÁLOGO + FICHA TÉCNICA</span>
+      <h1>Produto ligado ao custo real.</h1>
+      {err && <div className="error">{err}</div>}
+      {canEdit && (
+        <form className="inline-form" onSubmit={addProduct}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nome do produto"
+            required
+          />
+          <input
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="Categoria"
+          />
+          <button className="primary">
+            <Plus size={17} /> Produto
+          </button>
+        </form>
+      )}
+      <div className="table-card">
+        {products.length ? (
+          products.map((p) => (
+            <button
+              className="row row-button"
+              key={p.id}
+              onClick={() => {
+                setProductId(p.id);
+                loadRecipe(p.id);
+              }}
+            >
+              <div>
+                <b>{p.name}</b>
+                <span>
+                  {p.category || "Sem categoria"} ·{" "}
+                  {p.active ? "ativo" : "inativo"} · lote {p.units_per_batch}
+                </span>
+              </div>
+              <ChevronRight size={18} />
+            </button>
+          ))
+        ) : (
+          <Empty text="Cadastre o primeiro produto." />
+        )}
+      </div>
+      {productId > 0 && (
+        <div className="panel recipe-panel">
+          <div className="panel-head">
+            <div>
+              <span className="eyebrow">RECEITA</span>
+              <h3>
+                {products.find((p) => p.id === productId)?.name || "Produto"}
+              </h3>
+            </div>
+            {recipe && <strong>{money(recipe.ingredient_cost_cents)}</strong>}
+          </div>
+          {recipe?.items?.map((x: any) => (
+            <div className="mini-row" key={x.ingredient_id}>
+              <div>
+                <b>{x.name}</b>
+                <span>
+                  {x.qty_used_milliunits}{" "}
+                  {ingredients.find((i) => i.id === x.ingredient_id)?.unit ||
+                    ""}
+                </span>
+              </div>
+              <strong>{money(x.estimated_cost_cents)}</strong>
+            </div>
+          ))}
+          {canEdit && ingredients.length > 0 && (
+            <form className="inline-form" onSubmit={saveRecipe}>
+              <select
+                value={ingredientId}
+                onChange={(e) => setIngredientId(Number(e.target.value))}
+              >
+                {ingredients.map((i) => (
+                  <option value={i.id} key={i.id}>
+                    {i.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                min="1"
+                value={qty || ""}
+                onChange={(e) => setQty(Number(e.target.value))}
+                placeholder="Quantidade usada"
+                required
+              />
+              <button className="primary">
+                <Save size={17} /> Salvar ingrediente
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }
 
-function TeamScreen({members,businessId,role,token,onDone}:{members:Member[];businessId:number;role:string;token:string;onDone:(m?:string)=>Promise<void>}){
-  const[email,setEmail]=useState('');const[newRole,setNewRole]=useState('member');const[err,setErr]=useState('')
-  async function add(e:React.FormEvent){e.preventDefault();try{await request(`/businesses/${businessId}/members`,{method:'POST',body:JSON.stringify({email,role:newRole})},token);setEmail('');await onDone('Membro adicionado. Cada pessoa pode personalizar o próprio workspace.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  return <section><span className="eyebrow">EQUIPE</span><h1>Uma operação, workspaces diferentes.</h1><p className="lead">Preferências pertencem ao membro; permissões continuam controladas no servidor.</p>{err&&<div className="error">{err}</div>}<form className="inline-form" onSubmit={add}><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="E-mail de uma conta já criada" required/><select value={newRole} onChange={e=>setNewRole(e.target.value)}><option value="member">Membro</option>{role==='owner'&&<option value="admin">Admin</option>}</select><button className="primary"><UserPlus size={17}/> Adicionar</button></form><div className="table-card">{members.map(m=><div className="row" key={m.membership_id}><div><b>{m.name||m.email}</b><span>{m.email} · {m.role} · visão {m.preferences.role_view}</span></div></div>)}</div></section>
+function CostsScreen({
+  ingredients,
+  alerts,
+  businessId,
+  role,
+  token,
+  onDone,
+}: {
+  ingredients: Ingredient[];
+  alerts: InventoryAlert[];
+  businessId: number;
+  role: string;
+  token: string;
+  onDone: (m?: string) => Promise<void>;
+}) {
+  const canEdit = ["owner", "admin"].includes(role);
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [usable, setUsable] = useState(1000);
+  const [err, setErr] = useState("");
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await request(
+        `/businesses/${businessId}/ingredients`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name,
+            unit: "g",
+            price_cents: Math.round(Number(price) * 100),
+            purchase_qty_milliunits: 1000,
+            usable_qty_milliunits: usable,
+          }),
+        },
+        token,
+      );
+      setName("");
+      setPrice("");
+      await onDone("Ingrediente criado.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  async function setStock(i: Ingredient) {
+    const onHand = prompt(
+      `Estoque atual de ${i.name} (${i.unit})`,
+      String(i.on_hand_milliunits),
+    );
+    if (onHand === null) return;
+    const par = prompt("Nível mínimo", String(i.par_level_milliunits));
+    if (par === null) return;
+    const target = prompt(
+      "Alvo de reposição",
+      String(i.reorder_target_milliunits || Number(par)),
+    );
+    if (target === null) return;
+    try {
+      await request(
+        `/businesses/${businessId}/ingredients/${i.id}/inventory`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            on_hand_milliunits: Number(onHand),
+            par_level_milliunits: Number(par),
+            reorder_target_milliunits: Number(target),
+            expected_version: i.version,
+          }),
+        },
+        token,
+      );
+      await onDone("Estoque configurado.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  return (
+    <section>
+      <div className="today-head">
+        <div>
+          <span className="eyebrow">ESTOQUE DE INGREDIENTE</span>
+          <h1>Saiba o que está acabando.</h1>
+          <p className="lead">
+            Nível mínimo e alvo de reposição ficam no núcleo — sem add-on de
+            inventário.
+          </p>
+        </div>
+      </div>
+      {err && <div className="error">{err}</div>}
+      {canEdit && (
+        <form className="inline-form" onSubmit={add}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ingrediente"
+            required
+          />
+          <input
+            type="number"
+            step="0.01"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Preço pacote R$"
+            required
+          />
+          <input
+            type="number"
+            value={usable}
+            onChange={(e) => setUsable(Number(e.target.value))}
+            placeholder="Qtd útil"
+          />
+          <button className="primary">
+            <Plus size={17} /> Ingrediente
+          </button>
+        </form>
+      )}
+      <div className="table-card">
+        {ingredients.length ? (
+          ingredients.map((i) => {
+            const alert = alerts.find((a) => a.ingredient_id === i.id);
+            return (
+              <div
+                className={`row richer ${alert ? "alert-row" : ""}`}
+                key={i.id}
+              >
+                <div>
+                  <b>{i.name}</b>
+                  <span>
+                    {i.on_hand_milliunits} {i.unit} em estoque · mínimo{" "}
+                    {i.par_level_milliunits} · ref. compra{" "}
+                    {money(i.last_purchase_price_cents)}
+                  </span>
+                </div>
+                <div className="row-actions">
+                  {alert && (
+                    <span className="warning-chip">
+                      repor +{alert.suggested_purchase_milliunits}
+                    </span>
+                  )}
+                  {canEdit && (
+                    <button className="secondary" onClick={() => setStock(i)}>
+                      <SlidersHorizontal size={15} /> Estoque
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <Empty text="Cadastre ingredientes para começar." />
+        )}
+      </div>
+    </section>
+  );
 }
 
-function PreferencesScreen({workspace,token,onDone}:{workspace:Workspace;token:string;onDone:(m?:string)=>Promise<void>}){
-  const [prefs,setPrefs]=useState<WorkspacePreferences>(workspace.preferences);const[err,setErr]=useState('')
-  useEffect(()=>setPrefs(workspace.preferences),[workspace.preferences])
-  const all=['hoje','pedidos','producao','produtos','custos','financeiro','clientes','equipe','config']
-  function toggle(id:string){if(id==='hoje'||id==='config')return;setPrefs(p=>({...p,hidden_modules:p.hidden_modules.includes(id)?p.hidden_modules.filter(x=>x!==id):[...p.hidden_modules,id]}))}
-  async function save(){try{await request(`/businesses/${workspace.business.id}/workspace/preferences`,{method:'PUT',body:JSON.stringify(prefs)},token);document.documentElement.dataset.theme=prefs.theme;await onDone('Sua área foi personalizada.')}catch(e){setErr(e instanceof Error?e.message:'Erro')}}
-  return <section><span className="eyebrow">WORKSPACE INDIVIDUAL</span><h1>Deixe à vista só o que você usa.</h1><p className="lead">Ocultar um módulo muda sua tela, não suas permissões nem os dados do negócio.</p>{err&&<div className="error">{err}</div>}<div className="settings-grid"><article className="panel"><h3>Foco</h3><label>Visão de trabalho<select value={prefs.role_view} onChange={e=>setPrefs({...prefs,role_view:e.target.value})}><option value="all">Tudo</option><option value="operations">Operação</option><option value="finance">Financeiro</option><option value="sales">Vendas</option></select></label><label>Prioridade da home<select value={prefs.home_focus} onChange={e=>setPrefs({...prefs,home_focus:e.target.value})}><option value="margin">Margem</option><option value="production">Produção</option><option value="sales">Vendas</option><option value="inventory">Estoque</option></select></label><label>Tema<select value={prefs.theme} onChange={e=>setPrefs({...prefs,theme:e.target.value})}><option value="system">Sistema</option><option value="dark">Escuro</option><option value="light">Claro</option></select></label><label className="check"><input type="checkbox" checked={prefs.compact_mode} onChange={e=>setPrefs({...prefs,compact_mode:e.target.checked})}/> Modo compacto</label></article><article className="panel"><h3>Módulos visíveis</h3><div className="module-toggles">{all.filter(id=>id!=='equipe'||workspace.member.role!=='member').map(id=><label className="check" key={id}><input type="checkbox" checked={!prefs.hidden_modules.includes(id)} disabled={id==='hoje'||id==='config'} onChange={()=>toggle(id)}/>{labels[id]}</label>)}</div></article></div><button className="primary save-prefs" onClick={save}><Save size={17}/> Salvar minha área</button></section>
+function FinanceScreen({
+  finance,
+  dashboard,
+}: {
+  finance: Finance | null;
+  dashboard: Dashboard | null;
+}) {
+  const f = finance;
+  const margin = (f?.contribution_margin_bps || 0) / 100;
+  return (
+    <section>
+      <span className="eyebrow">FINANCEIRO OPERACIONAL · 30 DIAS</span>
+      <h1>
+        Receita é entrada. Contribuição é o que sobra da operação variável.
+      </h1>
+      <div className="pulse-grid four">
+        <Metric
+          label="Receita"
+          value={money(f?.revenue_cents)}
+          sub={`${f?.order_count || 0} pedidos pagos`}
+        />
+        <Metric
+          label="Custos variáveis"
+          value={money(f?.variable_costs_cents)}
+          sub="registrados nos pedidos"
+        />
+        <Metric
+          label="Contribuição"
+          value={money(f?.contribution_cents)}
+          sub={`${margin.toFixed(1)}% da receita`}
+          emphasis
+        />
+        <Metric
+          label="Compras"
+          value={money(f?.purchases_landed_cents)}
+          sub="produto + frete + tributos"
+        />
+      </div>
+      <div className="split-grid">
+        <article className="panel">
+          <span className="eyebrow">PERDAS</span>
+          <h3>{money(f?.loss_cents)}</h3>
+          <p>
+            Desperdícios registrados reduzem caixa mesmo quando não aparecem no
+            faturamento.
+          </p>
+        </article>
+        <article className="panel">
+          <span className="eyebrow">QUALIDADE OPERACIONAL</span>
+          <h3>
+            {Math.round((dashboard?.delay_rate || 0) * 100)}% atraso ·{" "}
+            {Math.round((dashboard?.error_rate || 0) * 100)}% erro
+          </h3>
+          <p>
+            O financeiro e a operação precisam conversar antes de acelerar
+            tráfego.
+          </p>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function CustomersScreen({
+  customers,
+  businessId,
+  token,
+  onDone,
+}: {
+  customers: Customer[];
+  businessId: number;
+  token: string;
+  onDone: (m?: string) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [err, setErr] = useState("");
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await request(
+        `/businesses/${businessId}/customers`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name,
+            phone,
+            email,
+            consent_marketing: consent,
+          }),
+        },
+        token,
+      );
+      setName("");
+      setPhone("");
+      setEmail("");
+      setConsent(false);
+      await onDone("Cliente salvo.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  return (
+    <section>
+      <span className="eyebrow">RECOMPRA COM CONSENTIMENTO</span>
+      <h1>Cliente não é lista de spam.</h1>
+      {err && <div className="error">{err}</div>}
+      <form className="inline-form" onSubmit={add}>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nome"
+          required
+        />
+        <input
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="Telefone"
+        />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="E-mail"
+        />
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+          />{" "}
+          Aceitou marketing
+        </label>
+        <button className="primary">Salvar</button>
+      </form>
+      <div className="table-card">
+        {customers.length ? (
+          customers.map((c) => (
+            <div className="row" key={c.id}>
+              <div>
+                <b>{c.name}</b>
+                <span>
+                  {c.phone || c.email || "sem contato"} ·{" "}
+                  {c.can_contact ? "contato permitido" : "sem consentimento"}
+                </span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <Empty text="Nenhum cliente cadastrado." />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TeamScreen({
+  members,
+  businessId,
+  role,
+  token,
+  onDone,
+}: {
+  members: Member[];
+  businessId: number;
+  role: string;
+  token: string;
+  onDone: (m?: string) => Promise<void>;
+}) {
+  const [email, setEmail] = useState("");
+  const [newRole, setNewRole] = useState("member");
+  const [err, setErr] = useState("");
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await request(
+        `/businesses/${businessId}/members`,
+        { method: "POST", body: JSON.stringify({ email, role: newRole }) },
+        token,
+      );
+      setEmail("");
+      await onDone(
+        "Membro adicionado. Cada pessoa pode personalizar o próprio workspace.",
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  return (
+    <section>
+      <span className="eyebrow">EQUIPE</span>
+      <h1>Uma operação, workspaces diferentes.</h1>
+      <p className="lead">
+        Preferências pertencem ao membro; permissões continuam controladas no
+        servidor.
+      </p>
+      {err && <div className="error">{err}</div>}
+      <form className="inline-form" onSubmit={add}>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="E-mail de uma conta já criada"
+          required
+        />
+        <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+          <option value="member">Membro</option>
+          {role === "owner" && <option value="admin">Admin</option>}
+        </select>
+        <button className="primary">
+          <UserPlus size={17} /> Adicionar
+        </button>
+      </form>
+      <div className="table-card">
+        {members.map((m) => (
+          <div className="row" key={m.membership_id}>
+            <div>
+              <b>{m.name || m.email}</b>
+              <span>
+                {m.email} · {m.role} · visão {m.preferences.role_view}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PreferencesScreen({
+  workspace,
+  token,
+  onDone,
+}: {
+  workspace: Workspace;
+  token: string;
+  onDone: (m?: string) => Promise<void>;
+}) {
+  const [prefs, setPrefs] = useState<WorkspacePreferences>(
+    workspace.preferences,
+  );
+  const [err, setErr] = useState("");
+  useEffect(() => setPrefs(workspace.preferences), [workspace.preferences]);
+  const all = [
+    "hoje",
+    "pedidos",
+    "producao",
+    "produtos",
+    "custos",
+    "financeiro",
+    "clientes",
+    "equipe",
+    "config",
+  ];
+  function toggle(id: string) {
+    if (id === "hoje" || id === "config") return;
+    setPrefs((p) => ({
+      ...p,
+      hidden_modules: p.hidden_modules.includes(id)
+        ? p.hidden_modules.filter((x) => x !== id)
+        : [...p.hidden_modules, id],
+    }));
+  }
+  async function save() {
+    try {
+      await request(
+        `/businesses/${workspace.business.id}/workspace/preferences`,
+        { method: "PUT", body: JSON.stringify(prefs) },
+        token,
+      );
+      document.documentElement.dataset.theme = prefs.theme;
+      await onDone("Sua área foi personalizada.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erro");
+    }
+  }
+  return (
+    <section>
+      <span className="eyebrow">WORKSPACE INDIVIDUAL</span>
+      <h1>Deixe à vista só o que você usa.</h1>
+      <p className="lead">
+        Ocultar um módulo muda sua tela, não suas permissões nem os dados do
+        negócio.
+      </p>
+      {err && <div className="error">{err}</div>}
+      <div className="settings-grid">
+        <article className="panel">
+          <h3>Foco</h3>
+          <label>
+            Visão de trabalho
+            <select
+              value={prefs.role_view}
+              onChange={(e) =>
+                setPrefs({ ...prefs, role_view: e.target.value })
+              }
+            >
+              <option value="all">Tudo</option>
+              <option value="operations">Operação</option>
+              <option value="finance">Financeiro</option>
+              <option value="sales">Vendas</option>
+            </select>
+          </label>
+          <label>
+            Prioridade da home
+            <select
+              value={prefs.home_focus}
+              onChange={(e) =>
+                setPrefs({ ...prefs, home_focus: e.target.value })
+              }
+            >
+              <option value="margin">Margem</option>
+              <option value="production">Produção</option>
+              <option value="sales">Vendas</option>
+              <option value="inventory">Estoque</option>
+            </select>
+          </label>
+          <label>
+            Tema
+            <select
+              value={prefs.theme}
+              onChange={(e) => setPrefs({ ...prefs, theme: e.target.value })}
+            >
+              <option value="system">Sistema</option>
+              <option value="dark">Escuro</option>
+              <option value="light">Claro</option>
+            </select>
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={prefs.compact_mode}
+              onChange={(e) =>
+                setPrefs({ ...prefs, compact_mode: e.target.checked })
+              }
+            />{" "}
+            Modo compacto
+          </label>
+        </article>
+        <article className="panel">
+          <h3>Módulos visíveis</h3>
+          <div className="module-toggles">
+            {all
+              .filter(
+                (id) => id !== "equipe" || workspace.member.role !== "member",
+              )
+              .map((id) => (
+                <label className="check" key={id}>
+                  <input
+                    type="checkbox"
+                    checked={!prefs.hidden_modules.includes(id)}
+                    disabled={id === "hoje" || id === "config"}
+                    onChange={() => toggle(id)}
+                  />
+                  {labels[id]}
+                </label>
+              ))}
+          </div>
+        </article>
+      </div>
+      <button className="primary save-prefs" onClick={save}>
+        <Save size={17} /> Salvar minha área
+      </button>
+    </section>
+  );
 }
