@@ -41,7 +41,7 @@ begin
 
   perform cron.schedule(
     'c360-mercadopago-reconcile-60s',
-    '60 seconds',
+    '* * * * *',
     $cron$
       select net.http_post(
         url := 'https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-payments-v56/reconcile',
