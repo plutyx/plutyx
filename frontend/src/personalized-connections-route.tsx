@@ -2,6 +2,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { request } from "./app";
 import { ConnectionActivationQueue } from "./connection-activation-queue";
+import { ConnectionMissionControlPortal } from "./connection-mission-control";
 import { ConnectionsHubRoute } from "./connections-hub";
 import { PagBankConnectionCardPortal } from "./pagbank-connection-card";
 
@@ -146,6 +147,7 @@ export function PersonalizedConnectionsRoute() {
     <>
       {hasIntent && <ConnectionActivationQueue restored={restored} />}
       <ConnectionsHubRoute />
+      <ConnectionMissionControlPortal />
       <PagBankConnectionCardPortal />
     </>
   );
