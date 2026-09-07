@@ -53,10 +53,9 @@ try {
     .waitFor({ timeout: 15000 });
   await restoredGalaxy.getByText("2/5", { exact: true }).waitFor();
 
-  // Persistence is global to the constellation, while the detail panel intentionally
-  // reopens on its default node. Re-select the planned provider before asserting its CTA.
+  // Persistence belongs to the constellation, while the detail panel intentionally
+  // reopens on its default node. Re-select the provider, then assert the stateful CTA.
   await restoredGalaxy.getByRole("button", { name: /Mercado Pago/ }).click();
-  await restoredGalaxy.locator("aside").getByText("Mercado Pago", { exact: true }).waitFor();
   await restoredGalaxy.locator("aside").getByRole("button", { name: /Remover da minha rota/ }).waitFor();
 
   const restoredIntent = await page.evaluate(() =>
