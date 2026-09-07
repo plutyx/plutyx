@@ -1,27 +1,41 @@
 import React,{useEffect,useMemo,useState}from'react'
-import{ArrowLeft,Boxes,ChefHat,Clock3,Layers3,PackageCheck,RefreshCcw,ShoppingCart,TriangleAlert,UtensilsCrossed}from'lucide-react'
+import{ArrowLeft,Boxes,ChefHat,Clock3,Gauge,Layers3,PackageCheck,RefreshCcw,Save,Settings2,ShieldCheck,ShoppingCart,TriangleAlert,UtensilsCrossed,X}from'lucide-react'
 import{request,type Ingredient,type KdsOrder}from'./app'
+import{kdsRequest}from'./kds-api-v54'
 
 type Business={id:number;name:string;city:string;role:string}
-type PrepGroup={product_id:number;name:string;quantity:number;orderIds:number[];oldest:number;delayed:boolean;statuses:Record<string,number>}
+type SlaUrgency='on_track'|'warning'|'critical'|'overdue'
+type KdsItem=KdsOrder['items'][number]&{prep_sla_minutes?:number;sla_source?:string}
+type SlaOrder=Omit<KdsOrder,'items'>&{items:KdsItem[];default_sla_minutes?:number;prep_sla_minutes?:number;channel_sla_minutes?:number|null;effective_sla_minutes?:number;due_in_minutes?:number;urgency?:SlaUrgency;sla_conflict?:boolean;channel?:{id:number;name:string}|null;brand?:{id:number;name:string;accent_color?:string|null}|null}
+type KdsPayload={generated_at?:string;business_id:number;default_kds_sla_minutes:number;summary?:{open_orders:number;prep_orders:number;overdue:number;at_risk:number;sla_conflicts:number};orders:SlaOrder[]}
+type PrepGroup={product_id:number;name:string;quantity:number;orderIds:number[];oldest:number;delayed:boolean;statuses:Record<string,number>;due:number;urgency:SlaUrgency;slaMinutes:number;slaConflict:boolean;channels:string[]}
 type RecipeView={product_id:number;product_name:string;items:{ingredient_id:number;name:string;qty_used_milliunits:number;on_hand_milliunits:number}[]}
 type ComponentProduct={product_id:number;name:string;units:number;required:number}
 type ComponentGroup={ingredient_id:number;name:string;unit:string;required:number;onHand:number;projected:number;par:number;target:number;shortage:number;suggestedPurchase:number;status:'shortage'|'below_par'|'covered';orderIds:number[];products:ComponentProduct[]}
+type SlaProduct={id:number;name:string;category?:string;prep_sla_minutes:number|null;active:boolean}
+type SlaChannel={id:number;name:string;order_sla_minutes:number|null;traffic_active:boolean}
+type SlaSettings={business_id:number;default_kds_sla_minutes:number;products:SlaProduct[];channels:SlaChannel[]}
 const labels:Record<string,string>={new:'novo',confirmed:'confirmado',production:'em preparo'}
+const urgencyRank:Record<SlaUrgency,number>={on_track:0,warning:1,critical:2,overdue:3}
 
 export function KitchenBatchRoute(){
   const token=localStorage.getItem('c360_token')||''
   const[businesses,setBusinesses]=useState<Business[]>([])
   const[businessId,setBusinessId]=useState(0)
-  const[orders,setOrders]=useState<KdsOrder[]>([])
+  const[orders,setOrders]=useState<SlaOrder[]>([])
   const[ingredients,setIngredients]=useState<Ingredient[]>([])
   const[recipes,setRecipes]=useState<RecipeView[]>([])
+  const[settings,setSettings]=useState<SlaSettings|null>(null)
+  const[draft,setDraft]=useState<SlaSettings|null>(null)
+  const[showSla,setShowSla]=useState(false)
+  const[savingSla,setSavingSla]=useState(false)
+  const[slaNotice,setSlaNotice]=useState('')
   const[view,setView]=useState<'products'|'components'>('products')
   const[loading,setLoading]=useState(true)
   const[error,setError]=useState('')
   const[lastUpdate,setLastUpdate]=useState<Date|null>(null)
 
-  async function load(targetId=businessId){
+  async function load(targetId=businessId,includeSettings=false){
     if(!token){setLoading(false);return}
     try{
       let bid=targetId
@@ -30,44 +44,66 @@ export function KitchenBatchRoute(){
         setBusinesses(rows);bid=bid||Number(rows[0]?.id||0);if(bid)setBusinessId(bid)
       }
       if(!bid)return
-      const[data,stock]=await Promise.all([
-        request(`/businesses/${bid}/kds`,{},token),
+      const needSettings=includeSettings||settings?.business_id!==bid
+      const[data,stock,settingsData]=await Promise.all([
+        kdsRequest(`/businesses/${bid}/kds`,{},token) as Promise<KdsPayload>,
         request(`/businesses/${bid}/ingredients`,{},token),
+        needSettings?kdsRequest(`/businesses/${bid}/kds/settings`,{},token) as Promise<SlaSettings>:Promise.resolve(settings),
       ])
-      const liveOrders=(data.orders||[]) as KdsOrder[]
+      const stockRows=(stock||[]) as Ingredient[],liveOrders=(data.orders||[]) as SlaOrder[]
       const productIds=[...new Set(liveOrders.filter(o=>['new','confirmed','production'].includes(o.status)).flatMap(o=>(o.items||[]).map(i=>i.product_id)))]
+      const productNames=new Map(liveOrders.flatMap(o=>o.items||[]).map(item=>[Number(item.product_id),item.name]))
       const recipeRows=await Promise.all(productIds.map(async id=>{
-        try{return await request(`/businesses/${bid}/products/${id}/recipe`,{},token) as RecipeView}
-        catch{return {product_id:id,product_name:'',items:[]} as RecipeView}
+        try{
+          const raw:any=await request(`/businesses/${bid}/products/${id}/recipe`,{},token)
+          const rows=Array.isArray(raw)?raw:(raw?.items||[])
+          return{product_id:id,product_name:raw?.product_name||productNames.get(id)||'',items:rows.map((item:any)=>{const stockItem=stockRows.find(s=>Number(s.id)===Number(item.ingredient_id));return{ingredient_id:Number(item.ingredient_id),name:item.name||stockItem?.name||'Ingrediente',qty_used_milliunits:Number(item.qty_used_milliunits||0),on_hand_milliunits:Number(stockItem?.on_hand_milliunits??item.on_hand_milliunits??0)}})} as RecipeView
+        }catch{return {product_id:id,product_name:productNames.get(id)||'',items:[]} as RecipeView}
       }))
-      setOrders(liveOrders);setIngredients(stock||[]);setRecipes(recipeRows);setLastUpdate(new Date());setError('')
+      setOrders(liveOrders);setIngredients(stockRows);setRecipes(recipeRows)
+      if(settingsData){setSettings(settingsData);if(needSettings)setDraft(cloneSettings(settingsData))}
+      setLastUpdate(new Date());setError('')
     }catch(e){setError(e instanceof Error?e.message:'Não foi possível atualizar o preparo')}
     finally{setLoading(false)}
   }
 
-  useEffect(()=>{load()},[])
+  useEffect(()=>{void load(0,true)},[])
   useEffect(()=>{
     if(!token||!businessId)return
-    const id=window.setInterval(()=>load(businessId),8000)
+    const id=window.setInterval(()=>void load(businessId,false),8000)
     return()=>window.clearInterval(id)
-  },[businessId,token])
+  },[businessId,token,settings?.business_id])
+
+  async function saveSla(){
+    if(!draft||!businessId)return
+    setSavingSla(true);setError('');setSlaNotice('')
+    try{
+      const saved=await kdsRequest(`/businesses/${businessId}/kds/settings`,{method:'PATCH',body:JSON.stringify({default_kds_sla_minutes:draft.default_kds_sla_minutes,products:draft.products.map(row=>({id:row.id,prep_sla_minutes:row.prep_sla_minutes})),channels:draft.channels.map(row=>({id:row.id,order_sla_minutes:row.order_sla_minutes}))})},token) as SlaSettings
+      setSettings(saved);setDraft(cloneSettings(saved));setSlaNotice('SLAs salvos. A fila foi recalculada sem alterar nenhum pedido.');await load(businessId,false)
+    }catch(e){setError(e instanceof Error?e.message:'Não foi possível salvar os SLAs')}
+    finally{setSavingSla(false)}
+  }
 
   const prepOrders=useMemo(()=>orders.filter(o=>['new','confirmed','production'].includes(o.status)),[orders])
   const groups=useMemo(()=>{
     const map=new Map<number,PrepGroup>()
     for(const order of prepOrders){
       for(const item of order.items||[]){
-        const current=map.get(item.product_id)||{product_id:item.product_id,name:item.name,quantity:0,orderIds:[],oldest:0,delayed:false,statuses:{}}
+        const due=Number.isFinite(Number(order.due_in_minutes))?Number(order.due_in_minutes):9999,urgency=(order.urgency||'on_track') as SlaUrgency,sla=Number(order.effective_sla_minutes||item.prep_sla_minutes||settings?.default_kds_sla_minutes||20)
+        const current=map.get(item.product_id)||{product_id:item.product_id,name:item.name,quantity:0,orderIds:[],oldest:0,delayed:false,statuses:{},due:9999,urgency:'on_track' as SlaUrgency,slaMinutes:sla,slaConflict:false,channels:[]}
         current.quantity+=Number(item.quantity||0)
         if(!current.orderIds.includes(order.id))current.orderIds.push(order.id)
         current.oldest=Math.max(current.oldest,Number(order.age_minutes||0))
         current.delayed=current.delayed||Boolean(order.delayed)
+        current.due=Math.min(current.due,due);current.slaMinutes=Math.min(current.slaMinutes,sla);current.slaConflict=current.slaConflict||Boolean(order.sla_conflict)
+        if(urgencyRank[urgency]>urgencyRank[current.urgency])current.urgency=urgency
+        if(order.channel?.name&&!current.channels.includes(order.channel.name))current.channels.push(order.channel.name)
         current.statuses[order.status]=(current.statuses[order.status]||0)+Number(item.quantity||0)
         map.set(item.product_id,current)
       }
     }
-    return [...map.values()].sort((a,b)=>Number(b.delayed)-Number(a.delayed)||b.oldest-a.oldest||b.quantity-a.quantity||a.name.localeCompare(b.name))
-  },[prepOrders])
+    return [...map.values()].sort((a,b)=>urgencyRank[b.urgency]-urgencyRank[a.urgency]||a.due-b.due||b.oldest-a.oldest||b.quantity-a.quantity||a.name.localeCompare(b.name))
+  },[prepOrders,settings?.default_kds_sla_minutes])
 
   const recipeMap=useMemo(()=>new Map(recipes.map(r=>[r.product_id,r])),[recipes])
   const ingredientMap=useMemo(()=>new Map(ingredients.map(i=>[i.id,i])),[ingredients])
@@ -82,53 +118,47 @@ export function KitchenBatchRoute(){
       for(const item of recipe.items){
         const stock=ingredientMap.get(item.ingredient_id)
         const required=Number(item.qty_used_milliunits||0)*group.quantity
-        const current=map.get(item.ingredient_id)||{
-          ingredient_id:item.ingredient_id,name:item.name,unit:stock?.unit||'un',required:0,
-          onHand:Number(stock?.on_hand_milliunits??item.on_hand_milliunits??0),par:Number(stock?.par_level_milliunits||0),target:Number(stock?.reorder_target_milliunits||0),
-          orderIds:new Set<number>(),products:new Map<number,ComponentProduct>(),
-        }
-        current.required+=required
-        group.orderIds.forEach(id=>current.orderIds.add(id))
+        const current=map.get(item.ingredient_id)||{ingredient_id:item.ingredient_id,name:item.name,unit:stock?.unit||'un',required:0,onHand:Number(stock?.on_hand_milliunits??item.on_hand_milliunits??0),par:Number(stock?.par_level_milliunits||0),target:Number(stock?.reorder_target_milliunits||0),orderIds:new Set<number>(),products:new Map<number,ComponentProduct>()}
+        current.required+=required;group.orderIds.forEach(id=>current.orderIds.add(id))
         const product=current.products.get(group.product_id)||{product_id:group.product_id,name:group.name,units:0,required:0}
-        product.units+=group.quantity;product.required+=required;current.products.set(group.product_id,product)
-        map.set(item.ingredient_id,current)
+        product.units+=group.quantity;product.required+=required;current.products.set(group.product_id,product);map.set(item.ingredient_id,current)
       }
     }
-    const components:ComponentGroup[]=[...map.values()].map(c=>{
-      const projected=c.onHand-c.required
-      const shortage=Math.max(0,-projected)
-      const belowPar=c.par>0&&projected<c.par
-      const suggestedPurchase=c.target>0&&projected<c.target?Math.max(0,c.target-projected):shortage
-      const status:ComponentGroup['status']=shortage?'shortage':belowPar?'below_par':'covered'
-      return{ingredient_id:c.ingredient_id,name:c.name,unit:c.unit,required:c.required,onHand:c.onHand,projected,par:c.par,target:c.target,shortage,suggestedPurchase,status,orderIds:[...c.orderIds].sort((a,b)=>a-b),products:[...c.products.values()].sort((a,b)=>b.required-a.required||a.name.localeCompare(b.name))}
-    }).sort((a,b)=>severity(a.status)-severity(b.status)||b.required-a.required||a.name.localeCompare(b.name))
+    const components:ComponentGroup[]=[...map.values()].map(c=>{const projected=c.onHand-c.required,shortage=Math.max(0,-projected),belowPar=c.par>0&&projected<c.par,suggestedPurchase=c.target>0&&projected<c.target?Math.max(0,c.target-projected):shortage,status:ComponentGroup['status']=shortage?'shortage':belowPar?'below_par':'covered';return{ingredient_id:c.ingredient_id,name:c.name,unit:c.unit,required:c.required,onHand:c.onHand,projected,par:c.par,target:c.target,shortage,suggestedPurchase,status,orderIds:[...c.orderIds].sort((a,b)=>a-b),products:[...c.products.values()].sort((a,b)=>b.required-a.required||a.name.localeCompare(b.name))}}).sort((a,b)=>severity(a.status)-severity(b.status)||b.required-a.required||a.name.localeCompare(b.name))
     return{components,unmapped,mappedUnits}
   },[groups,recipeMap,ingredientMap])
 
   const prepUnits=groups.reduce((a,g)=>a+g.quantity,0)
-  const delayed=prepOrders.filter(o=>o.delayed).length
   const delivery=orders.filter(o=>o.status==='awaiting_delivery').length
   const shortages=componentData.components.filter(c=>c.status==='shortage').length
   const belowPar=componentData.components.filter(c=>c.status==='below_par').length
   const coverage=prepUnits?Math.round(componentData.mappedUnits/prepUnits*100):100
-  const currentBusiness=businesses.find(x=>x.id===businessId)
+  const overdue=prepOrders.filter(o=>o.urgency==='overdue').length
+  const atRisk=prepOrders.filter(o=>o.urgency==='critical'||o.urgency==='warning').length
+  const conflicts=prepOrders.filter(o=>o.sla_conflict).length
+  const currentBusiness=businesses.find(x=>x.id===businessId),canEdit=['owner','admin'].includes(currentBusiness?.role||'')
 
   if(!token)return <main className="batch-shell center"><div className="batch-empty"><ChefHat/><h1>Entre na operação primeiro.</h1><p>O modo cozinha usa a mesma sessão segura do Cozinha 360.</p><a href="/">Entrar</a></div></main>
   if(loading)return <main className="batch-shell center"><div className="batch-loader"><ChefHat/>PREPARANDO MODO COZINHA</div></main>
 
   return <main className="batch-shell">
-    <header className="batch-topbar"><a href="/"><ArrowLeft size={17}/> Voltar à operação</a><b><ChefHat size={19}/> COZINHA 360 <span>INTELLIGENCE</span></b><div>{businesses.length>1&&<select value={businessId} onChange={async e=>{const id=Number(e.target.value);setBusinessId(id);await load(id)}}>{businesses.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select>}<button onClick={()=>load()} title="Atualizar agora"><RefreshCcw size={17}/></button></div></header>
+    <header className="batch-topbar"><a href="/"><ArrowLeft size={17}/> Voltar à operação</a><b><ChefHat size={19}/> COZINHA 360 <span>INTELLIGENCE</span></b><div>{businesses.length>1&&<select value={businessId} onChange={async e=>{const id=Number(e.target.value);setBusinessId(id);setSettings(null);setDraft(null);await load(id,true)}}>{businesses.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select>}<button onClick={()=>void load(businessId,false)} title="Atualizar agora"><RefreshCcw size={17}/></button></div></header>
     <section className="batch-page">
-      <div className="batch-hero"><div><span>MODO COZINHA · {currentBusiness?.name||'OPERAÇÃO'}</span><h1>Produção agrupada.</h1><p>Alterne entre o que venderam e os <b>componentes reais das fichas técnicas</b>. A projeção cruza a fila atual com o estoque sem dar baixa antecipada.</p></div><div className="batch-live"><i></i><span>Atualização automática</span><small>{lastUpdate?lastUpdate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—'} · 8 s</small></div></div>
-      {error&&<div className="batch-error">{error}</div>}
+      <div className="batch-hero"><div><span>MODO COZINHA · {currentBusiness?.name||'OPERAÇÃO'}</span><h1>Produção agrupada.</h1><p>Alterne entre o que venderam e os <b>componentes reais das fichas técnicas</b>. Agora o relógio respeita o SLA da cozinha, do produto e do canal sem esconder conflitos de prazo.</p></div><div className="batch-live"><i></i><span>Atualização automática</span><small>{lastUpdate?lastUpdate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—'} · 8 s</small></div></div>
+      {error&&<div className="batch-error">{error}</div>}{slaNotice&&<div className="sla54-notice"><ShieldCheck/>{slaNotice}</div>}
       <div className="batch-metrics"><Metric icon={<UtensilsCrossed/>} label="Unidades a preparar" value={prepUnits}/><Metric icon={<Layers3/>} label="Produtos agrupados" value={groups.length}/><Metric icon={<Boxes/>} label="Componentes necessários" value={componentData.components.length}/><Metric icon={<TriangleAlert/>} label="Faltas de estoque" value={shortages} danger={shortages>0}/></div>
-      <div className="batch-command-row"><div className="batch-view-switch" role="tablist" aria-label="Agrupamento da cozinha"><button role="tab" aria-selected={view==='products'} className={view==='products'?'active':''} onClick={()=>setView('products')}><UtensilsCrossed/>Por produto</button><button role="tab" aria-selected={view==='components'} className={view==='components'?'active':''} onClick={()=>setView('components')}><Boxes/>Por componente</button></div><div className={`batch-coverage ${coverage<100?'warn':''}`}><PackageCheck/><span><b>{coverage}%</b> da fila com ficha técnica</span></div></div>
-      <div className="batch-strip"><span><b>{delivery}</b> aguardando entrega</span><span><b>{prepOrders.length}</b> pedidos em preparo</span>{view==='components'&&<><span><b>{belowPar}</b> abaixo do mínimo após a fila</span><small>Previsão de consumo: a baixa real continua ocorrendo no encerramento do pedido.</small></>}{view==='products'&&<small>Produto agrupado por quantidade, status e idade do pedido mais antigo.</small>}</div>
 
-      {view==='products'&&(groups.length?<div className="batch-grid">{groups.map(group=><article className={`batch-card ${group.delayed?'late':''}`} key={group.product_id}>
-        <div className="batch-card-head"><div className="batch-qty"><strong>{group.quantity}</strong><span>un</span></div>{group.delayed&&<span className="batch-late"><TriangleAlert size={14}/> ATRASO</span>}</div>
+      <section className={`sla54-overview ${overdue?'danger':atRisk?'warning':''}`}><div className="sla54-clock"><Gauge/><div><small>SLA DA COZINHA</small><strong>{settings?.default_kds_sla_minutes||20} min</strong><span>padrão quando produto não possui tempo próprio</span></div></div><div className="sla54-stats"><span><b>{overdue}</b><small>estourados</small></span><span><b>{atRisk}</b><small>em risco</small></span><span><b>{conflicts}</b><small>conflitos de prazo</small></span></div><button onClick={()=>{setDraft(settings?cloneSettings(settings):null);setShowSla(true);setSlaNotice('')}}><Settings2/>Configurar SLA</button></section>
+
+      <div className="batch-command-row"><div className="batch-view-switch" role="tablist" aria-label="Agrupamento da cozinha"><button role="tab" aria-selected={view==='products'} className={view==='products'?'active':''} onClick={()=>setView('products')}><UtensilsCrossed/>Por produto</button><button role="tab" aria-selected={view==='components'} className={view==='components'?'active':''} onClick={()=>setView('components')}><Boxes/>Por componente</button></div><div className={`batch-coverage ${coverage<100?'warn':''}`}><PackageCheck/><span><b>{coverage}%</b> da fila com ficha técnica</span></div></div>
+      <div className="batch-strip"><span><b>{delivery}</b> aguardando entrega</span><span><b>{prepOrders.length}</b> pedidos em preparo</span>{view==='components'&&<><span><b>{belowPar}</b> abaixo do mínimo após a fila</span><small>Previsão de consumo: a baixa real continua ocorrendo no encerramento do pedido.</small></>}{view==='products'&&<small>Ordenado primeiro por SLA: estourado, crítico, atenção e dentro do prazo.</small>}</div>
+
+      {view==='products'&&(groups.length?<div className="batch-grid">{groups.map(group=><article className={`batch-card ${group.delayed?'late':''} sla-${group.urgency}`} key={group.product_id}>
+        <div className="batch-card-head"><div className="batch-qty"><strong>{group.quantity}</strong><span>un</span></div><SlaBadge group={group}/></div>
         <h2>{group.name}</h2>
         <div className="batch-statuses">{Object.entries(group.statuses).map(([statusName,qtyValue])=><span key={statusName}>{qtyValue} {labels[statusName]||statusName}</span>)}</div>
+        <div className="sla54-card-time"><Clock3/><div><small>PRAZO MAIS PRÓXIMO</small><b>{dueLabel(group.due)}</b><span>SLA efetivo {group.slaMinutes} min{group.channels.length?` · ${group.channels.join(', ')}`:''}</span></div></div>
+        {group.slaConflict&&<div className="sla54-conflict"><TriangleAlert/>O prazo do canal é menor que o tempo de preparo configurado. Revise promessa ou processo.</div>}
         <div className="batch-orders"><span>Pedidos</span><div>{group.orderIds.map(id=><b key={id}>#{id}</b>)}</div></div>
         <footer><span>mais antigo</span><b>{group.oldest} min</b></footer>
       </article>)}</div>:<Empty/>)}
@@ -146,9 +176,18 @@ export function KitchenBatchRoute(){
         </article>)}</div>:<Empty components/>}
       </>}
     </section>
+
+    {showSla&&draft&&<div className="sla54-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setShowSla(false)}}><section className="sla54-panel" role="dialog" aria-modal="true" aria-labelledby="sla54-title"><header><div><small>KDS 360 · TEMPO PROMETIDO × TEMPO REAL</small><h2 id="sla54-title">SLAs da operação</h2><p>O Cozinha 360 usa o menor prazo aplicável ao pedido. Produto define tempo de preparo; canal pode impor um limite comercial menor. Nenhuma alteração muda pedido ou estoque.</p></div><button aria-label="Fechar configuração de SLA" onClick={()=>setShowSla(false)}><X/></button></header><div className="sla54-body">
+      <label className="sla54-default">SLA padrão da cozinha <span>5–240 min</span><input aria-label="SLA padrão da cozinha" type="number" min="5" max="240" value={draft.default_kds_sla_minutes} disabled={!canEdit} onChange={e=>setDraft({...draft,default_kds_sla_minutes:Number(e.target.value)})}/><small>Usado por produtos sem tempo específico.</small></label>
+      <div className="sla54-columns"><section><header><b>Produtos</b><span>tempo de preparo</span></header>{draft.products.length?draft.products.map((row,index)=><label key={row.id}><span><b>{row.name}</b><small>{row.category||'produto ativo'}</small></span><input aria-label={`SLA do produto ${row.name}`} type="number" min="1" max="240" placeholder={`${draft.default_kds_sla_minutes}`} value={row.prep_sla_minutes??''} disabled={!canEdit} onChange={e=>{const next=cloneSettings(draft),value=e.target.value;next.products[index].prep_sla_minutes=value===''?null:Number(value);setDraft(next)}}/><em>min</em></label>):<p className="sla54-empty">Nenhum produto ativo.</p>}</section><section><header><b>Canais</b><span>prazo máximo comercial</span></header>{draft.channels.length?draft.channels.map((row,index)=><label key={row.id}><span><b>{row.name}</b><small>{row.traffic_active?'tráfego ativo':'canal cadastrado'}</small></span><input aria-label={`SLA do canal ${row.name}`} type="number" min="1" max="360" placeholder="sem limite" value={row.order_sla_minutes??''} disabled={!canEdit} onChange={e=>{const next=cloneSettings(draft),value=e.target.value;next.channels[index].order_sla_minutes=value===''?null:Number(value);setDraft(next)}}/><em>min</em></label>):<p className="sla54-empty">Nenhum canal cadastrado.</p>}</section></div>
+      <div className="sla54-rule"><Clock3/><div><b>Regra determinística</b><span>SLA efetivo do pedido = menor entre o preparo necessário e o limite do canal. Se o canal promete menos do que a cozinha precisa, o sistema mostra conflito em vez de esconder o risco.</span></div></div>
+    </div><footer><span><ShieldCheck/>{canEdit?'Salvar exige owner/admin e fica auditado.':'Seu acesso é somente leitura.'}</span><div><button className="secondary" onClick={()=>setShowSla(false)}>Cancelar</button>{canEdit&&<button onClick={()=>void saveSla()} disabled={savingSla}><Save/>{savingSla?'Salvando…':'Salvar SLAs'}</button>}</div></footer></section></div>}
   </main>
 }
 
+function cloneSettings(value:SlaSettings){return{...value,products:value.products.map(row=>({...row})),channels:value.channels.map(row=>({...row}))}}
+function dueLabel(value:number){if(!Number.isFinite(value)||value===9999)return'prazo não calculado';return value<0?`estourou ${Math.abs(value)} min`:value===0?'vence agora':`faltam ${value} min`}
+function SlaBadge({group}:{group:PrepGroup}){if(group.urgency==='overdue')return <span className="sla54-badge overdue"><TriangleAlert/>ESTOURADO</span>;if(group.urgency==='critical')return <span className="sla54-badge critical"><Clock3/>CRÍTICO</span>;if(group.urgency==='warning')return <span className="sla54-badge warning"><Clock3/>ATENÇÃO</span>;return <span className="sla54-badge on_track"><ShieldCheck/>NO PRAZO</span>}
 function severity(status:ComponentGroup['status']){return status==='shortage'?0:status==='below_par'?1:2}
 function qty(value:number,unit:string){return `${new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1}).format(value)} ${unit}`}
 function Status({state}:{state:ComponentGroup['status']}){return <span className={`component-status ${state}`}>{state==='shortage'?'FALTA':state==='below_par'?'ATENÇÃO':'COBERTO'}</span>}
