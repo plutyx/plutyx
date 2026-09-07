@@ -90,6 +90,9 @@ jobs:
       - name: Run cash-engine journey
         run: node frontend/e2e/cash-engine.mjs
 
+      - name: Run CRM relationship orbit v6.9
+        run: node frontend/e2e/crm-orbit-v69.mjs
+
       - name: Run connections-hub journey
         run: node frontend/e2e/connections-hub.mjs
 
@@ -178,6 +181,8 @@ jobs:
             /tmp/cozinha360-operating-memory-failure.png
             /tmp/cozinha360-cash-engine.png
             /tmp/cozinha360-cash-engine-failure.png
+            /tmp/cozinha360-crm-orbit-v69.png
+            /tmp/cozinha360-crm-orbit-v69-failure.png
             /tmp/cozinha360-connections-hub.png
             /tmp/cozinha360-connections-hub-failure.png
             /tmp/cozinha360-setup-v42.png
