@@ -4,6 +4,7 @@ import { request } from "./app";
 import { ConnectionActivationQueue } from "./connection-activation-queue";
 import { ConnectionMissionControlPortal } from "./connection-mission-control";
 import { ConnectionsHubRoute } from "./connections-hub";
+import { IntegrationMissionPathPortal } from "./integration-mission-path-v62";
 import { PagBankConnectionCardPortal } from "./pagbank-connection-card";
 
 type ProviderId = "whatsapp" | "ifood" | "mercadopago" | "google" | "meta_ads";
@@ -147,6 +148,7 @@ export function PersonalizedConnectionsRoute() {
     <>
       {hasIntent && <ConnectionActivationQueue restored={restored} />}
       <ConnectionsHubRoute />
+      <IntegrationMissionPathPortal />
       <ConnectionMissionControlPortal />
       <PagBankConnectionCardPortal />
     </>
