@@ -144,7 +144,7 @@ try {
   await page.getByPlaceholder("Preço pacote R$").fill("10.00");
   await page.getByPlaceholder("Qtd útil").fill("1000");
   await page.getByRole("button", { name: "Ingrediente", exact: true }).click();
-  await page.getByText("Frango E2E").waitFor();
+  await page.locator(".row").filter({ hasText: "Frango E2E" }).waitFor();
 
   const ingredientRow = page.locator(".row").filter({ hasText: "Frango E2E" });
   const heatmap = page.locator("[data-inventory-heatmap-v67]");
