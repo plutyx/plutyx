@@ -34,6 +34,40 @@ await page.route("**/api/businesses/1/memory", (route) =>
   route.fulfill(json({ business_id: 1, states: {} })),
 );
 
+await page.route("**/cozinha360-public-integrations-v58/capabilities", (route) =>
+  route.fulfill(
+    json({
+      ok: true,
+      version: "5.8.0",
+      providers: [
+        {
+          id: "ifood",
+          name: "iFood",
+          mode: "device_code",
+          authorization: "iFood distributed authorization",
+          partner_access: "ifood_partner_access",
+          platform_ready: true,
+          state: "ready_to_authorize",
+          user_action: "authorize_account",
+        },
+        {
+          id: "mercadopago",
+          name: "Mercado Pago",
+          mode: "oauth_pkce",
+          authorization: "Mercado Pago OAuth + PKCE",
+          partner_access: "mercadopago_application",
+          platform_ready: false,
+          state: "platform_setup_required",
+          user_action: "none",
+        },
+      ],
+      ready_count: 1,
+      total_count: 5,
+      secrets_exposed: false,
+    }),
+  ),
+);
+
 let savedProfile = null;
 let profile = {
   business_id: 1,
@@ -92,8 +126,8 @@ const provider = (key, name, category) => ({
   why: "Autorização oficial.",
   mode: key === "ifood" ? "device_code" : "oauth",
   eta: "~2 min",
-  platform_ready: true,
-  missing: [],
+  platform_ready: key !== "mercadopago",
+  missing: key === "mercadopago" ? ["platform"] : [],
   optional_missing: [],
   connection: null,
   operational: false,
@@ -130,7 +164,21 @@ try {
     .getByRole("heading", { name: "Conecte sua operação, não APIs.", exact: true })
     .waitFor({ timeout: 15000 });
 
-  await page.getByText("Sua rota da exploração já veio com você.", { exact: true }).waitFor();
+  const queue = page.locator("[data-connection-activation-queue]");
+  await queue.getByText("SUA ROTA CHEGOU AQUI", { exact: true }).waitFor();
+  await queue.getByRole("heading", { name: "Ative na ordem que você escolheu.", exact: true }).waitFor();
+  await queue.getByText("1/2", { exact: true }).waitFor();
+
+  const cards = queue.locator("div.rounded-\[1\.35rem\]");
+  if ((await cards.count()) < 2) throw new Error("activation queue did not render both planned providers");
+  if (!(await cards.nth(0).textContent())?.includes("iFood")) {
+    throw new Error("iFood did not remain first in the explicit activation queue");
+  }
+  if (!(await cards.nth(1).textContent())?.includes("Mercado Pago")) {
+    throw new Error("Mercado Pago did not remain second in the explicit activation queue");
+  }
+  await cards.nth(0).getByText("AUTORIZAR", { exact: true }).waitFor();
+  await cards.nth(1).getByText("PLATAFORMA", { exact: true }).waitFor();
 
   if (!savedProfile) throw new Error("discovery intent was not applied to the connection profile");
   if (
@@ -148,15 +196,24 @@ try {
     throw new Error("setup wizard repeated questions already answered during discovery");
   }
 
-  const applied = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("c360_discovery_connection_intent_applied") || "null"),
-  );
-  if (applied?.business_id !== 1 || !applied.providers?.includes("ifood")) {
-    throw new Error(`handoff marker missing: ${JSON.stringify(applied)}`);
+  const state = await page.evaluate(() => ({
+    applied: JSON.parse(localStorage.getItem("c360_discovery_connection_intent_applied") || "null"),
+    queue: JSON.parse(localStorage.getItem("c360_connection_activation_queue") || "null"),
+  }));
+  if (state.applied?.business_id !== 1 || !state.applied.providers?.includes("ifood")) {
+    throw new Error(`handoff marker missing: ${JSON.stringify(state.applied)}`);
+  }
+  if (
+    state.queue?.providers?.join(",") !== "ifood,mercadopago" ||
+    state.queue?.restored_to_profile !== true ||
+    state.queue?.queue?.[0]?.state !== "ready_to_authorize" ||
+    state.queue?.queue?.[1]?.state !== "platform_setup_required"
+  ) {
+    throw new Error(`activation queue contract missing: ${JSON.stringify(state.queue)}`);
   }
 
   await page.screenshot({ path: "/tmp/cozinha360-connection-intent-handoff.png", fullPage: true });
-  console.log("discovery intent -> real connection profile handoff ok");
+  console.log("discovery intent -> ordered real activation queue -> connection profile ok");
 } catch (error) {
   await page
     .screenshot({ path: "/tmp/cozinha360-connection-intent-handoff-failure.png", fullPage: true })
