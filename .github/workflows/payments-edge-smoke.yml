@@ -1,0 +1,54 @@
+name: payments-edge-smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'supabase/edge/cozinha360-payments-v56/**'
+      - 'supabase/edge/cozinha360-checkout-payments-v57/**'
+      - 'supabase/migrations/*mercadopago*'
+      - '.github/workflows/payments-edge-smoke.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/edge/cozinha360-payments-v56/**'
+      - 'supabase/edge/cozinha360-checkout-payments-v57/**'
+      - 'supabase/migrations/*mercadopago*'
+      - '.github/workflows/payments-edge-smoke.yml'
+
+jobs:
+  public-pix-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CHECKOUT_PAYMENTS: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-checkout-payments-v57
+      PAYMENTS_CORE: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-payments-v56
+    steps:
+      - name: Public Pix bridge is live
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$CHECKOUT_PAYMENTS/livez")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["service"]=="cozinha360-checkout-payments-v57" and x["version"]=="5.7.7"' "$body"
+
+      - name: Database and canonical payments core are ready
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$CHECKOUT_PAYMENTS/readyz")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["database"]=="ready" and x["payments_core"]=="ready"' "$body"
+          core="$(curl --fail --silent --show-error --retry 3 --retry-delay 2 "$PAYMENTS_CORE/health")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["ok"] is True and x["provider"]=="mercadopago" and x["api"]=="orders"' "$core"
+
+      - name: Unknown operation never advertises Pix
+        run: |
+          body="$(curl --fail --silent --show-error "$CHECKOUT_PAYMENTS/capability/999999999")"
+          python -c 'import json,sys; x=json.loads(sys.argv[1]); assert x["pix"]["available"] is False' "$body"
+
+      - name: Public route rejects unauthorized charge creation
+        run: |
+          status="$(curl --silent --output /tmp/pix-denied.json --write-out '%{http_code}' -H 'Content-Type: application/json' -d '{"business_id":999999999,"order_id":999999999,"client_order_key":"00000000-0000-4000-8000-000000000000","payer_email":"probe@example.com"}' "$CHECKOUT_PAYMENTS/pix")"
+          test "$status" = "403"
+          python -c 'import json; x=json.load(open("/tmp/pix-denied.json")); assert x.get("detail")=="Este pedido não autoriza uma cobrança pública."'
+
+      - name: Opaque unknown payment token returns not found
+        run: |
+          status="$(curl --silent --output /tmp/pix-status.json --write-out '%{http_code}' "$CHECKOUT_PAYMENTS/status/00000000-0000-4000-8000-000000000000")"
+          test "$status" = "404"
+          python -c 'import json; x=json.load(open("/tmp/pix-status.json")); assert x.get("detail")=="Cobrança não encontrada"'
