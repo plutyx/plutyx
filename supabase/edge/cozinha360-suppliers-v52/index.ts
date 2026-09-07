@@ -58,8 +58,8 @@ async function supplierRows(businessId:number){
  if(supplierError)throw supplierError;if(purchaseError)throw purchaseError
  return (suppliers||[]).map((supplier:any)=>{
   const rows=(purchases||[]).filter((purchase:any)=>Number(purchase.supplier_id)===Number(supplier.id))
-  const ingredients=new Set(rows.map((purchase:any)=>Number(purchase.ingredient_id)).filter(Boolean))
-  return{...supplier,purchase_count:rows.length,ingredients_count:ingredients.size,last_purchase_at:rows[0]?.created_at||null,landed_total_cents:rows.reduce((sum:number,purchase:any)=>sum+money(purchase.total_cents)+money(purchase.freight_cents)+money(purchase.tax_cents),0)}
+  const ingredientIds=[...new Set(rows.map((purchase:any)=>Number(purchase.ingredient_id)).filter(Boolean))]
+  return{...supplier,purchase_count:rows.length,ingredient_ids:ingredientIds,ingredients_count:ingredientIds.length,last_purchase_at:rows[0]?.created_at||null,landed_total_cents:rows.reduce((sum:number,purchase:any)=>sum+money(purchase.total_cents)+money(purchase.freight_cents)+money(purchase.tax_cents),0)}
  })
 }
 
@@ -94,8 +94,8 @@ Deno.serve(async(req:Request)=>{
   let match=path.match(/^\/businesses\/(\d+)\/suppliers$/)
   if(match&&method==='GET'){
    const businessId=Number(match[1]);if(!await member(profile.id,businessId))return fail('Sem acesso',403)
-   const rows=await supplierRows(businessId)
-   return json({generated_at:now(),summary:{suppliers_total:rows.length,backup_suppliers:rows.filter((row:any)=>row.backup_supplier).length,purchases_mapped:rows.reduce((sum:number,row:any)=>sum+Number(row.purchase_count||0),0),ingredients_covered:new Set(rows.flatMap((row:any)=>Array(Number(row.ingredients_count||0)).fill(row.id))).size},rows})
+   const rows=await supplierRows(businessId),covered=new Set(rows.flatMap((row:any)=>row.ingredient_ids||[]))
+   return json({generated_at:now(),summary:{suppliers_total:rows.length,backup_suppliers:rows.filter((row:any)=>row.backup_supplier).length,purchases_mapped:rows.reduce((sum:number,row:any)=>sum+Number(row.purchase_count||0),0),ingredients_covered:covered.size},rows})
   }
   if(match&&method==='POST'){
    const businessId=Number(match[1]);if(!await member(profile.id,businessId,['owner','admin']))return fail('Somente owner/admin',403)
