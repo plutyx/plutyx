@@ -169,16 +169,30 @@ try {
   await queue.getByRole("heading", { name: "Ative na ordem que você escolheu.", exact: true }).waitFor();
   await queue.getByText("1/2", { exact: true }).waitFor();
 
-  const cards = queue.locator("div.rounded-\[1\.35rem\]");
-  if ((await cards.count()) < 2) throw new Error("activation queue did not render both planned providers");
-  if (!(await cards.nth(0).textContent())?.includes("iFood")) {
-    throw new Error("iFood did not remain first in the explicit activation queue");
+  const ifoodStep = queue.locator('[data-activation-provider="ifood"]');
+  const mercadoPagoStep = queue.locator('[data-activation-provider="mercadopago"]');
+  await ifoodStep.waitFor();
+  await mercadoPagoStep.waitFor();
+  await ifoodStep.getByText("AUTORIZAR", { exact: true }).waitFor();
+  await mercadoPagoStep.getByText("PLATAFORMA", { exact: true }).waitFor();
+
+  const ordered = await queue.locator("[data-activation-provider]").evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("data-activation-provider")),
+  );
+  if (ordered.join(",") !== "ifood,mercadopago") {
+    throw new Error(`explicit activation order changed: ${JSON.stringify(ordered)}`);
   }
-  if (!(await cards.nth(1).textContent())?.includes("Mercado Pago")) {
-    throw new Error("Mercado Pago did not remain second in the explicit activation queue");
-  }
-  await cards.nth(0).getByText("AUTORIZAR", { exact: true }).waitFor();
-  await cards.nth(1).getByText("PLATAFORMA", { exact: true }).waitFor();
+
+  await ifoodStep.click();
+  await page.waitForFunction(() => Boolean(document.querySelector('.cx-card[data-route-focus="ifood"]')));
+  const focusedIFood = page.locator('.cx-card[data-route-focus="ifood"]');
+  await focusedIFood.getByRole("heading", { name: "iFood", exact: true }).waitFor();
+
+  await mercadoPagoStep.click();
+  await page.waitForFunction(() => Boolean(document.querySelector('.cx-card[data-route-focus="mercadopago"]')));
+  const focusedMercadoPago = page.locator('.cx-card[data-route-focus="mercadopago"]');
+  await focusedMercadoPago.getByRole("heading", { name: "Mercado Pago / Pix", exact: true }).waitFor();
+  await focusedMercadoPago.getByText("PLATAFORMA", { exact: true }).waitFor();
 
   if (!savedProfile) throw new Error("discovery intent was not applied to the connection profile");
   if (
@@ -190,7 +204,6 @@ try {
     throw new Error(`unexpected restored profile: ${JSON.stringify(savedProfile)}`);
   }
 
-  await page.getByText("iFood", { exact: true }).first().waitFor();
   await page.getByText("Pix automático", { exact: true }).waitFor();
   if (await page.getByRole("heading", { name: "Como sua cozinha realmente vende?", exact: true }).count()) {
     throw new Error("setup wizard repeated questions already answered during discovery");
@@ -213,7 +226,7 @@ try {
   }
 
   await page.screenshot({ path: "/tmp/cozinha360-connection-intent-handoff.png", fullPage: true });
-  console.log("discovery intent -> ordered real activation queue -> connection profile ok");
+  console.log("discovery intent -> guided ordered activation queue -> connection profile ok");
 } catch (error) {
   await page
     .screenshot({ path: "/tmp/cozinha360-connection-intent-handoff-failure.png", fullPage: true })
