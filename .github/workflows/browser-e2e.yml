@@ -60,6 +60,9 @@ jobs:
       - name: Run browser customer journey
         run: node frontend/e2e/smoke.mjs
 
+      - name: Run discovery connection galaxy journey
+        run: node frontend/e2e/discovery-galaxy.mjs
+
       - name: Run operating-memory journey
         run: node frontend/e2e/operating-memory.mjs
 
@@ -114,6 +117,8 @@ jobs:
           path: |
             /tmp/cozinha360-discovery-home.png
             /tmp/cozinha360-discovery-route.png
+            /tmp/cozinha360-discovery-galaxy.png
+            /tmp/cozinha360-discovery-galaxy-failure.png
             /tmp/cozinha360-e2e-success.png
             /tmp/cozinha360-e2e-failure.png
             /tmp/cozinha360-inventory-drawer.png
