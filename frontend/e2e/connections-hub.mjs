@@ -15,7 +15,8 @@ let googleLastSuccess=new Date(Date.now()-48*60*60*1000).toISOString()
 let ifoodLastSuccess=new Date().toISOString()
 let profile={business_id:1,order_source:'direct',use_mercadopago:true,use_google:true,use_meta_ads:false,configured_at:null,updated_by_user_id:null}
 const recommended=()=>[...(profile.order_source==='whatsapp'?['whatsapp']:profile.order_source==='ifood'?['ifood']:profile.order_source==='mixed'?['whatsapp','ifood']:[]),...(profile.use_mercadopago?['mercadopago']:[]),...(profile.use_google?['google']:[]),...(profile.use_meta_ads?['meta_ads']:[])]
-const provider=(key,name,category,connection=null,platformReady=true)=>({key,name,category,impact:'Impacto operacional explicado em linguagem simples.',why:'Conexão segura sem copiar token para o navegador.',mode:key==='ifood'?'device_code':'oauth',eta:'~2 min',platform_ready:platformReady,missing:platformReady?[]:['PROVIDER_PLATFORM_APPROVAL'],optional_missing:[],connection})
+const provider=(key,name,category,connection=null,platformReady=true,extra={})=>({key,name,category,impact:'Impacto operacional explicado em linguagem simples.',why:'Conexão segura sem copiar token para o navegador.',mode:key==='ifood'?'device_code':'oauth',eta:'~2 min',platform_ready:platformReady,missing:platformReady?[]:['PROVIDER_PLATFORM_APPROVAL'],optional_missing:[],connection,...extra})
+const ifoodAssets=[{ref:'m-1',label:'Loja iFood Teste',kind:'Loja iFood',detail:'Unidade Centro'},{ref:'m-2',label:'Loja iFood Bairro',kind:'Loja iFood',detail:'Unidade Bairro'}]
 await page.route('**/cozinha360-profile-v31/**',async route=>{
  const req=route.request(),path=new URL(req.url()).pathname,method=req.method()
  if(path.endsWith('/businesses/1/profile')&&method==='GET')return route.fulfill(json({profile,recommended_order:recommended(),internal_order_ready:profile.order_source==='direct'}))
@@ -28,7 +29,11 @@ await page.route('**/cozinha360-profile-v31/**',async route=>{
 await page.route('**/cozinha360-integrations-v29/**',async route=>{
  const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method()
  if(path.endsWith('/businesses/1/integrations/ifood/start')&&method==='POST')return route.fulfill(json({action:'device_code',connection_id:7,user_code:'ABCD-EFGH',authorization_url:'https://example.com/ifood-portal',expires_in:600,next:'Cole o código'}))
- if(path.endsWith('/businesses/1/integrations/ifood/complete')&&method==='POST'){ifoodActive=true;return route.fulfill(json({ok:true,connection:{id:7,status:'active',display_name:'Loja iFood Teste'}}))}
+ if(path.endsWith('/businesses/1/integrations/ifood/complete')&&method==='POST')return route.fulfill(json({ok:true,action:'select_asset',connection_id:7,assets:ifoodAssets,selection_required:true}))
+ if(path.endsWith('/businesses/1/integrations/ifood/select')&&method==='POST'){
+   const selected=req.postDataJSON();if(selected.asset_ref!=='m-1')return route.fulfill({status:422,contentType:'application/json',body:JSON.stringify({detail:'Conta externa inválida.'})})
+   ifoodActive=true;ifoodLastSuccess=new Date().toISOString();return route.fulfill(json({ok:true,connection:{id:7,status:'active',display_name:'Loja iFood Teste'},asset:ifoodAssets[0],auto_binding:{configured:true,brand_id:1,binding_id:9}}))
+ }
  if(path.endsWith('/google/test')&&method==='POST'){
    testCalls++
    if(failNextGoogle){failNextGoogle=false;googleDegraded=true;return route.fulfill({status:502,contentType:'application/json',body:JSON.stringify({detail:'Google recusou a credencial',status:'degraded'})})}
@@ -38,15 +43,16 @@ await page.route('**/cozinha360-integrations-v29/**',async route=>{
  if(path.endsWith('/businesses/1/integrations')&&method==='GET')return route.fulfill(json({business_id:1,recommended_order:['whatsapp','mercadopago','google','ifood','meta_ads'],providers:[
    provider('whatsapp','WhatsApp Business','Vendas & CRM'),
    provider('mercadopago','Mercado Pago / Pix','Pagamentos',null,false),
-   provider('google','Google Business + Ads','Aquisição local',{id:3,provider:'google',external_account_ref:'g-1',display_name:'conta@google.com',status:googleDegraded?'degraded':'active',last_success_at:googleLastSuccess,last_error:googleDegraded?'Google recusou a credencial':null}),
-   provider('ifood','iFood','Marketplace',ifoodActive?{id:7,provider:'ifood',external_account_ref:'m-1',display_name:'Loja iFood Teste',status:'active',last_success_at:ifoodLastSuccess,last_error:null}:null),
+   provider('google','Google Business + Ads','Aquisição local',{id:3,provider:'google',external_account_ref:'g-1',display_name:'conta@google.com',status:googleDegraded?'degraded':'active',last_success_at:googleLastSuccess,last_error:googleDegraded?'Google recusou a credencial':null},true,{operational:!googleDegraded,asset_count:1,selected_asset:{ref:'g-1',label:'conta@google.com'}}),
+   provider('ifood','iFood','Marketplace',ifoodActive?{id:7,provider:'ifood',external_account_ref:'m-1',display_name:'Loja iFood Teste',status:'active',last_success_at:ifoodLastSuccess,last_error:null}:null,true,ifoodActive?{operational:true,asset_count:2,selected_asset:{ref:'m-1',label:'Loja iFood Teste'}}:{}),
    provider('meta_ads','Meta Ads','Aquisição')
  ]}))
  return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:`integration mock route not found: ${method} ${path}`})})
 })
 try{
  await page.goto('http://127.0.0.1:5173/?connections=1',{waitUntil:'networkidle'})
- await page.getByRole('heading',{name:'Use o que faz sentido para sua cozinha.',exact:true}).waitFor({timeout:15000})
+ await page.getByRole('heading',{name:'Conecte sua operação, não APIs.',exact:true}).waitFor({timeout:15000})
+ await page.getByText('Plug & play · sem copiar token, webhook ou merchant ID',{exact:true}).waitFor()
  await page.getByText('1 conexão antiga revalidada automaticamente.',{exact:true}).waitFor({timeout:15000})
  await page.getByRole('heading',{name:'1/1 conexões saudáveis',exact:true}).waitFor()
  await page.getByText('CONFIGURE EM 30 SEGUNDOS',{exact:true}).waitFor()
@@ -78,7 +84,11 @@ try{
  await page.getByText('ABCD-EFGH',{exact:true}).waitFor()
  await page.getByLabel('Código de autorização').fill('WXYZ-1234')
  await page.getByRole('button',{name:'Concluir conexão'}).click()
- await page.getByText('iFood conectado. A operação já pode validar a conta.',{exact:true}).waitFor()
+ await page.getByText('Autorização concluída. Falta apenas escolher qual loja pertence a esta operação.',{exact:true}).waitFor()
+ await page.getByRole('heading',{name:'Qual iFood pertence a esta operação?',exact:true}).waitFor()
+ await page.getByRole('button',{name:/Loja iFood Teste/}).click()
+ await page.getByText('Loja iFood Teste conectado à operação. O vínculo foi configurado automaticamente quando havia uma única marca.',{exact:true}).waitFor()
+ await ifood.getByText('ATIVO',{exact:true}).waitFor()
  await page.getByRole('button',{name:'Testar conexões'}).click()
  await page.getByText('2/2 conexões validadas. Tudo saudável.',{exact:true}).waitFor()
  failNextGoogle=true
@@ -92,7 +102,7 @@ try{
  await page.getByRole('heading',{name:'2/2 conexões saudáveis',exact:true}).waitFor()
  if(testCalls!==6)throw new Error(`expected 6 connection health calls, got ${testCalls}`)
  await page.screenshot({path:'/tmp/cozinha360-connections-hub.png',fullPage:true})
- console.log('fallback + connection doctor customer journey ok')
+ console.log('plug-and-play asset selection + connection doctor customer journey ok')
 }catch(error){
  await page.screenshot({path:'/tmp/cozinha360-connections-hub-failure.png',fullPage:true}).catch(()=>{})
  console.error(error);process.exitCode=1
