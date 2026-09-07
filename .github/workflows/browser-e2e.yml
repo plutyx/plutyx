@@ -93,7 +93,7 @@ jobs:
       - name: Run Smart CMV v5.0 journey
         run: node frontend/e2e/smart-cmv-v50.mjs
 
-      - name: Run Compras 360 v5.1 journey
+      - name: Run Compras 360 v5.3 journey
         run: node frontend/e2e/purchases-360-v51.mjs
 
       - name: Run Fornecedores 360 v5.2 journey
@@ -138,9 +138,9 @@ jobs:
             /tmp/cozinha360-network-v50-failure.png
             /tmp/cozinha360-smart-cmv-v50.png
             /tmp/cozinha360-smart-cmv-v50-failure.png
-            /tmp/cozinha360-purchases-v51.png
-            /tmp/cozinha360-purchases-v51-mobile.png
-            /tmp/cozinha360-purchases-v51-failure.png
+            /tmp/cozinha360-purchases-v53.png
+            /tmp/cozinha360-purchases-v53-mobile.png
+            /tmp/cozinha360-purchases-v53-failure.png
             /tmp/cozinha360-suppliers-v52.png
             /tmp/cozinha360-suppliers-v52-mobile.png
             /tmp/cozinha360-suppliers-v52-failure.png
