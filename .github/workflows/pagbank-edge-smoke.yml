@@ -1,0 +1,69 @@
+name: pagbank-edge-smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/edge/cozinha360-pagbank-v59/**'
+      - '.github/workflows/pagbank-edge-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-pagbank-v59
+    steps:
+      - name: Verify public health contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(curl --fail --silent --show-error --max-time 20 "$BASE_URL/health")"
+          printf '%s' "$body" | jq -e '
+            .ok == true and
+            .service == "cozinha360-pagbank-v59" and
+            .version == "5.9.0" and
+            .readiness.provider == "pagbank" and
+            (.readiness.platform_ready | type == "boolean") and
+            (.readiness.configured | type == "boolean") and
+            (.readiness.homologated | type == "boolean") and
+            (.readiness.state == "ready_to_authorize" or .readiness.state == "partner_approval" or .readiness.state == "platform_setup_required") and
+            (.readiness.user_action == "authorize_account" or .readiness.user_action == "none")
+          ' >/dev/null
+          if printf '%s' "$body" | tr '[:upper:]' '[:lower:]' | grep -Eq 'access_token|refresh_token|client_secret|app_token|service_role|password'; then
+            echo 'Health payload exposed a secret-shaped field.' >&2
+            exit 1
+          fi
+
+      - name: Verify protected business routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          status_code="$(curl --silent --output /tmp/status.json --write-out '%{http_code}' --max-time 20 "$BASE_URL/businesses/1/status")"
+          test "$status_code" = '401'
+          jq -e '.detail == "Sem acesso"' /tmp/status.json >/dev/null
+
+          connect_code="$(curl --silent --output /tmp/connect.json --write-out '%{http_code}' --max-time 20 -X POST -H 'content-type: application/json' -d '{}' "$BASE_URL/businesses/1/connect")"
+          test "$connect_code" = '401'
+          jq -e '.detail == "Sem acesso"' /tmp/connect.json >/dev/null
+
+      - name: Verify OAuth callback rejects forged state
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --output /tmp/callback.txt --write-out '%{http_code}' --max-time 20 "$BASE_URL/oauth/callback?state=invalid&code=fake")"
+          test "$code" = '400'
+          grep -q 'inválido ou expirado' /tmp/callback.txt
+
+      - name: Verify browser CORS preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          headers="$(mktemp)"
+          code="$(curl --silent --output /dev/null --dump-header "$headers" --write-out '%{http_code}' --max-time 20 -X OPTIONS -H 'Origin: https://cozinha-360-os-v41.onrender.com' -H 'Access-Control-Request-Method: POST' "$BASE_URL/businesses/1/connect")"
+          test "$code" = '204'
+          grep -qi '^access-control-allow-origin: https://cozinha-360-os-v41.onrender.com' "$headers"
