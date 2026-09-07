@@ -51,6 +51,7 @@ try{
   if(patchCalls!==1)throw new Error(`expected one explicit SLA write, got ${patchCalls}`)
   await page.screenshot({path:'/tmp/cozinha360-kds-sla-v54.png',fullPage:true})
 
+  await page.getByRole('button',{name:'Fechar configuração de SLA',exact:true}).click()
   await page.setViewportSize({width:390,height:844})
   await page.getByRole('button',{name:'Configurar SLA',exact:true}).click()
   const dialog=page.getByRole('dialog',{name:'SLAs da operação'})
