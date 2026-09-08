@@ -18,6 +18,13 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: convrank_worker/package.json
       - run: pip install -r convrank_worker/requirements.txt pytest pytest-asyncio
-      - run: python -m py_compile convrank_worker/app.py convrank_worker/axe_app.py
+      - run: npm install --prefix convrank_worker --no-audit --no-fund
+      - run: convrank_worker/node_modules/.bin/lighthouse --version
+      - run: python -m py_compile convrank_worker/app.py convrank_worker/axe_app.py convrank_worker/lighthouse_app.py
       - run: pytest -q convrank_worker/test_app.py
