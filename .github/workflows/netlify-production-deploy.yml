@@ -4,10 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/netlify-production-deploy.yml'
-      - 'docs/NETLIFY_RELEASE.md'
 
 permissions:
   contents: read
@@ -43,40 +39,39 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Detect optional Netlify fallback
-        id: fallback
+
+      - name: Require Netlify production credential
         shell: bash
         run: |
-          if [ -n "$NETLIFY_AUTH_TOKEN" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "Netlify fallback credential detected; fallback deployment will run."
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Netlify fallback skipped::NETLIFY_AUTH_TOKEN is not configured. This is an optional legacy fallback; Render remains the primary public deployment."
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "::error title=Netlify production credential missing::Configure NETLIFY_AUTH_TOKEN in GitHub Actions secrets."
+            exit 1
           fi
+
       - name: Install frontend dependencies
-        if: steps.fallback.outputs.enabled == 'true'
         working-directory: frontend
         run: npm ci --no-audit --no-fund
+
       - name: Typecheck frontend
-        if: steps.fallback.outputs.enabled == 'true'
         working-directory: frontend
         run: npm run typecheck
+
       - name: Build exact production bundle
-        if: steps.fallback.outputs.enabled == 'true'
         working-directory: frontend
         run: npm run build
+
       - name: Read release identity from bundle
-        if: steps.fallback.outputs.enabled == 'true'
         id: release
         working-directory: frontend
         shell: bash
         run: |
-          release="$(sed -n 's/.*<meta name="c360-release" content="\([^"]*\)".*/\1/p' dist/index.html | head -n1)"
+          release="$(jq -r '.release' dist/release.json)"
+          commit="$(jq -r '.commit' dist/release.json)"
           test -n "$release"
+          test "$commit" = "$GITHUB_SHA"
           echo "value=$release" >> "$GITHUB_OUTPUT"
+
       - name: Verify production Edge endpoints are bundled
-        if: steps.fallback.outputs.enabled == 'true'
         working-directory: frontend
         run: |
           grep -R -F 'cozinha360-gateway-v42' dist/assets/*.js >/dev/null
@@ -86,21 +81,29 @@ jobs:
           grep -R -F 'cozinha360-kds-v54' dist/assets/*.js >/dev/null
           grep -R -F 'PREVISÃO OPERACIONAL' dist/assets/*.js >/dev/null
           grep -R -F 'SLAs da operação' dist/assets/*.js >/dev/null
-      - name: Deploy prebuilt bundle to Netlify fallback
-        if: steps.fallback.outputs.enabled == 'true'
+
+      - name: Deploy exact bundle to canonical Netlify production
         working-directory: frontend
         run: |
-          npx --yes netlify-cli@27.5.0 deploy --dir=dist --prod --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Cozinha 360 fallback release ${{ steps.release.outputs.value }} · $GITHUB_SHA" --json > /tmp/netlify-deploy.json
+          npx --yes netlify-cli@27.5.0 deploy --dir=dist --prod --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Cozinha 360 production ${{ steps.release.outputs.value }} · $GITHUB_SHA" --json > /tmp/netlify-deploy.json
           node -e "const x=require('/tmp/netlify-deploy.json'); if(!x.deploy_url && !x.deployUrl && !x.url) process.exit(1); console.log('Netlify deploy accepted:', x.deploy_url||x.deployUrl||x.url)"
-      - name: Verify fallback alias serves this release
-        if: steps.fallback.outputs.enabled == 'true'
+
+      - name: Verify canonical alias serves this exact SHA
         shell: bash
         run: |
           marker="<meta name=\"c360-release\" content=\"${{ steps.release.outputs.value }}\""
-          for i in $(seq 1 30); do
-            if curl --fail --silent --show-error --location "$PUBLIC_URL/" -o /tmp/public-index.html; then
-              if grep -F "$marker" /tmp/public-index.html >/dev/null && grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null; then echo "Netlify fallback now serves release ${{ steps.release.outputs.value }}."; exit 0; fi
+          ready=0
+          for i in $(seq 1 45); do
+            index_code="$(curl --silent --show-error --location -H 'Cache-Control: no-cache' --output /tmp/public-index.html --write-out '%{http_code}' "$PUBLIC_URL/?check=$GITHUB_RUN_ID-$i")" || true
+            release_code="$(curl --silent --show-error --location -H 'Cache-Control: no-cache' --output /tmp/public-release.json --write-out '%{http_code}' "$PUBLIC_URL/release.json?check=$GITHUB_RUN_ID-$i")" || true
+            if [ "$index_code" = "200" ] && [ "$release_code" = "200" ] \
+              && grep -F "$marker" /tmp/public-index.html >/dev/null \
+              && jq -e --arg release "${{ steps.release.outputs.value }}" --arg sha "$GITHUB_SHA" '.release == $release and .commit == $sha' /tmp/public-release.json >/dev/null \
+              && grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null; then
+              ready=1
+              break
             fi
             sleep 4
           done
-          exit 1
+          test "$ready" = "1"
+          echo "Canonical Netlify production serves ${{ steps.release.outputs.value }} · $GITHUB_SHA"
