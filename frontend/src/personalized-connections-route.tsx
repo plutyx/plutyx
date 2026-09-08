@@ -4,6 +4,7 @@ import { request } from "./app";
 import { ConnectionActivationQueue } from "./connection-activation-queue";
 import { ConnectionMissionControlPortal } from "./connection-mission-control";
 import { ConnectionsHubRoute } from "./connections-hub";
+import { IntegrationHealthPulsePortal } from "./integration-health-pulse-v73";
 import { IntegrationMissionPathPortal } from "./integration-mission-path-v62";
 import { IntegrationPassportPortal } from "./integration-passport-v65";
 import { MigrationStudioPortal } from "./migration-studio-v70";
@@ -150,6 +151,7 @@ export function PersonalizedConnectionsRoute() {
     <>
       {hasIntent && <ConnectionActivationQueue restored={restored} />}
       <ConnectionsHubRoute />
+      <IntegrationHealthPulsePortal />
       <IntegrationPassportPortal />
       <MigrationStudioPortal />
       <IntegrationMissionPathPortal />
