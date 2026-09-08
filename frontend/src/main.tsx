@@ -14,6 +14,7 @@ import { PlugPlayGalaxyPortal } from "./plug-play-galaxy-portal";
 import { LivingOperationFlowPortal } from "./living-operation-flow";
 import { IntegrationRealityRibbonPortal } from "./integration-reality-ribbon";
 import { ExperienceOrchestratorV74 } from "./experience-orchestrator-v74";
+import { ActivationCircuitV76 } from "./activation-circuit-v76";
 import "./tailwind.css";
 import "./styles.css";
 import "./market.css";
@@ -68,6 +69,7 @@ import "./purchases-360-v53.css";
 import "./suppliers-360-v52.css";
 import "./experience.css";
 import "./experience-v74.css";
+import "./activation-circuit-v76.css";
 
 const AccountRoute = lazy(async () => ({ default: (await import("./account-actions")).AccountRoute }));
 const QuickOrderRoute = lazy(async () => ({ default: (await import("./quick-order")).QuickOrderRoute }));
@@ -118,7 +120,7 @@ function TabHashBridge() {
   return null;
 }
 function OperatorRoute({ children, alerts = true }: { children: React.ReactNode; alerts?: boolean }) {
-  return <><ExperienceOrchestratorV74 />{children}{alerts && <KitchenAlerts />}<SessionAwareControls /><OfflineQueueStatus /></>;
+  return <><ExperienceOrchestratorV74 />{children}<ActivationCircuitV76 />{alerts && <KitchenAlerts />}<SessionAwareControls /><OfflineQueueStatus /></>;
 }
 function Root() {
   const params = new URLSearchParams(window.location.search);
