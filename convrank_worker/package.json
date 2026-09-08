@@ -1,0 +1,8 @@
+{
+  "name": "convrank-lighthouse-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "lighthouse": "13.4.1"
+  }
+}
