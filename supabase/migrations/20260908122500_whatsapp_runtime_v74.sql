@@ -34,7 +34,22 @@ create index if not exists integration_messages_connection_idx
   on public.integration_messages (connection_id, created_at desc);
 
 alter table public.integration_messages enable row level security;
-revoke all on table public.integration_messages from anon, authenticated;
-revoke all on sequence public.integration_messages_id_seq from anon, authenticated;
-grant all on table public.integration_messages to service_role;
-grant all on sequence public.integration_messages_id_seq to service_role;
+
+-- Supabase roles do not exist on a plain PostgreSQL used by production CI.
+-- Preserve the hardened Supabase grants while allowing the same migration set
+-- to prove portable against PostgreSQL 16.
+do $$
+begin
+  if exists(select 1 from pg_roles where rolname='anon') then
+    execute 'revoke all on table public.integration_messages from anon';
+    execute 'revoke all on sequence public.integration_messages_id_seq from anon';
+  end if;
+  if exists(select 1 from pg_roles where rolname='authenticated') then
+    execute 'revoke all on table public.integration_messages from authenticated';
+    execute 'revoke all on sequence public.integration_messages_id_seq from authenticated';
+  end if;
+  if exists(select 1 from pg_roles where rolname='service_role') then
+    execute 'grant all on table public.integration_messages to service_role';
+    execute 'grant all on sequence public.integration_messages_id_seq to service_role';
+  end if;
+end $$;
