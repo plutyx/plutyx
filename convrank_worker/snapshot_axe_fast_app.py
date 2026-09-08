@@ -39,10 +39,10 @@ async def _axe_fast(page) -> dict[str, Any]:
                 page=page,
                 options={
                     "runOnly": {"type": "rule", "values": AXE_RULES},
-                    "resultTypes": ["violations", "passes", "incomplete", "inapplicable"],
+                    "resultTypes": ["violations"],
                 },
             ),
-            timeout=9.0,
+            timeout=18.0,
         )
         raw = result.response
         violations = []
@@ -61,25 +61,19 @@ async def _axe_fast(page) -> dict[str, Any]:
             )
         return {
             "available": True,
-            "mode": "atomic_wcag_rules",
+            "mode": "atomic_wcag_rules_18s",
             "rules_requested": AXE_RULES,
             "version": (raw.get("testEngine") or {}).get("version"),
             "violations_count": len(raw.get("violations", [])),
-            "passes_count": len(raw.get("passes", [])),
-            "incomplete_count": len(raw.get("incomplete", [])),
-            "inapplicable_count": len(raw.get("inapplicable", [])),
             "violations": violations,
-            "passed_rule_ids": [x.get("id") for x in raw.get("passes", []) if x.get("id")],
-            "incomplete_rule_ids": [x.get("id") for x in raw.get("incomplete", []) if x.get("id")],
-            "inapplicable_rule_ids": [x.get("id") for x in raw.get("inapplicable", []) if x.get("id")],
-            "disclosure": "Targeted axe-core automated checks only; manual WCAG evaluation is not implied.",
+            "disclosure": "Targeted axe-core automated checks only; absence of a violation is interpreted only for explicitly requested rules and manual WCAG evaluation is not implied.",
         }
     except asyncio.TimeoutError:
-        return {"available": False, "mode": "atomic_wcag_rules", "error": "axe_atomic_timeout_9s", "rules_requested": AXE_RULES}
+        return {"available": False, "mode": "atomic_wcag_rules_18s", "error": "axe_atomic_timeout_18s", "rules_requested": AXE_RULES}
     except Exception as exc:
-        return {"available": False, "mode": "atomic_wcag_rules", "error": str(exc)[:1000], "rules_requested": AXE_RULES}
+        return {"available": False, "mode": "atomic_wcag_rules_18s", "error": str(exc)[:1000], "rules_requested": AXE_RULES}
 
 
 base._axe = _axe_fast
-base.APP_VERSION = "0.1.1-fast-axe"
+base.APP_VERSION = "0.1.2-fast-axe-18s"
 app = base.app
