@@ -21,9 +21,9 @@ from convrank_worker.app import (
     safe_get,
     validate_public_url,
 )
-from convrank_worker.axe_app import render_and_axe
+from convrank_worker.axe_app import detect_access_limit, render_and_axe
 
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.4.1"
 ROOT = Path(__file__).resolve().parent
 LIGHTHOUSE_BIN = ROOT / "node_modules" / ".bin" / "lighthouse"
 app = FastAPI(title="ConvRank SAC Audit Worker + axe-core + Lighthouse", version=APP_VERSION)
@@ -139,6 +139,7 @@ async def health() -> dict[str, Any]:
             "lighthouse_field_data": False,
             "multimodal_vision": False,
             "official_sac_score": False,
+            "anti_bot_challenge_detection": True,
         },
     }
 
@@ -169,10 +170,25 @@ async def audit(
         if req.render_js
         else {"available": False, "error": "render_disabled_by_request", "axe": {"available": False}}
     )
-    lighthouse = await run_lighthouse(final_url) if req.render_js else {"available": False, "error": "render_disabled_by_request"}
-    result_findings = findings(static, rendered, response.headers)
+    access = detect_access_limit(response, static, rendered)
 
-    axe_available = bool((rendered.get("axe") or {}).get("available"))
+    if access["limited"]:
+        lighthouse = {
+            "available": False,
+            "error": "access_limited_challenge_page",
+            "mode": "lab",
+            "field_data": False,
+            "valid_for_target": False,
+            "disclosure": "Lighthouse was not run because the target returned an anti-bot/access challenge instead of the website content.",
+        }
+        result_findings: list[dict[str, Any]] = []
+        if isinstance(rendered.get("axe"), dict):
+            rendered["axe"]["valid_for_target"] = False
+    else:
+        lighthouse = await run_lighthouse(final_url) if req.render_js else {"available": False, "error": "render_disabled_by_request"}
+        result_findings = findings(static, rendered, response.headers)
+
+    axe_available = bool((rendered.get("axe") or {}).get("available")) and not access["limited"]
     if axe_available:
         for violation in (rendered.get("axe") or {}).get("violations", []):
             result_findings.append(
@@ -190,7 +206,7 @@ async def audit(
                 }
             )
 
-    if lighthouse.get("available"):
+    if lighthouse.get("available") and not access["limited"]:
         for code, category in [
             ("SAC-LH-PERF-001", "performance"),
             ("SAC-LH-SEO-001", "seo"),
@@ -222,17 +238,25 @@ async def audit(
             "duration_ms": round((time.perf_counter() - started) * 1000),
             "completed_at": now_iso(),
         },
+        "access": access,
         "static": static,
         "rendered": rendered,
         "lighthouse": lighthouse,
         "findings": result_findings,
         "coverage": {
-            "javascript_rendering": bool(rendered.get("available")),
+            "javascript_rendering": bool(rendered.get("available")) and not access["limited"],
             "axe": axe_available,
-            "lighthouse": bool(lighthouse.get("available")),
+            "lighthouse": bool(lighthouse.get("available")) and not access["limited"],
             "lighthouse_field_data": False,
             "visual_ai": False,
             "official_scoring": False,
+            "site_content": not access["limited"],
+            "access_limited": access["limited"],
+            "access_reason": access["reason"],
         },
-        "disclosure": "Deterministic/rendered evidence, automated axe-core, and Lighthouse lab metrics. No official SAC Score and no claim of actual conversion rate.",
+        "disclosure": (
+            "Target website content was not scored because an anti-bot/access challenge page was detected."
+            if access["limited"]
+            else "Deterministic/rendered evidence, automated axe-core, and Lighthouse lab metrics. No official SAC Score and no claim of actual conversion rate."
+        ),
     }
