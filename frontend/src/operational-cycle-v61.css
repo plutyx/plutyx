@@ -1,0 +1,26 @@
+@media(max-width:700px){
+  [data-operational-cycle-v61]{
+    left:auto!important;
+    right:0!important;
+    bottom:calc(76px + env(safe-area-inset-bottom,0px))!important;
+    justify-content:flex-end!important;
+    padding-left:0!important;
+    padding-right:10px!important;
+  }
+  [data-operational-cycle-v61] [data-operational-cycle-toggle]{
+    width:48px!important;
+    min-width:48px!important;
+    height:48px!important;
+    min-height:48px!important;
+    padding:7px!important;
+    gap:0!important;
+    border-radius:999px!important;
+  }
+  [data-operational-cycle-v61] [data-operational-cycle-toggle]>span:not(:first-child){display:none!important}
+  [data-operational-cycle-v61] [data-operational-cycle-toggle]>span:first-child{width:32px!important;height:32px!important}
+  [data-operational-cycle-v61] section[aria-label="Fluxo vivo da operação"]{
+    max-height:min(72vh,620px)!important;
+    overflow:auto!important;
+    overscroll-behavior:contain;
+  }
+}
