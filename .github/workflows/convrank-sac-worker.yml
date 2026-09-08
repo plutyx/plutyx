@@ -19,5 +19,5 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
       - run: pip install -r convrank_worker/requirements.txt pytest pytest-asyncio
-      - run: python -m py_compile convrank_worker/app.py
+      - run: python -m py_compile convrank_worker/app.py convrank_worker/axe_app.py
       - run: pytest -q convrank_worker/test_app.py
