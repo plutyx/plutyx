@@ -4,14 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-  pull_request:
 
 jobs:
   public-web:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
-      WEB_URL: https://cozinha-360-os-v41.onrender.com
+      WEB_URL: https://cozinha-360-os.netlify.app
       API_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-api-v2
       GATEWAY_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-gateway-v42
       SETUP_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-setup-v42
@@ -19,21 +18,25 @@ jobs:
       PURCHASES_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-purchases-v53
       SUPPLIERS_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-suppliers-v52
       KDS_URL: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/cozinha360-kds-v54
-      EXPECTED_RELEASE: '5.4.0'
+      EXPECTED_RELEASE: '5.6.0'
     steps:
-      - name: Public frontend serves current v5.4 release
+      - name: Public frontend serves this exact commit
         run: |
           set -euo pipefail
           headers="$(mktemp)"
           body="$(mktemp)"
-          for i in $(seq 1 75); do
-            code="$(curl --silent --show-error --location --dump-header "$headers" --output "$body" --write-out '%{http_code}' "$WEB_URL?check=$GITHUB_RUN_ID-$i")" || true
-            marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
-            if [ "$code" = "200" ] && grep -Fq "$marker" "$body"; then break; fi
+          ready=0
+          for i in $(seq 1 90); do
+            release_code="$(curl --silent --show-error --location -H 'Cache-Control: no-cache' --output /tmp/public-release.json --write-out '%{http_code}' "$WEB_URL/release.json?check=$GITHUB_RUN_ID-$i")" || true
+            if [ "$release_code" = "200" ] \
+              && jq -e --arg release "$EXPECTED_RELEASE" --arg sha "$GITHUB_SHA" '.release == $release and .commit == $sha' /tmp/public-release.json >/dev/null; then
+              code="$(curl --silent --show-error --location --dump-header "$headers" --output "$body" --write-out '%{http_code}' -H 'Cache-Control: no-cache' "$WEB_URL/?check=$GITHUB_RUN_ID-$i")" || true
+              marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
+              if [ "$code" = "200" ] && grep -Fq "$marker" "$body"; then ready=1; break; fi
+            fi
             sleep 4
           done
-          marker="<meta name=\"c360-release\" content=\"$EXPECTED_RELEASE\""
-          grep -Fq "$marker" "$body"
+          test "$ready" = "1"
           grep -Eiq '^content-type: *text/html' "$headers"
           grep -Fq 'Cozinha 360 OS' "$body"
           asset="$(grep -Eo 'src="/assets/index-[^"]+\.js"' "$body" | head -1 | cut -d'"' -f2)"
@@ -54,7 +57,7 @@ jobs:
           grep -Fq 'Saiba com quem comprar antes de faltar.' "$bundle"
           grep -Fq 'SLAs da operação' "$bundle"
           grep -Fq 'Configuração inteligente' "$bundle"
-          echo 'public frontend v5.4 smoke ok'
+          echo "canonical public frontend smoke ok: $EXPECTED_RELEASE · $GITHUB_SHA"
 
       - name: Public cloud API liveness and readiness
         run: |
@@ -91,7 +94,7 @@ jobs:
             headers="$(mktemp)"
             code="$(curl --silent --show-error --output /dev/null --dump-header "$headers" --write-out '%{http_code}' -X OPTIONS "$target" -H "Origin: $WEB_URL" -H 'Access-Control-Request-Method: GET' -H 'Access-Control-Request-Headers: authorization,content-type')"
             test "$code" = "204"
-            grep -Eiq '^access-control-allow-origin: *(\*|https://cozinha-360-os-v41\.onrender\.com)' "$headers"
+            grep -Eiq '^access-control-allow-origin: *(\*|https://cozinha-360-os\.netlify\.app)' "$headers"
             grep -Eiq '^access-control-allow-headers:.*authorization' "$headers"
           done
           echo 'browser CORS smoke ok'
