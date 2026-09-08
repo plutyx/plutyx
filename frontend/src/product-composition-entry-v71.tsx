@@ -1,7 +1,9 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { ProductCompositionPortal } from "./product-composition-v71";
+import { DeliveryConveyorPortal } from "./delivery-conveyor-v72";
 import "./product-composition-v71.css";
+import "./delivery-conveyor-v72.css";
 
 const ROOT_ID = "c360-product-composition-v71-root";
 
@@ -15,6 +17,7 @@ function mount() {
   createRoot(host).render(
     <React.StrictMode>
       <ProductCompositionPortal />
+      <DeliveryConveyorPortal />
     </React.StrictMode>,
   );
 }
