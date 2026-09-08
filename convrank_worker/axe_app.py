@@ -1,0 +1,234 @@
+from __future__ import annotations
+
+import base64
+import hashlib
+import time
+from typing import Any
+
+import httpx
+from axe_playwright_python.async_playwright import Axe
+from fastapi import FastAPI, Header, HTTPException
+from playwright.async_api import async_playwright
+
+from convrank_worker.app import (
+    AuditRequest,
+    extract_static,
+    findings,
+    now_iso,
+    require_token,
+    robots_allows,
+    safe_get,
+    validate_public_url,
+)
+
+APP_VERSION = "0.3.0"
+app = FastAPI(title="ConvRank SAC Audit Worker + axe-core", version=APP_VERSION)
+
+
+async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-dev-shm-usage"],
+            )
+            page = await browser.new_page(
+                viewport={"width": 390, "height": 844},
+                device_scale_factor=1,
+            )
+            console_errors: list[str] = []
+            page.on(
+                "console",
+                lambda msg: console_errors.append(msg.text[:500])
+                if msg.type == "error" and len(console_errors) < 20
+                else None,
+            )
+            await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+            try:
+                await page.wait_for_load_state("networkidle", timeout=5000)
+            except Exception:
+                pass
+
+            metrics = await page.evaluate(
+                """
+                () => {
+                  const nav = performance.getEntriesByType('navigation')[0];
+                  const controls = [...document.querySelectorAll('input:not([type=hidden]),select,textarea')];
+                  const missingLabels = controls.filter(el => {
+                    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return false;
+                    if (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) return false;
+                    return !el.closest('label');
+                  }).length;
+                  const unnamedButtons = [...document.querySelectorAll('button,[role=button]')].filter(
+                    el => !((el.innerText || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || '').trim())
+                  ).length;
+                  return {
+                    title: document.title || null,
+                    h1_count: document.querySelectorAll('h1').length,
+                    images: document.images.length,
+                    images_missing_alt: [...document.images].filter(i => !i.hasAttribute('alt')).length,
+                    form_controls: controls.length,
+                    form_controls_missing_label: missingLabels,
+                    unnamed_buttons: unnamedButtons,
+                    horizontal_overflow_px: Math.max(0, document.documentElement.scrollWidth - innerWidth),
+                    timing: nav ? {
+                      ttfb_ms: Math.round(nav.responseStart),
+                      dom_content_loaded_ms: Math.round(nav.domContentLoadedEventEnd),
+                      load_ms: Math.round(nav.loadEventEnd || 0)
+                    } : null,
+                    resource_count: performance.getEntriesByType('resource').length
+                  };
+                }
+                """
+            )
+
+            axe_engine: dict[str, Any]
+            try:
+                axe_result = await Axe().run(page=page)
+                raw = axe_result.response
+                violations = []
+                for item in raw.get("violations", []):
+                    violations.append(
+                        {
+                            "id": item.get("id"),
+                            "impact": item.get("impact"),
+                            "description": item.get("description"),
+                            "help": item.get("help"),
+                            "help_url": item.get("helpUrl"),
+                            "tags": item.get("tags", []),
+                            "nodes_count": len(item.get("nodes", [])),
+                            "targets": [
+                                node.get("target", [])
+                                for node in item.get("nodes", [])[:5]
+                            ],
+                        }
+                    )
+                axe_engine = {
+                    "available": True,
+                    "version": (raw.get("testEngine") or {}).get("version"),
+                    "violations_count": len(raw.get("violations", [])),
+                    "passes_count": len(raw.get("passes", [])),
+                    "incomplete_count": len(raw.get("incomplete", [])),
+                    "inapplicable_count": len(raw.get("inapplicable", [])),
+                    "violations": violations,
+                    "disclosure": "Automated axe-core findings do not replace manual WCAG evaluation.",
+                }
+            except Exception as exc:
+                axe_engine = {"available": False, "error": str(exc)[:1000]}
+
+            shot_b64 = None
+            shot_hash = None
+            if screenshot:
+                raw_shot = await page.screenshot(type="jpeg", quality=55, full_page=False)
+                shot_hash = hashlib.sha256(raw_shot).hexdigest()
+                shot_b64 = base64.b64encode(raw_shot).decode("ascii")
+
+            await browser.close()
+            return {
+                "available": True,
+                "metrics": metrics,
+                "console_errors": console_errors,
+                "axe": axe_engine,
+                "screenshot_sha256": shot_hash,
+                "screenshot_base64_jpeg": shot_b64,
+            }
+    except Exception as exc:
+        return {"available": False, "error": str(exc)[:1000], "axe": {"available": False}}
+
+
+@app.get("/health")
+async def health() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "service": "convrank-sac-audit",
+        "version": APP_VERSION,
+        "time": now_iso(),
+        "capabilities": {
+            "safe_public_fetch": True,
+            "robots": True,
+            "html_parse": True,
+            "javascript_rendering": True,
+            "rendered_mobile_checks": True,
+            "screenshot": True,
+            "navigation_timing": True,
+            "axe_core": True,
+            "lighthouse": False,
+            "multimodal_vision": False,
+            "official_sac_score": False,
+        },
+    }
+
+
+@app.post("/audit")
+async def audit(
+    req: AuditRequest,
+    x_sac_worker_token: str | None = Header(default=None),
+) -> dict[str, Any]:
+    require_token(x_sac_worker_token)
+    started = time.perf_counter()
+    root = await validate_public_url(str(req.url))
+
+    async with httpx.AsyncClient(
+        verify=True,
+        trust_env=False,
+        limits=httpx.Limits(max_connections=6, max_keepalive_connections=3),
+    ) as client:
+        robots_found, allowed = await robots_allows(client, root)
+        if not allowed:
+            raise HTTPException(status_code=403, detail="Blocked by robots.txt for SAC-AuditBot")
+        response, final_url = await safe_get(client, root)
+        if "text/html" not in response.headers.get("content-type", "").lower():
+            raise HTTPException(status_code=415, detail="Target did not return HTML")
+        static = extract_static(final_url, response)
+        rendered = (
+            await render_and_axe(final_url, req.include_screenshot)
+            if req.render_js
+            else {"available": False, "error": "render_disabled_by_request", "axe": {"available": False}}
+        )
+        result_findings = findings(static, rendered, response.headers)
+
+    axe_available = bool((rendered.get("axe") or {}).get("available"))
+    if axe_available:
+        for violation in (rendered.get("axe") or {}).get("violations", []):
+            result_findings.append(
+                {
+                    "criterion_code": f"AXE-{violation.get('id')}",
+                    "status": "warning",
+                    "title": violation.get("help") or violation.get("id"),
+                    "evidence": {
+                        "impact": violation.get("impact"),
+                        "nodes_count": violation.get("nodes_count"),
+                        "targets": violation.get("targets"),
+                        "help_url": violation.get("help_url"),
+                    },
+                    "recommendation": violation.get("description"),
+                }
+            )
+
+    return {
+        "engine": {
+            "name": "convrank-sac-audit",
+            "version": APP_VERSION,
+            "ranking_eligible": False,
+            "official_sac_score": False,
+        },
+        "audit": {
+            "requested_url": str(req.url),
+            "final_url": final_url,
+            "robots_found": robots_found,
+            "http_status": response.status_code,
+            "duration_ms": round((time.perf_counter() - started) * 1000),
+            "completed_at": now_iso(),
+        },
+        "static": static,
+        "rendered": rendered,
+        "findings": result_findings,
+        "coverage": {
+            "javascript_rendering": bool(rendered.get("available")),
+            "axe": axe_available,
+            "lighthouse": False,
+            "visual_ai": False,
+            "official_scoring": False,
+        },
+        "disclosure": "Deterministic/rendered evidence plus automated axe-core. No official SAC Score and no claim of actual conversion rate.",
+    }
