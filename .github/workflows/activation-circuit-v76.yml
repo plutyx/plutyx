@@ -1,0 +1,72 @@
+name: activation-circuit-v76
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  circuit-browser-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        run: python -m pip install -r backend/requirements.txt
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start local production contract
+        run: |
+          (
+            cd backend
+            export PYTHONPATH=.
+            export DATABASE_URL=sqlite:///./activation-circuit-v76.db
+            export SECRET_KEY=activation-circuit-v76-secret-key
+            python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/cozinha360-c76-api.log 2>&1 &
+          )
+          (
+            cd frontend
+            npm run dev -- --host 127.0.0.1 > /tmp/cozinha360-c76-web.log 2>&1 &
+          )
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/readyz >/dev/null && curl -fsS http://127.0.0.1:5173 >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/cozinha360-c76-api.log || true
+          cat /tmp/cozinha360-c76-web.log || true
+          exit 1
+
+      - name: Prove real-state activation circuit
+        run: node frontend/e2e/activation-circuit-v76.mjs
+
+      - name: Upload v7.6 visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: activation-circuit-v76-evidence
+          if-no-files-found: ignore
+          path: |
+            /tmp/cozinha360-activation-circuit-v76.png
+            /tmp/cozinha360-activation-circuit-v76-mobile.png
+            /tmp/cozinha360-activation-circuit-v76-failure.png
+            /tmp/cozinha360-c76-api.log
+            /tmp/cozinha360-c76-web.log
