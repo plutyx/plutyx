@@ -1,7 +1,7 @@
 {
   "name": "plutyx-ranking-conversao",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "framer-motion": "12.23.12",
     "lucide-react": "0.542.0",
     "react": "19.1.1",
     "react-dom": "19.1.1"
