@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import re
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 from warcio.archiveiterator import ArchiveIterator
+
+from convrank_worker.app import safe_get, validate_public_url
 
 CC_COLLINFO = "https://index.commoncrawl.org/collinfo.json"
 CC_DATA = "https://data.commoncrawl.org/"
@@ -84,8 +88,12 @@ def _candidate_queries(raw_url: str) -> list[str]:
     return [x for x in candidates if x and not (x in seen or seen.add(x))]
 
 
-async def _lookup_record(client: httpx.AsyncClient, raw_url: str) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    indexes = await _latest_indexes(client)
+async def _lookup_record(
+    client: httpx.AsyncClient,
+    raw_url: str,
+    indexes: list[dict[str, Any]] | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    indexes = indexes or await _latest_indexes(client)
     for index in indexes:
         endpoint = index["cdx-api"]
         for query in _candidate_queries(raw_url):
@@ -122,10 +130,7 @@ async def _fetch_warc(client: httpx.AsyncClient, record: dict[str, Any]) -> tupl
         filename = str(record["filename"])
     except Exception:
         return None, {}
-    headers = {
-        "User-Agent": FALLBACK_UA,
-        "Range": f"bytes={offset}-{offset + length - 1}",
-    }
+    headers = {"User-Agent": FALLBACK_UA, "Range": f"bytes={offset}-{offset + length - 1}"}
     response = await client.get(f"{CC_DATA}{filename}", headers=headers, timeout=25)
     if response.status_code not in (200, 206):
         return None, {}
@@ -144,13 +149,153 @@ async def _fetch_warc(client: httpx.AsyncClient, record: dict[str, Any]) -> tupl
     return None, {}
 
 
-async def commoncrawl_snapshot(raw_url: str) -> dict[str, Any]:
-    """Return the newest public Common Crawl snapshot for a URL.
+def _same_site(host_a: str, host_b: str) -> bool:
+    a = host_a.lower().removeprefix("www.")
+    b = host_b.lower().removeprefix("www.")
+    return bool(a and a == b)
 
-    This is a provenance-preserving fallback, not an attempt to bypass a site's
-    current access controls. The response is explicitly timestamped and must not
-    be used for current performance/security assertions.
-    """
+
+async def discover_sitemap_urls(raw_url: str, max_urls: int = 300) -> dict[str, Any]:
+    """Discover current public URLs from robots/sitemaps without crawling page content."""
+    root = await validate_public_url(raw_url)
+    parsed = urlparse(root)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    host = parsed.hostname or ""
+    sitemap_candidates: list[str] = []
+    discovered: list[dict[str, Any]] = []
+    visited_sitemaps: set[str] = set()
+
+    async with httpx.AsyncClient(
+        verify=True,
+        trust_env=False,
+        limits=httpx.Limits(max_connections=3, max_keepalive_connections=2),
+    ) as client:
+        try:
+            robots, _ = await safe_get(client, f"{origin}/robots.txt", timeout=8)
+            if robots.status_code == 200:
+                for line in robots.text.splitlines():
+                    if line.lower().startswith("sitemap:"):
+                        candidate = line.split(":", 1)[1].strip()
+                        try:
+                            c_host = urlparse(candidate).hostname or ""
+                            if _same_site(host, c_host):
+                                sitemap_candidates.append(candidate)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
+        if not sitemap_candidates:
+            sitemap_candidates = [f"{origin}/sitemap_index.xml", f"{origin}/sitemap.xml"]
+
+        queue = sitemap_candidates[:4]
+        while queue and len(discovered) < max_urls and len(visited_sitemaps) < 12:
+            sitemap_url = queue.pop(0)
+            if sitemap_url in visited_sitemaps:
+                continue
+            visited_sitemaps.add(sitemap_url)
+            try:
+                s_host = urlparse(sitemap_url).hostname or ""
+                if not _same_site(host, s_host):
+                    continue
+                response, final = await safe_get(client, sitemap_url, timeout=10)
+                if response.status_code != 200 or len(response.content) > 8_000_000:
+                    continue
+                root_xml = ET.fromstring(response.content)
+            except Exception:
+                continue
+
+            tag = root_xml.tag.lower()
+            if tag.endswith("sitemapindex"):
+                for node in root_xml.iter():
+                    if not node.tag.lower().endswith("loc") or not node.text:
+                        continue
+                    child = node.text.strip()
+                    c_host = urlparse(child).hostname or ""
+                    if _same_site(host, c_host) and child not in visited_sitemaps and child not in queue:
+                        queue.append(child)
+                        if len(queue) >= 12:
+                            break
+            elif tag.endswith("urlset"):
+                for url_node in list(root_xml):
+                    loc = None
+                    lastmod = None
+                    for child in list(url_node):
+                        ctag = child.tag.lower()
+                        if ctag.endswith("loc") and child.text:
+                            loc = child.text.strip()
+                        elif ctag.endswith("lastmod") and child.text:
+                            lastmod = child.text.strip()
+                    if not loc:
+                        continue
+                    loc_host = urlparse(loc).hostname or ""
+                    if not _same_site(host, loc_host):
+                        continue
+                    discovered.append({"url": loc, "lastmod": lastmod, "sitemap": final})
+                    if len(discovered) >= max_urls:
+                        break
+
+    dedup: dict[str, dict[str, Any]] = {}
+    for item in discovered:
+        dedup.setdefault(item["url"], item)
+    return {
+        "available": bool(dedup),
+        "source": "current_sitemap",
+        "sitemaps_checked": len(visited_sitemaps),
+        "urls": list(dedup.values())[:max_urls],
+    }
+
+
+def page_kind(raw_url: str) -> str:
+    path = (urlparse(raw_url).path or "/").lower().strip("/")
+    if not path:
+        return "home"
+    tests = [
+        ("pricing", ("pricing", "precos", "plans", "planos")),
+        ("tool", ("tool", "tools", "ubersuggest", "analyzer", "checker", "calculator")),
+        ("service", ("service", "services", "consulting", "agency", "seo-services", "digital-marketing")),
+        ("case", ("case-study", "case-studies", "cases", "results", "clientes")),
+        ("blog", ("blog", "guide", "guides", "article", "articles")),
+        ("about", ("about", "sobre")),
+        ("contact", ("contact", "contato")),
+    ]
+    for kind, needles in tests:
+        if any(n in path for n in needles):
+            return kind
+    return "content"
+
+
+def select_representative_urls(raw_url: str, sitemap: dict[str, Any], max_pages: int = 6) -> list[dict[str, Any]]:
+    root = raw_url
+    pool = [{"url": root, "lastmod": None, "kind": "home"}]
+    for item in sitemap.get("urls") or []:
+        pool.append({**item, "kind": page_kind(item["url"])})
+
+    priorities = ["home", "pricing", "tool", "service", "case", "blog", "about", "contact", "content"]
+    selected: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for kind in priorities:
+        candidates = [p for p in pool if p["kind"] == kind and p["url"] not in seen]
+        candidates.sort(key=lambda x: (x.get("lastmod") or "", -len(urlparse(x["url"]).path)), reverse=True)
+        if candidates:
+            item = candidates[0]
+            selected.append(item)
+            seen.add(item["url"])
+        if len(selected) >= max_pages:
+            break
+    if len(selected) < max_pages:
+        for item in pool:
+            if item["url"] in seen:
+                continue
+            selected.append(item)
+            seen.add(item["url"])
+            if len(selected) >= max_pages:
+                break
+    return selected
+
+
+async def commoncrawl_snapshot(raw_url: str) -> dict[str, Any]:
+    """Return the newest public Common Crawl snapshot for a URL."""
     async with httpx.AsyncClient(
         verify=True,
         trust_env=False,
@@ -180,3 +325,54 @@ async def commoncrawl_snapshot(raw_url: str) -> dict[str, Any]:
             }
         except Exception as exc:
             return {"available": False, "source": "common_crawl", "reason": "fallback_error", "error": str(exc)[:800]}
+
+
+async def commoncrawl_site_sample(raw_url: str, max_pages: int = 6) -> dict[str, Any]:
+    """Use current sitemap discovery + timestamped Common Crawl HTML for representative pages."""
+    sitemap = await discover_sitemap_urls(raw_url, max_urls=300)
+    selected = select_representative_urls(raw_url, sitemap, max_pages=max(1, min(max_pages, 8)))
+    pages: list[dict[str, Any]] = []
+    async with httpx.AsyncClient(
+        verify=True,
+        trust_env=False,
+        follow_redirects=True,
+        limits=httpx.Limits(max_connections=2, max_keepalive_connections=2),
+    ) as client:
+        try:
+            indexes = await _latest_indexes(client)
+        except Exception as exc:
+            return {"available": False, "source": "common_crawl", "reason": "index_unavailable", "error": str(exc)[:500], "sitemap": sitemap}
+
+        for idx, item in enumerate(selected):
+            if idx:
+                await asyncio.sleep(0.20)
+            record, index = await _lookup_record(client, item["url"], indexes=indexes)
+            if not record or not index:
+                pages.append({**item, "available": False, "reason": "no_recent_snapshot"})
+                continue
+            payload, _headers = await _fetch_warc(client, record)
+            if not payload:
+                pages.append({**item, "available": False, "reason": "snapshot_fetch_failed"})
+                continue
+            pages.append({
+                **item,
+                "available": True,
+                "source": "common_crawl",
+                "index_id": index.get("id"),
+                "snapshot_timestamp": _timestamp_iso(record.get("timestamp")),
+                "captured_url": record.get("url"),
+                "digest": record.get("digest"),
+                "static": _parse_static(record.get("url") or item["url"], payload, 200),
+            })
+
+    valid = [p for p in pages if p.get("available")]
+    return {
+        "available": bool(valid),
+        "source": "common_crawl_site_sample",
+        "current_sitemap": sitemap,
+        "selected_pages": selected,
+        "pages": pages,
+        "valid_pages": len(valid),
+        "requested_pages": len(selected),
+        "disclosure": "Current sitemap is used only for URL discovery. Page content comes from timestamped Common Crawl snapshots and is not treated as current performance/security evidence.",
+    }
