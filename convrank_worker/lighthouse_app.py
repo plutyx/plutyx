@@ -21,14 +21,10 @@ from convrank_worker.app import (
     safe_get,
     validate_public_url,
 )
-from convrank_worker.axe_app import (
-    archived_findings,
-    detect_access_limit,
-    fallback_for_protected,
-    render_and_axe,
-)
+from convrank_worker.axe_app import archived_findings, detect_access_limit, render_and_axe
+from convrank_worker.fallback_sources import commoncrawl_site_sample
 
-APP_VERSION = "0.4.2"
+APP_VERSION = "0.4.3"
 ROOT = Path(__file__).resolve().parent
 LIGHTHOUSE_BIN = ROOT / "node_modules" / ".bin" / "lighthouse"
 app = FastAPI(title="ConvRank SAC Audit Worker + axe-core + Lighthouse", version=APP_VERSION)
@@ -58,10 +54,7 @@ async def run_lighthouse(url: str) -> dict[str, Any]:
         env = os.environ.copy()
         env["CHROME_PATH"] = chrome
         cmd = [
-            str(LIGHTHOUSE_BIN),
-            url,
-            "--output=json",
-            "--quiet",
+            str(LIGHTHOUSE_BIN), url, "--output=json", "--quiet",
             "--only-categories=performance,seo,best-practices",
             "--form-factor=mobile",
             "--chrome-flags=--headless --no-sandbox --disable-dev-shm-usage",
@@ -90,13 +83,8 @@ async def run_lighthouse(url: str) -> dict[str, Any]:
         categories = raw.get("categories") or {}
         audits = raw.get("audits") or {}
         metric_keys = [
-            "first-contentful-paint",
-            "largest-contentful-paint",
-            "speed-index",
-            "total-blocking-time",
-            "cumulative-layout-shift",
-            "server-response-time",
-            "interactive",
+            "first-contentful-paint", "largest-contentful-paint", "speed-index",
+            "total-blocking-time", "cumulative-layout-shift", "server-response-time", "interactive",
         ]
         return {
             "available": True,
@@ -107,9 +95,7 @@ async def run_lighthouse(url: str) -> dict[str, Any]:
             "user_agent": raw.get("userAgent"),
             "duration_ms": round((time.perf_counter() - started) * 1000),
             "categories": {
-                key: round(float(value.get("score")) * 100, 1)
-                if value.get("score") is not None
-                else None
+                key: round(float(value.get("score")) * 100, 1) if value.get("score") is not None else None
                 for key, value in categories.items()
                 if key in {"performance", "seo", "best-practices"}
             },
@@ -121,6 +107,37 @@ async def run_lighthouse(url: str) -> dict[str, Any]:
         }
     except Exception as exc:
         return {"available": False, "error": str(exc)[:2000]}
+
+
+async def archived_site_fallback(url: str, max_pages: int) -> dict[str, Any]:
+    try:
+        return await asyncio.wait_for(
+            commoncrawl_site_sample(url, max_pages=max(2, min(max_pages, 6))),
+            timeout=78.0,
+        )
+    except asyncio.TimeoutError:
+        return {"available": False, "source": "common_crawl_site_sample", "reason": "site_fallback_budget_exceeded_78s"}
+
+
+def primary_archived_page(sample: dict[str, Any]) -> dict[str, Any] | None:
+    pages = [p for p in (sample.get("pages") or []) if p.get("available") and p.get("static")]
+    for page in pages:
+        if page.get("kind") == "home":
+            return page
+    return pages[0] if pages else None
+
+
+def archive_record_from_page(page: dict[str, Any], sample: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "available": True,
+        "source": "common_crawl",
+        "index_id": page.get("index_id"),
+        "snapshot_timestamp": page.get("snapshot_timestamp"),
+        "captured_url": page.get("captured_url"),
+        "digest": page.get("digest"),
+        "static": page.get("static") or {},
+        "freshness_disclosure": sample.get("disclosure"),
+    }
 
 
 @app.get("/health")
@@ -146,6 +163,8 @@ async def health() -> dict[str, Any]:
             "official_sac_score": False,
             "anti_bot_challenge_detection": True,
             "common_crawl_fallback": True,
+            "current_sitemap_discovery": True,
+            "archived_multi_page_sample": True,
         },
     }
 
@@ -169,6 +188,7 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
         origin_static = extract_static(final_url, response)
 
     access = detect_access_limit(response, origin_static, {"metrics": {}})
+    site_sample: dict[str, Any] = {"available": False}
     fallback: dict[str, Any] = {"available": False}
 
     if access["limited"]:
@@ -177,9 +197,11 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             "error": "origin_access_challenge_skipped",
             "axe": {"available": False, "valid_for_target": False},
         }
-        fallback = await fallback_for_protected(final_url)
-        if fallback.get("available"):
-            static = fallback.get("static") or origin_static
+        site_sample = await archived_site_fallback(final_url, req.max_pages)
+        primary = primary_archived_page(site_sample)
+        if primary:
+            fallback = archive_record_from_page(primary, site_sample)
+            static = fallback["static"]
             result_findings = archived_findings(static, fallback)
         else:
             static = origin_static
@@ -190,7 +212,7 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             "mode": "lab",
             "field_data": False,
             "valid_for_target": False,
-            "disclosure": "Current Lighthouse was not run because the origin returned an access challenge. Archived content evidence is kept separate from current performance evidence.",
+            "disclosure": "Current Lighthouse was not run because the origin returned an access challenge. Current sitemap + archived page evidence are kept separate from current performance evidence.",
         }
     else:
         static = origin_static
@@ -202,9 +224,11 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
         post_access = detect_access_limit(response, origin_static, rendered)
         if post_access["limited"]:
             access = post_access
-            fallback = await fallback_for_protected(final_url)
-            if fallback.get("available"):
-                static = fallback.get("static") or origin_static
+            site_sample = await archived_site_fallback(final_url, req.max_pages)
+            primary = primary_archived_page(site_sample)
+            if primary:
+                fallback = archive_record_from_page(primary, site_sample)
+                static = fallback["static"]
                 result_findings = archived_findings(static, fallback)
             else:
                 result_findings = []
@@ -224,21 +248,19 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
     axe_available = bool((rendered.get("axe") or {}).get("available")) and not access["limited"]
     if axe_available:
         for violation in (rendered.get("axe") or {}).get("violations", []):
-            result_findings.append(
-                {
-                    "criterion_code": f"AXE-{violation.get('id')}",
-                    "status": "warning",
-                    "title": violation.get("help") or violation.get("id"),
-                    "evidence": {
-                        "impact": violation.get("impact"),
-                        "nodes_count": violation.get("nodes_count"),
-                        "targets": violation.get("targets"),
-                        "help_url": violation.get("help_url"),
-                        "source": "current_browser_render",
-                    },
-                    "recommendation": violation.get("description"),
-                }
-            )
+            result_findings.append({
+                "criterion_code": f"AXE-{violation.get('id')}",
+                "status": "warning",
+                "title": violation.get("help") or violation.get("id"),
+                "evidence": {
+                    "impact": violation.get("impact"),
+                    "nodes_count": violation.get("nodes_count"),
+                    "targets": violation.get("targets"),
+                    "help_url": violation.get("help_url"),
+                    "source": "current_browser_render",
+                },
+                "recommendation": violation.get("description"),
+            })
 
     if lighthouse.get("available") and not access["limited"]:
         for code, category in [
@@ -247,27 +269,20 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             ("SAC-LH-BP-001", "best-practices"),
         ]:
             score = (lighthouse.get("categories") or {}).get(category)
-            result_findings.append(
-                {
-                    "criterion_code": code,
-                    "status": "pass" if score is not None and score >= 90 else "warning",
-                    "title": f"Lighthouse {category}",
-                    "evidence": {"lab_score": score, "lighthouse_version": lighthouse.get("version"), "mode": "lab", "source": "current_origin"},
-                    "recommendation": "Revisar oportunidades detalhadas de laboratório antes de alterar o site." if score is not None and score < 90 else None,
-                }
-            )
+            result_findings.append({
+                "criterion_code": code,
+                "status": "pass" if score is not None and score >= 90 else "warning",
+                "title": f"Lighthouse {category}",
+                "evidence": {"lab_score": score, "lighthouse_version": lighthouse.get("version"), "mode": "lab", "source": "current_origin"},
+                "recommendation": "Revisar oportunidades detalhadas de laboratório antes de alterar o site." if score is not None and score < 90 else None,
+            })
 
     fallback_available = bool(fallback.get("available"))
     site_content_available = (not access["limited"]) or fallback_available
-    content_source = "common_crawl" if fallback_available else "current_origin"
+    content_source = "common_crawl_site_sample" if fallback_available else "current_origin"
 
     return {
-        "engine": {
-            "name": "convrank-sac-audit",
-            "version": APP_VERSION,
-            "ranking_eligible": False,
-            "official_sac_score": False,
-        },
+        "engine": {"name": "convrank-sac-audit", "version": APP_VERSION, "ranking_eligible": False, "official_sac_score": False},
         "audit": {
             "requested_url": str(req.url),
             "final_url": final_url,
@@ -276,11 +291,7 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             "duration_ms": round((time.perf_counter() - started) * 1000),
             "completed_at": now_iso(),
         },
-        "access": {
-            **access,
-            "fallback_used": fallback_available,
-            "fallback_source": fallback.get("source") if fallback_available else None,
-        },
+        "access": {**access, "fallback_used": fallback_available, "fallback_source": "common_crawl" if fallback_available else None},
         "content_source": {
             "kind": content_source,
             "current": not fallback_available,
@@ -294,6 +305,7 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
         "rendered": rendered,
         "lighthouse": lighthouse,
         "fallback": fallback if fallback_available else None,
+        "site_sample": site_sample if site_sample.get("available") else None,
         "findings": result_findings,
         "coverage": {
             "javascript_rendering": bool(rendered.get("available")) and not access["limited"],
@@ -305,12 +317,14 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             "site_content": site_content_available,
             "current_site_content": not access["limited"],
             "archived_site_content": fallback_available,
+            "archived_pages": site_sample.get("valid_pages", 0) if fallback_available else 0,
+            "current_sitemap": bool((site_sample.get("current_sitemap") or {}).get("available")) if fallback_available else False,
             "content_source": content_source,
             "access_limited": access["limited"],
             "access_reason": access["reason"],
         },
         "disclosure": (
-            "Current origin was protected; content/SEO/structure evidence uses a timestamped Common Crawl snapshot. Current performance/accessibility/security are not inferred from the archive."
+            "Current origin was protected. Current robots/sitemap were used for URL discovery; content/SEO/structure evidence comes from timestamped Common Crawl snapshots. Current performance/accessibility/security are not inferred from the archive."
             if fallback_available
             else "Deterministic/rendered evidence, automated axe-core, and Lighthouse lab metrics. No official SAC Score and no claim of actual conversion rate."
         ),
