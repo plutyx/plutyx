@@ -1,0 +1,37 @@
+name: Ranking Conversao Hostinger Build
+
+on:
+  push:
+    branches:
+      - convrank-hostinger-front
+    paths:
+      - 'ranking-conversao/**'
+      - '.github/workflows/ranking-conversao.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ranking-conversao/package.json
+      - name: Install
+        working-directory: ranking-conversao
+        run: npm install --no-audit --no-fund
+      - name: Build Hostinger subpath bundle
+        working-directory: ranking-conversao
+        run: npm run build
+      - name: Validate bundle
+        run: |
+          test -f ranking-conversao/dist/index.html
+          test -f ranking-conversao/dist/.htaccess
+          grep -q '/ranking-conversao/' ranking-conversao/dist/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ranking-conversao-hostinger
+          path: ranking-conversao/dist
+          include-hidden-files: true
