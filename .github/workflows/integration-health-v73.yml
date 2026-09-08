@@ -1,0 +1,92 @@
+name: integration-health-v73
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/src/integration-health-pulse-v73.tsx"
+      - "frontend/src/integration-health-pulse-v73.css"
+      - "frontend/src/connections-hub.tsx"
+      - "frontend/src/personalized-connections-route.tsx"
+      - "frontend/e2e/integration-health-v73.mjs"
+      - "supabase/edge/cozinha360-integration-health-v73/**"
+      - "supabase/migrations/*integration_health*"
+      - ".github/workflows/integration-health-v73.yml"
+  pull_request:
+    paths:
+      - "frontend/src/integration-health-pulse-v73.tsx"
+      - "frontend/src/integration-health-pulse-v73.css"
+      - "frontend/src/connections-hub.tsx"
+      - "frontend/src/personalized-connections-route.tsx"
+      - "frontend/e2e/integration-health-v73.mjs"
+      - "supabase/edge/cozinha360-integration-health-v73/**"
+      - "supabase/migrations/*integration_health*"
+      - ".github/workflows/integration-health-v73.yml"
+
+jobs:
+  pulse-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend
+        run: python -m pip install -r backend/requirements.txt
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Start API and web app
+        run: |
+          (
+            cd backend
+            export PYTHONPATH=.
+            export DATABASE_URL=sqlite:///./integration-health-v73.db
+            export SECRET_KEY=integration-health-v73-secret
+            python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/cozinha360-health-api.log 2>&1 &
+          )
+          (
+            cd frontend
+            npm run dev -- --host 127.0.0.1 > /tmp/cozinha360-health-web.log 2>&1 &
+          )
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/readyz >/dev/null && curl -fsS http://127.0.0.1:5173 >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/cozinha360-health-api.log || true
+          cat /tmp/cozinha360-health-web.log || true
+          exit 1
+
+      - name: Prove server-owned pulse and zero browser auto-probes
+        run: node frontend/e2e/integration-health-v73.mjs
+
+      - name: Upload health evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-health-v73-evidence
+          if-no-files-found: ignore
+          path: |
+            /tmp/cozinha360-integration-health-v73.png
+            /tmp/cozinha360-integration-health-v73-failure.png
+            /tmp/cozinha360-health-api.log
+            /tmp/cozinha360-health-web.log
