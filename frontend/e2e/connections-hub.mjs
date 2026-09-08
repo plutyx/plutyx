@@ -26,6 +26,7 @@ await page.route('**/cozinha360-profile-v31/**',async route=>{
  }
  return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({detail:`profile mock route not found: ${method} ${path}`})})
 })
+await page.route('**/cozinha360-integration-health-v73/businesses/1/health',route=>route.fulfill(json({ok:true,version:'7.3.0',business_id:1,generated_at:new Date().toISOString(),summary:{healthy:0,degrading:1,review:0,recovered:0,total:1},items:[{connection_id:3,provider:'google',name:'conta@google.com',connection_status:'active',state:'degrading',effective_state:'degrading',strategy:'probe',consecutive_failures:1,last_checked_at:new Date().toISOString(),last_probe_ok_at:null,last_probe_error_at:new Date().toISOString(),last_probe_error:'Aguardando pulso do worker',next_check_at:null,last_success_at:googleLastSuccess,operational_error_at:null,operational_error_present:false,operational_error:null}],principles:{server_side:true,ifood_passive_signal:true,operational_errors_preserved:true}})))
 await page.route('**/cozinha360-integrations-v29/**',async route=>{
  const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method()
  if(path.endsWith('/businesses/1/integrations/ifood/start')&&method==='POST')return route.fulfill(json({action:'device_code',connection_id:7,user_code:'ABCD-EFGH',authorization_url:'https://example.com/ifood-portal',expires_in:600,next:'Cole o código'}))
@@ -53,8 +54,10 @@ try{
  await page.goto('http://127.0.0.1:5173/?connections=1',{waitUntil:'networkidle'})
  await page.getByRole('heading',{name:'Conecte sua operação, não APIs.',exact:true}).waitFor({timeout:15000})
  await page.getByText('Plug & play · sem copiar token, webhook ou merchant ID',{exact:true}).waitFor()
- await page.getByText('1 conexão antiga revalidada automaticamente.',{exact:true}).waitFor({timeout:15000})
- await page.getByRole('heading',{name:'1/1 conexões saudáveis',exact:true}).waitFor()
+ await page.getByRole('heading',{name:'1 conexão aguardando revalidação',exact:true}).waitFor({timeout:15000})
+ await page.getByText(/worker server-side acompanha conexões antigas/).waitFor()
+ await page.waitForTimeout(900)
+ if(testCalls!==0)throw new Error(`opening Connections Hub must not auto-probe providers; got ${testCalls} /test call(s)`)
  await page.getByText('CONFIGURE EM 30 SEGUNDOS',{exact:true}).waitFor()
  await page.getByRole('heading',{name:'Como sua cozinha realmente vende?',exact:true}).waitFor()
  await page.getByRole('button',{name:/WhatsApp Conversa/}).click()
@@ -100,9 +103,9 @@ try{
  await page.getByRole('button',{name:'Diagnosticar agora'}).click()
  await page.getByText('2/2 conexões validadas. Tudo saudável.',{exact:true}).waitFor()
  await page.getByRole('heading',{name:'2/2 conexões saudáveis',exact:true}).waitFor()
- if(testCalls!==6)throw new Error(`expected 6 connection health calls, got ${testCalls}`)
+ if(testCalls!==5)throw new Error(`expected 5 explicit connection health calls, got ${testCalls}`)
  await page.screenshot({path:'/tmp/cozinha360-connections-hub.png',fullPage:true})
- console.log('plug-and-play asset selection + connection doctor customer journey ok')
+ console.log('server-owned automatic health + explicit connection doctor customer journey ok')
 }catch(error){
  await page.screenshot({path:'/tmp/cozinha360-connections-hub-failure.png',fullPage:true}).catch(()=>{})
  console.error(error);process.exitCode=1
