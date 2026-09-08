@@ -62,9 +62,9 @@ function stageFor(order:Order):StageKey{
   const delivery = String(order.delivery?.status || "").toLowerCase();
   const status = String(order.status || "").toLowerCase();
   if(delivery === "delivered" || status === "completed") return "done";
-  if(delivery === "picked_up") return "route";
+  if(delivery === "picked_up" || status === "dispatched") return "route";
   if(status === "awaiting_delivery" || delivery === "assigned" || delivery === "waiting") return "dispatch";
-  if(status === "checking") return "checking";
+  if(status === "checking" || status === "ready") return "checking";
   if(status === "production") return "kitchen";
   return "entered";
 }
@@ -97,19 +97,21 @@ async function deliveryRequest(path:string,token:string){
 }
 
 function focusOperationalOrder(orderId:number,reduced:boolean){
-  const now = Array.from(document.querySelectorAll<HTMLButtonElement>(".delivery40-tabs button")).find((button)=>button.textContent?.trim().startsWith("Agora"));
+  const now = Array.from(document.querySelectorAll<HTMLButtonElement>(".deliverym-tabs button")).find((button)=>button.textContent?.trim().startsWith("Agora"));
   if(now && !now.classList.contains("active")) now.click();
   window.setTimeout(()=>{
-    const rows = Array.from(document.querySelectorAll<HTMLElement>(".delivery40-order"));
-    const row = rows.find((item)=>item.querySelector(".delivery40-order-id span")?.textContent?.trim() === `#${orderId}`);
+    const rows = Array.from(document.querySelectorAll<HTMLElement>(".deliverym-order"));
+    const row = rows.find((item)=>item.querySelector("div:first-child > span")?.textContent?.trim() === `#${orderId}`);
     if(!row) return;
+    row.setAttribute("data-delivery-flow-focus","true");
     row.scrollIntoView({behavior:reduced?"auto":"smooth",block:"center"});
     if(!reduced) row.animate([
       {boxShadow:"0 0 0 rgba(103,232,249,0)"},
       {boxShadow:"0 0 0 3px rgba(103,232,249,.18),0 0 70px rgba(103,232,249,.12)"},
       {boxShadow:"0 0 0 rgba(103,232,249,0)"},
     ],{duration:950,easing:"ease-out"});
-  },now && !now.classList.contains("active") ? 120 : 0);
+    window.setTimeout(()=>row.removeAttribute("data-delivery-flow-focus"),1100);
+  },now && !now.classList.contains("active") ? 140 : 0);
 }
 
 function DeliveryFlow({businessId}:{businessId:number}){
@@ -230,7 +232,7 @@ export function DeliveryFlowPortal(){
       }catch{}
     }
     function sync(){
-      const tabs=document.querySelector<HTMLElement>(".delivery40-tabs");
+      const tabs=document.querySelector<HTMLElement>(".deliverym-tabs");
       if(!tabs){if(owned?.isConnected)owned.remove();owned=null;if(!cancelled)setHost(null);return;}
       let target=document.querySelector<HTMLElement>("[data-delivery-flow-v72-host]");
       if(!target){target=document.createElement("div");target.setAttribute("data-delivery-flow-v72-host","true");tabs.insertAdjacentElement("afterend",target);owned=target;}
