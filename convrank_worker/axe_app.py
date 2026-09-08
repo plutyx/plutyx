@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import time
@@ -21,11 +22,14 @@ from convrank_worker.app import (
     validate_public_url,
 )
 
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.3.1"
 app = FastAPI(title="ConvRank SAC Audit Worker + axe-core", version=APP_VERSION)
 
 
 async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
+    browser = None
+    navigation_warning = None
+    started = time.perf_counter()
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -36,6 +40,21 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                 viewport={"width": 390, "height": 844},
                 device_scale_factor=1,
             )
+
+            # Preview should be resilient on large marketing sites. Fonts/media are not
+            # required for DOM evidence, and images are skipped unless a screenshot was requested.
+            async def route_handler(route):
+                resource_type = route.request.resource_type
+                blocked = {"font", "media"}
+                if not screenshot:
+                    blocked.add("image")
+                if resource_type in blocked:
+                    await route.abort()
+                else:
+                    await route.continue_()
+
+            await page.route("**/*", route_handler)
+
             console_errors: list[str] = []
             page.on(
                 "console",
@@ -43,11 +62,29 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                 if msg.type == "error" and len(console_errors) < 20
                 else None,
             )
-            await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+
             try:
-                await page.wait_for_load_state("networkidle", timeout=5000)
-            except Exception:
-                pass
+                await page.goto(url, wait_until="domcontentloaded", timeout=14000)
+            except Exception as exc:
+                navigation_warning = str(exc)[:500]
+                # A timeout can still leave a perfectly usable DOM. Continue when the
+                # browser has meaningful content instead of failing the whole preview.
+                try:
+                    html = await page.content()
+                except Exception:
+                    html = ""
+                if len(html) < 200:
+                    return {
+                        "available": False,
+                        "error": "render_navigation_failed",
+                        "navigation_warning": navigation_warning,
+                        "axe": {"available": False},
+                        "duration_ms": round((time.perf_counter() - started) * 1000),
+                    }
+
+            # Short stabilization window: do not wait for networkidle on sites with
+            # analytics, live chat, ads, video or streaming connections.
+            await page.wait_for_timeout(700)
 
             metrics = await page.evaluate(
                 """
@@ -84,7 +121,7 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
 
             axe_engine: dict[str, Any]
             try:
-                axe_result = await Axe().run(page=page)
+                axe_result = await asyncio.wait_for(Axe().run(page=page), timeout=7.0)
                 raw = axe_result.response
                 violations = []
                 for item in raw.get("violations", []):
@@ -97,10 +134,7 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                             "help_url": item.get("helpUrl"),
                             "tags": item.get("tags", []),
                             "nodes_count": len(item.get("nodes", [])),
-                            "targets": [
-                                node.get("target", [])
-                                for node in item.get("nodes", [])[:5]
-                            ],
+                            "targets": [node.get("target", []) for node in item.get("nodes", [])[:5]],
                         }
                     )
                 axe_engine = {
@@ -113,6 +147,12 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                     "violations": violations,
                     "disclosure": "Automated axe-core findings do not replace manual WCAG evaluation.",
                 }
+            except asyncio.TimeoutError:
+                axe_engine = {
+                    "available": False,
+                    "error": "axe_budget_exceeded_7s",
+                    "degraded": True,
+                }
             except Exception as exc:
                 axe_engine = {"available": False, "error": str(exc)[:1000]}
 
@@ -123,17 +163,30 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                 shot_hash = hashlib.sha256(raw_shot).hexdigest()
                 shot_b64 = base64.b64encode(raw_shot).decode("ascii")
 
-            await browser.close()
             return {
                 "available": True,
                 "metrics": metrics,
                 "console_errors": console_errors,
                 "axe": axe_engine,
+                "navigation_warning": navigation_warning,
                 "screenshot_sha256": shot_hash,
                 "screenshot_base64_jpeg": shot_b64,
+                "duration_ms": round((time.perf_counter() - started) * 1000),
+                "preview_budget": "fast-path",
             }
     except Exception as exc:
-        return {"available": False, "error": str(exc)[:1000], "axe": {"available": False}}
+        return {
+            "available": False,
+            "error": str(exc)[:1000],
+            "axe": {"available": False},
+            "duration_ms": round((time.perf_counter() - started) * 1000),
+        }
+    finally:
+        if browser is not None:
+            try:
+                await browser.close()
+            except Exception:
+                pass
 
 
 @app.get("/health")
@@ -155,6 +208,7 @@ async def health() -> dict[str, Any]:
             "lighthouse": False,
             "multimodal_vision": False,
             "official_sac_score": False,
+            "graceful_preview_degradation": True,
         },
     }
 
@@ -180,11 +234,24 @@ async def audit(
         if "text/html" not in response.headers.get("content-type", "").lower():
             raise HTTPException(status_code=415, detail="Target did not return HTML")
         static = extract_static(final_url, response)
-        rendered = (
-            await render_and_axe(final_url, req.include_screenshot)
-            if req.render_js
-            else {"available": False, "error": "render_disabled_by_request", "axe": {"available": False}}
-        )
+
+        if req.render_js:
+            try:
+                rendered = await asyncio.wait_for(
+                    render_and_axe(final_url, req.include_screenshot),
+                    timeout=30.0,
+                )
+            except asyncio.TimeoutError:
+                rendered = {
+                    "available": False,
+                    "error": "render_budget_exceeded_30s",
+                    "degraded": True,
+                    "axe": {"available": False, "error": "skipped_after_render_budget"},
+                }
+        else:
+            rendered = {"available": False, "error": "render_disabled_by_request", "axe": {"available": False}}
+
+        # Static evidence is always returned even when JS rendering/axe degrades.
         result_findings = findings(static, rendered, response.headers)
 
     axe_available = bool((rendered.get("axe") or {}).get("available"))
@@ -229,6 +296,7 @@ async def audit(
             "lighthouse": False,
             "visual_ai": False,
             "official_scoring": False,
+            "degraded": bool(rendered.get("degraded")),
         },
-        "disclosure": "Deterministic/rendered evidence plus automated axe-core. No official SAC Score and no claim of actual conversion rate.",
+        "disclosure": "Deterministic evidence is always returned. Rendered/axe evidence may degrade under a strict preview budget. No official SAC Score and no claim of actual conversion rate.",
     }
