@@ -23,8 +23,10 @@ const overview={
 
 await page.addInitScript(()=>localStorage.setItem('c360_token','token-v72'))
 await page.route('**/api/me',route=>route.fulfill(json({user:{id:1,email:'delivery@example.com',full_name:'Operador'},businesses:[{id:1,name:'Cozinha Esteira',city:'Mogi das Cruzes',role:'owner',preferences:{}}]})))
-await page.route('**/cozinha360-delivery-v40/businesses/1/overview',async route=>{if(route.request().method()!=='GET')writes++;await route.fulfill(json(overview))})
-await page.route('**/cozinha360-delivery-v40/**',async route=>{if(route.request().method()!=='GET')writes++;await route.fulfill(json({ok:true}))})
+await page.route('**/cozinha360-delivery-v40/businesses/1/overview',async route=>{
+  if(route.request().method()!=='GET')writes++
+  await route.fulfill(json(overview))
+})
 
 try{
  await page.goto('http://127.0.0.1:5173/?delivery=1',{waitUntil:'networkidle'})
