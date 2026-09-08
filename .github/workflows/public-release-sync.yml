@@ -7,6 +7,7 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/public-release-sync.yml'
+      - '.github/workflows/netlify-production-deploy.yml'
 
 concurrency:
   group: public-release-sync-main
@@ -15,32 +16,38 @@ concurrency:
 jobs:
   release-identity:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
-      WEB_URL: https://cozinha-360-os-v41.onrender.com
+      WEB_URL: https://cozinha-360-os.netlify.app
       EXPECTED_RELEASE: '5.6.0'
     steps:
-      - name: Wait for exact public build
+      - name: Wait for exact canonical public build
         run: |
           expected_commit="$GITHUB_SHA"
-          for i in $(seq 1 75); do
+          ready=0
+          for i in $(seq 1 90); do
             if curl --fail --silent --show-error --location \
               -H 'Cache-Control: no-cache' \
               "$WEB_URL/release.json?check=$GITHUB_RUN_ID-$i" \
               -o /tmp/release.json; then
-              release="$(python -c 'import json; print(json.load(open("/tmp/release.json"))["release"])' 2>/dev/null || true)"
-              commit="$(python -c 'import json; print(json.load(open("/tmp/release.json"))["commit"])' 2>/dev/null || true)"
-              if [ "$release" = "$EXPECTED_RELEASE" ] && [ "$commit" = "$expected_commit" ]; then exit 0; fi
-              echo "Public build is not this commit yet: release=${release:-missing} commit=${commit:-missing} expected=$expected_commit"
+              release="$(jq -r '.release // empty' /tmp/release.json 2>/dev/null || true)"
+              commit="$(jq -r '.commit // empty' /tmp/release.json 2>/dev/null || true)"
+              if [ "$release" = "$EXPECTED_RELEASE" ] && [ "$commit" = "$expected_commit" ]; then ready=1; break; fi
+              echo "Canonical build is not this commit yet: release=${release:-missing} commit=${commit:-missing} expected=$expected_commit"
             fi
-            sleep 5
+            sleep 4
           done
-          echo "::error title=Public frontend is stale::Expected release $EXPECTED_RELEASE at commit $expected_commit on $WEB_URL."
-          exit 1
+          if [ "$ready" != "1" ]; then
+            echo "::error title=Canonical frontend is stale::Expected release $EXPECTED_RELEASE at commit $expected_commit on $WEB_URL."
+            exit 1
+          fi
+
       - name: Verify Vite production assets are referenced
         run: |
           curl --fail --silent --show-error --location -H 'Cache-Control: no-cache' "$WEB_URL/?check=$GITHUB_RUN_ID" -o /tmp/public-index.html
           grep -E '/assets/[^" ]+\.js' /tmp/public-index.html >/dev/null
-      - name: Public release is synchronized
+          grep -F '<meta name="c360-release" content="5.6.0"' /tmp/public-index.html >/dev/null
+
+      - name: Canonical release is synchronized
         run: |
-          echo "Public frontend matches release $EXPECTED_RELEASE and commit $GITHUB_SHA on $WEB_URL."
+          echo "Canonical Netlify frontend matches release $EXPECTED_RELEASE and commit $GITHUB_SHA on $WEB_URL."
