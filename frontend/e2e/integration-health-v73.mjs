@@ -4,6 +4,7 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
 const json = (body, status = 200) => ({ status, contentType: "application/json", body: JSON.stringify(body) });
 let integrationTestPosts = 0;
+let healthPosts = 0;
 
 await page.addInitScript(() => {
   localStorage.setItem("c360_token", "health-v73-browser-token");
@@ -62,29 +63,51 @@ const native = providers.map((p) => ({
   evidence: { authorization: Boolean(p.connection), account_linked: Boolean(p.connection), health: false },
   connection: p.connection,
 }));
+const partners = [
+  { key: "99food", name: "99Food", category: "Marketplace", capability: "Expansão de marketplace", state: "available" },
+  { key: "keeta", name: "Keeta", category: "Marketplace", capability: "Expansão de marketplace", state: "available" },
+];
 await page.route("**/cozinha360-connect-orchestrator-v65/**", (route) => {
   const path = new URL(route.request().url()).pathname;
-  if (route.request().method() === "GET" && path.endsWith("/businesses/1/passport")) return route.fulfill(json({ ok: true, version: "6.5.0", business_id: 1, generated_at: new Date().toISOString(), summary: { native_total: 5, healthy: 0, attention: 3, ready: 2, platform_setup: 0, evidence_score: 6, evidence_max: 15, progress_percent: 40 }, native, partners: [], principles: { restaurant_secrets_required: false, platform_managed_credentials: true, proof_model: ["authorization", "account_linked", "health"] } }));
+  if (route.request().method() === "GET" && path.endsWith("/businesses/1/passport")) return route.fulfill(json({ ok: true, version: "6.5.0", business_id: 1, generated_at: new Date().toISOString(), summary: { native_total: 5, healthy: 0, attention: 3, ready: 2, platform_setup: 0, evidence_score: 6, evidence_max: 15, progress_percent: 40 }, native, partners, principles: { restaurant_secrets_required: false, platform_managed_credentials: true, proof_model: ["authorization", "account_linked", "health"] } }));
   return route.fulfill(json({ detail: "orchestrator mock route not found" }, 404));
 });
 
-await page.route("**/cozinha360-integration-health-v73/businesses/1/health", (route) => route.fulfill(json({
-  ok: true,
-  version: "7.3.0",
-  business_id: 1,
-  generated_at: new Date().toISOString(),
-  summary: { healthy: 1, degrading: 1, review: 0, recovered: 1, total: 3 },
-  items: [
-    { connection_id: 1, provider: "whatsapp", name: "WhatsApp Conta", connection_status: "active", state: "recovered", effective_state: "recovered", strategy: "probe", consecutive_failures: 0, last_checked_at: new Date().toISOString(), last_probe_ok_at: new Date().toISOString(), last_probe_error_at: null, last_probe_error: null, next_check_at: null, last_success_at: new Date().toISOString(), operational_error_at: null, operational_error_present: false, operational_error: null },
-    { connection_id: 2, provider: "ifood", name: "iFood Conta", connection_status: "active", state: "healthy", effective_state: "healthy", strategy: "signal", consecutive_failures: 0, last_checked_at: new Date().toISOString(), last_probe_ok_at: new Date().toISOString(), last_probe_error_at: null, last_probe_error: null, next_check_at: null, last_success_at: new Date().toISOString(), operational_error_at: null, operational_error_present: false, operational_error: null },
-    { connection_id: 3, provider: "google", name: "Google Conta", connection_status: "active", state: "degrading", effective_state: "degrading", strategy: "probe", consecutive_failures: 1, last_checked_at: new Date().toISOString(), last_probe_ok_at: null, last_probe_error_at: new Date().toISOString(), last_probe_error: "temporary probe failure", next_check_at: null, last_success_at: null, operational_error_at: null, operational_error_present: false, operational_error: null },
-  ],
-  principles: { server_side: true, ifood_passive_signal: true, operational_errors_preserved: true },
-})));
+await page.route("**/cozinha360-integration-health-v73/businesses/1/health", (route) => {
+  if (route.request().method() !== "GET") healthPosts += 1;
+  return route.fulfill(json({
+    ok: true,
+    version: "7.3.0",
+    business_id: 1,
+    generated_at: new Date().toISOString(),
+    summary: { healthy: 1, degrading: 1, review: 0, recovered: 1, total: 3 },
+    items: [
+      { connection_id: 1, provider: "whatsapp", name: "WhatsApp Conta", connection_status: "active", state: "recovered", effective_state: "recovered", strategy: "probe", consecutive_failures: 0, last_checked_at: new Date().toISOString(), last_probe_ok_at: new Date().toISOString(), last_probe_error_at: null, last_probe_error: null, next_check_at: null, last_success_at: new Date().toISOString(), operational_error_at: null, operational_error_present: false, operational_error: null },
+      { connection_id: 2, provider: "ifood", name: "iFood Conta", connection_status: "active", state: "healthy", effective_state: "healthy", strategy: "signal", consecutive_failures: 0, last_checked_at: new Date().toISOString(), last_probe_ok_at: new Date().toISOString(), last_probe_error_at: null, last_probe_error: null, next_check_at: null, last_success_at: new Date().toISOString(), operational_error_at: null, operational_error_present: false, operational_error: null },
+      { connection_id: 3, provider: "google", name: "Google Conta", connection_status: "active", state: "degrading", effective_state: "degrading", strategy: "probe", consecutive_failures: 1, last_checked_at: new Date().toISOString(), last_probe_ok_at: null, last_probe_error_at: new Date().toISOString(), last_probe_error: "temporary probe failure", next_check_at: null, last_success_at: null, operational_error_at: null, operational_error_present: false, operational_error: null },
+    ],
+    principles: { server_side: true, ifood_passive_signal: true, operational_errors_preserved: true },
+  }));
+});
 
 try {
   await page.goto("http://127.0.0.1:5173/?connections=1", { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Conecte sua operação, não APIs.", exact: true }).waitFor({ timeout: 15000 });
+
+  // v7.4 is a pure experience layer: visible, animated when allowed, but never owns business writes.
+  await page.waitForFunction(() => document.documentElement.dataset.c360Experience === "v74");
+  await page.locator(".x74-pulse-rail").waitFor({ state: "visible" });
+  const orbit = page.locator("[data-connection-orbit-v74]").filter({ hasText: "CONSTELAÇÃO 360 · V7.4" });
+  await orbit.waitFor({ state: "visible", timeout: 10000 });
+  const orbitGoogle = orbit.locator('[data-orbit-provider="google"]');
+  await orbitGoogle.waitFor();
+  if ((await orbitGoogle.getAttribute("data-orbit-state")) !== "stale") throw new Error("connection orbit must derive Google stale state from the real Passport contract");
+  await orbit.getByText("99Food", { exact: true }).waitFor();
+  await orbit.getByText("Keeta", { exact: true }).waitFor();
+  await orbit.getByRole("button", { name: "Fechar constelação" }).click();
+  await page.getByRole("button", { name: /CONSTELAÇÃO/ }).click();
+  await page.locator("[data-orbit-provider=\"ifood\"]").waitFor();
+
   const pulse = page.locator("[data-integration-health-v73]");
   await pulse.waitFor({ state: "visible", timeout: 10000 });
   await pulse.getByText("SAUDÁVEL", { exact: true }).waitFor();
@@ -102,10 +125,18 @@ try {
   await mission.waitFor();
   await page.waitForFunction(() => document.querySelector('[data-mission-node="google"]')?.getAttribute('data-health-state') === 'degrading');
 
+  // Mobile gate: visual overlays may not create horizontal overflow or erase the underlying controls.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(250);
+  const overflow = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+  if (overflow.scroll > overflow.client) throw new Error(`v7.4 mobile horizontal overflow: ${JSON.stringify(overflow)}`);
+  await page.getByRole("heading", { name: "Conecte sua operação, não APIs.", exact: true }).waitFor();
+
   await page.waitForTimeout(750);
   if (integrationTestPosts !== 0) throw new Error(`browser issued ${integrationTestPosts} automatic integration /test POST(s)`);
+  if (healthPosts !== 0) throw new Error(`browser issued ${healthPosts} automatic health write(s)`);
   await page.screenshot({ path: "/tmp/cozinha360-integration-health-v73.png", fullPage: true });
-  console.log("integration health v7.3 is server-read-only in browser, annotates Passport/Mission Control, and leaves iFood probing to polling");
+  console.log("integration health v7.3 + experience v7.4 stay browser-read-only, preserve Passport/Mission Control truth and pass mobile overflow gate");
 } catch (error) {
   await page.screenshot({ path: "/tmp/cozinha360-integration-health-v73-failure.png", fullPage: true }).catch(() => {});
   console.error(error);
