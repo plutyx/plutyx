@@ -22,8 +22,44 @@ from convrank_worker.app import (
     validate_public_url,
 )
 
-APP_VERSION = "0.3.1"
+APP_VERSION = "0.3.2"
 app = FastAPI(title="ConvRank SAC Audit Worker + axe-core", version=APP_VERSION)
+
+
+def detect_access_limit(response: httpx.Response, static: dict[str, Any], rendered: dict[str, Any]) -> dict[str, Any]:
+    static_title = str(static.get("title") or "").strip().lower()
+    rendered_title = str(((rendered.get("metrics") or {}).get("title") or "")).strip().lower()
+    body = response.text[:100000].lower()
+    server = str(response.headers.get("server") or "").lower()
+    markers = [
+        "just a moment",
+        "attention required",
+        "verify you are human",
+        "checking your browser",
+        "security verification",
+        "cf-chl-",
+        "challenge-platform",
+        "cloudflare ray id",
+    ]
+    matched = next(
+        (
+            marker
+            for marker in markers
+            if marker in static_title or marker in rendered_title or marker in body
+        ),
+        None,
+    )
+    protected_status = response.status_code in {401, 403, 429}
+    cloudflare_hint = "cloudflare" in server or "cf-ray" in {k.lower() for k in response.headers.keys()}
+    limited = bool(matched or (protected_status and cloudflare_hint))
+    return {
+        "limited": limited,
+        "reason": "anti_bot_or_access_challenge" if limited else None,
+        "http_status": response.status_code,
+        "marker": matched,
+        "server_hint": "cloudflare" if cloudflare_hint else None,
+        "disclosure": "Challenge/access pages are not scored as target website content." if limited else None,
+    }
 
 
 async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
@@ -41,8 +77,6 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                 device_scale_factor=1,
             )
 
-            # Preview should be resilient on large marketing sites. Fonts/media are not
-            # required for DOM evidence, and images are skipped unless a screenshot was requested.
             async def route_handler(route):
                 resource_type = route.request.resource_type
                 blocked = {"font", "media"}
@@ -67,8 +101,6 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                 await page.goto(url, wait_until="domcontentloaded", timeout=14000)
             except Exception as exc:
                 navigation_warning = str(exc)[:500]
-                # A timeout can still leave a perfectly usable DOM. Continue when the
-                # browser has meaningful content instead of failing the whole preview.
                 try:
                     html = await page.content()
                 except Exception:
@@ -82,8 +114,6 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                         "duration_ms": round((time.perf_counter() - started) * 1000),
                     }
 
-            # Short stabilization window: do not wait for networkidle on sites with
-            # analytics, live chat, ads, video or streaming connections.
             await page.wait_for_timeout(700)
 
             metrics = await page.evaluate(
@@ -209,6 +239,7 @@ async def health() -> dict[str, Any]:
             "multimodal_vision": False,
             "official_sac_score": False,
             "graceful_preview_degradation": True,
+            "anti_bot_challenge_detection": True,
         },
     }
 
@@ -251,10 +282,15 @@ async def audit(
         else:
             rendered = {"available": False, "error": "render_disabled_by_request", "axe": {"available": False}}
 
-        # Static evidence is always returned even when JS rendering/axe degrades.
-        result_findings = findings(static, rendered, response.headers)
+        access = detect_access_limit(response, static, rendered)
+        if access["limited"]:
+            result_findings: list[dict[str, Any]] = []
+            if isinstance(rendered.get("axe"), dict):
+                rendered["axe"]["valid_for_target"] = False
+        else:
+            result_findings = findings(static, rendered, response.headers)
 
-    axe_available = bool((rendered.get("axe") or {}).get("available"))
+    axe_available = bool((rendered.get("axe") or {}).get("available")) and not access["limited"]
     if axe_available:
         for violation in (rendered.get("axe") or {}).get("violations", []):
             result_findings.append(
@@ -287,16 +323,24 @@ async def audit(
             "duration_ms": round((time.perf_counter() - started) * 1000),
             "completed_at": now_iso(),
         },
+        "access": access,
         "static": static,
         "rendered": rendered,
         "findings": result_findings,
         "coverage": {
-            "javascript_rendering": bool(rendered.get("available")),
+            "javascript_rendering": bool(rendered.get("available")) and not access["limited"],
             "axe": axe_available,
             "lighthouse": False,
             "visual_ai": False,
             "official_scoring": False,
             "degraded": bool(rendered.get("degraded")),
+            "site_content": not access["limited"],
+            "access_limited": access["limited"],
+            "access_reason": access["reason"],
         },
-        "disclosure": "Deterministic evidence is always returned. Rendered/axe evidence may degrade under a strict preview budget. No official SAC Score and no claim of actual conversion rate.",
+        "disclosure": (
+            "Target website content was not scored because an anti-bot/access challenge page was detected."
+            if access["limited"]
+            else "Deterministic evidence is always returned. Rendered/axe evidence may degrade under a strict preview budget. No official SAC Score and no claim of actual conversion rate."
+        ),
     }
