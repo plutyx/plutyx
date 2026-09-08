@@ -1,0 +1,50 @@
+name: delivery-conveyor-v72
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  delivery-conveyor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start web app
+        run: |
+          (
+            cd frontend
+            npm run dev -- --host 127.0.0.1 > /tmp/cozinha360-delivery-v72-web.log 2>&1 &
+            echo $! > /tmp/cozinha360-delivery-v72-web.pid
+          )
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cozinha360-delivery-v72-web.log || true
+          exit 1
+      - name: Run delivery conveyor v7.2 journey
+        run: node frontend/e2e/delivery-conveyor-v72.mjs
+      - name: Upload v7.2 evidence and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: delivery-conveyor-v72-evidence
+          if-no-files-found: ignore
+          path: |
+            /tmp/cozinha360-delivery-conveyor-v72.png
+            /tmp/cozinha360-delivery-conveyor-v72-mobile.png
+            /tmp/cozinha360-delivery-conveyor-v72-failure.png
+            /tmp/cozinha360-delivery-v72-web.log
