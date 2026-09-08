@@ -98,17 +98,30 @@ try {
   await discoveryJourney
     .getByRole("button", { name: /Levar esta rota comigo/ })
     .click();
-  await page.getByRole("dialog").waitFor();
-  await page
+  const access = page.getByRole("dialog");
+  await access.waitFor();
+  await access
     .getByRole("heading", {
       name: "Leve sua rota para a operação.",
       exact: true,
     })
     .waitFor();
-  await page.getByLabel("Nome").fill("Cliente E2E");
-  await page.getByLabel("E-mail").fill("cliente-e2e@example.com");
-  await page.getByLabel("Senha").fill("senha-super-segura-123");
-  await page
+
+  // Scope signup fields to the auth dialog. Global labels can coexist with the visual
+  // discovery layer; a real signup must prove exact values before the browser submits.
+  const signupName = access.getByLabel("Nome");
+  const signupEmail = access.getByLabel("E-mail");
+  const signupPassword = access.getByLabel("Senha");
+  await signupName.fill("Cliente E2E");
+  await signupEmail.fill("cliente-e2e@example.com");
+  await signupPassword.fill("senha-super-segura-123");
+  if ((await signupName.inputValue()) !== "Cliente E2E")
+    throw new Error(`signup name locator race: ${await signupName.inputValue()}`);
+  if ((await signupEmail.inputValue()) !== "cliente-e2e@example.com")
+    throw new Error(`signup email locator race: ${await signupEmail.inputValue()}`);
+  if ((await signupPassword.inputValue()) !== "senha-super-segura-123")
+    throw new Error("signup password locator race");
+  await access
     .getByRole("button", { name: "Criar minha operação", exact: true })
     .click();
 
