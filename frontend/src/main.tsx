@@ -13,6 +13,7 @@ import { DiscoveryPlaygroundPortal } from "./operational-playground-portal";
 import { PlugPlayGalaxyPortal } from "./plug-play-galaxy-portal";
 import { LivingOperationFlowPortal } from "./living-operation-flow";
 import { IntegrationRealityRibbonPortal } from "./integration-reality-ribbon";
+import { ExperienceOrchestratorV74 } from "./experience-orchestrator-v74";
 import "./tailwind.css";
 import "./styles.css";
 import "./market.css";
@@ -66,6 +67,7 @@ import "./purchases-360-v51.css";
 import "./purchases-360-v53.css";
 import "./suppliers-360-v52.css";
 import "./experience.css";
+import "./experience-v74.css";
 
 const AccountRoute = lazy(async () => ({ default: (await import("./account-actions")).AccountRoute }));
 const QuickOrderRoute = lazy(async () => ({ default: (await import("./quick-order")).QuickOrderRoute }));
@@ -116,7 +118,7 @@ function TabHashBridge() {
   return null;
 }
 function OperatorRoute({ children, alerts = true }: { children: React.ReactNode; alerts?: boolean }) {
-  return <>{children}{alerts && <KitchenAlerts />}<SessionAwareControls /><OfflineQueueStatus /></>;
+  return <><ExperienceOrchestratorV74 />{children}{alerts && <KitchenAlerts />}<SessionAwareControls /><OfflineQueueStatus /></>;
 }
 function Root() {
   const params = new URLSearchParams(window.location.search);
@@ -147,7 +149,7 @@ function Root() {
   if (params.get("connections") === "1") return <OperatorRoute><><ConnectionsHubRoute /><IntegrationSetupLauncher /></></OperatorRoute>;
   if (params.get("plan") === "1") return <OperatorRoute alerts={false}><SubscriptionStatusRoute /></OperatorRoute>;
   if (params.get("autopilot") === "1") return <OperatorRoute><Autopilot360Route /></OperatorRoute>;
-  return <><App /><DiscoveryPlaygroundPortal /><PlugPlayGalaxyPortal /><LivingOperationFlowPortal /><IntegrationRealityRibbonPortal /><TabHashBridge /><KitchenAlerts /><InventoryStockEditor /><InventoryHeatmapPortal /><SessionAwareControls guestHelper={false} /><OfflineQueueStatus /></>;
+  return <><ExperienceOrchestratorV74 /><App /><DiscoveryPlaygroundPortal /><PlugPlayGalaxyPortal /><LivingOperationFlowPortal /><IntegrationRealityRibbonPortal /><TabHashBridge /><KitchenAlerts /><InventoryStockEditor /><InventoryHeatmapPortal /><SessionAwareControls guestHelper={false} /><OfflineQueueStatus /></>;
 }
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator) || !import.meta.env.PROD) return;
