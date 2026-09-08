@@ -174,7 +174,7 @@ export function ConnectionOrbitV74() {
       initial={reduced ? false : { opacity: 0, y: 18, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 230, damping: 24 }}
-      className="fixed bottom-16 right-4 z-[9994] w-[min(410px,calc(100vw-24px))] overflow-hidden rounded-[2rem] border border-white/[.08] bg-[#09101a]/80 p-3 shadow-[0_30px_100px_rgba(0,0,0,.42),inset_0_1px_rgba(255,255,255,.05)] backdrop-blur-[28px]"
+      className="pointer-events-none fixed bottom-16 right-4 z-[9994] w-[min(410px,calc(100vw-24px))] overflow-hidden rounded-[2rem] border border-white/[.08] bg-[#09101a]/80 p-3 shadow-[0_30px_100px_rgba(0,0,0,.42),inset_0_1px_rgba(255,255,255,.05)] backdrop-blur-[28px] [&_button]:pointer-events-auto"
     >
       <div className="pointer-events-none absolute -left-20 -top-24 h-64 w-64 rounded-full bg-cyan-300/[.055] blur-[70px]" />
       <div className="pointer-events-none absolute -right-20 top-16 h-64 w-64 rounded-full bg-violet-400/[.06] blur-[75px]" />
