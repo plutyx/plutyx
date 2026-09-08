@@ -1,4 +1,9 @@
-from convrank_worker.fallback_sources import _parse_static, _timestamp_iso
+from convrank_worker.fallback_sources import (
+    _parse_static,
+    _timestamp_iso,
+    page_kind,
+    select_representative_urls,
+)
 
 
 def test_parse_static_archived_html():
@@ -26,3 +31,31 @@ def test_parse_static_archived_html():
 
 def test_timestamp_iso_preserves_capture_time():
     assert _timestamp_iso("20260820112233") == "2026-08-20T11:22:33+00:00"
+
+
+def test_page_kind_is_business_oriented():
+    assert page_kind("https://example.com/") == "home"
+    assert page_kind("https://example.com/pricing/") == "pricing"
+    assert page_kind("https://example.com/tools/seo-analyzer/") == "tool"
+    assert page_kind("https://example.com/services/seo/") == "service"
+    assert page_kind("https://example.com/blog/seo-guide/") == "blog"
+
+
+def test_representative_selection_avoids_only_blog_pages():
+    sitemap = {
+        "urls": [
+            {"url": "https://example.com/blog/a/", "lastmod": "2026-09-01"},
+            {"url": "https://example.com/blog/b/", "lastmod": "2026-09-02"},
+            {"url": "https://example.com/pricing/", "lastmod": "2026-08-20"},
+            {"url": "https://example.com/tools/site-audit/", "lastmod": "2026-08-25"},
+            {"url": "https://example.com/services/seo/", "lastmod": "2026-08-21"},
+            {"url": "https://example.com/about/", "lastmod": "2026-08-10"},
+        ]
+    }
+    selected = select_representative_urls("https://example.com/", sitemap, max_pages=5)
+    kinds = [x["kind"] for x in selected]
+    assert kinds[0] == "home"
+    assert "pricing" in kinds
+    assert "tool" in kinds
+    assert "service" in kinds
+    assert "blog" in kinds
