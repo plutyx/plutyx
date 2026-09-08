@@ -43,18 +43,40 @@ comment on table public.integration_health_states is
 comment on column public.integration_health_states.last_probe_error is
   'Health-probe error only. Operational event errors remain on integration_connections/integration_events.';
 
+-- Keep the same RPC contract on Supabase and on a plain PostgreSQL used by CI.
+-- Vault is resolved dynamically so PostgreSQL does not fail at function-creation
+-- time when the Supabase-only schema is unavailable.
 create or replace function public.c360_verify_health_worker_key(p_value text)
 returns boolean
-language sql
+language plpgsql
 security definer
 set search_path to 'public'
 as $function$
-  select coalesce(exists(
-    select 1
-      from vault.decrypted_secrets
-     where name='c360_health_worker_key'
-       and decrypted_secret = p_value
-  ),false);
+declare
+  v_ok boolean := false;
+begin
+  if to_regnamespace('vault') is null then
+    return false;
+  end if;
+
+  begin
+    execute $sql$
+      select coalesce(exists(
+        select 1
+          from vault.decrypted_secrets
+         where name = $1
+           and decrypted_secret = $2
+      ), false)
+    $sql$
+    into v_ok
+    using 'c360_health_worker_key', p_value;
+  exception
+    when undefined_table or invalid_schema_name then
+      return false;
+  end;
+
+  return coalesce(v_ok, false);
+end;
 $function$;
 
 revoke all on function public.c360_verify_health_worker_key(text) from public;
@@ -72,15 +94,36 @@ begin
 end $$;
 
 -- The health worker has a dedicated Vault key. Its value never leaves Postgres.
+-- All Vault references are dynamic to preserve migration portability.
 do $$
+declare
+  v_missing boolean := false;
 begin
-  if to_regnamespace('vault') is not null
-     and not exists(select 1 from vault.secrets where name='c360_health_worker_key') then
-    perform vault.create_secret(
-      encode(gen_random_bytes(32),'hex'),
-      'c360_health_worker_key',
-      'Internal key for the Cozinha 360 integration health worker'
-    );
+  if to_regnamespace('vault') is null then
+    raise notice 'Skipping health worker secret: Vault unavailable';
+    return;
+  end if;
+
+  begin
+    execute $sql$
+      select not exists(
+        select 1 from vault.secrets where name = 'c360_health_worker_key'
+      )
+    $sql$ into v_missing;
+  exception
+    when undefined_table or invalid_schema_name then
+      raise notice 'Skipping health worker secret: Vault tables unavailable';
+      return;
+  end;
+
+  if v_missing then
+    execute $sql$
+      select vault.create_secret(
+        encode(gen_random_bytes(32),'hex'),
+        'c360_health_worker_key',
+        'Internal key for the Cozinha 360 integration health worker'
+      )
+    $sql$;
   end if;
 end $$;
 
