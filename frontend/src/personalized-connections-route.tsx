@@ -9,6 +9,7 @@ import { IntegrationMissionPathPortal } from "./integration-mission-path-v62";
 import { IntegrationPassportPortal } from "./integration-passport-v65";
 import { MigrationStudioPortal } from "./migration-studio-v70";
 import { PagBankConnectionCardPortal } from "./pagbank-connection-card";
+import { ConnectionOrbitV74 } from "./connection-orbit-v74";
 
 type ProviderId = "whatsapp" | "ifood" | "mercadopago" | "google" | "meta_ads";
 type Intent = { providers: ProviderId[]; signal?: string; updated_at?: string };
@@ -151,6 +152,7 @@ export function PersonalizedConnectionsRoute() {
     <>
       {hasIntent && <ConnectionActivationQueue restored={restored} />}
       <ConnectionsHubRoute />
+      <ConnectionOrbitV74 />
       <IntegrationHealthPulsePortal />
       <IntegrationPassportPortal />
       <MigrationStudioPortal />
