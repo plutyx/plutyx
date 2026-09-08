@@ -5,6 +5,7 @@ import{money}from'./app'
 import{OperatorExperienceLayer}from'./operator-experience-v60'
 import{OperationalCycleV61}from'./operational-cycle-v61'
 import'./operator-experience-v60.css'
+import'./operational-cycle-v61.css'
 
 function when(raw:string){try{return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(raw))}catch{return raw}}
 
