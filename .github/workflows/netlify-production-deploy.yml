@@ -43,22 +43,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Require Netlify deployment credential
+      - name: Detect optional Netlify fallback
+        id: fallback
+        shell: bash
         run: |
-          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
-            echo "::error title=Netlify credential missing::NETLIFY_AUTH_TOKEN is only required when manually using the legacy Netlify fallback. Render is the primary public deployment."
-            exit 1
+          if [ -n "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Netlify fallback credential detected; fallback deployment will run."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Netlify fallback skipped::NETLIFY_AUTH_TOKEN is not configured. This is an optional legacy fallback; Render remains the primary public deployment."
           fi
       - name: Install frontend dependencies
+        if: steps.fallback.outputs.enabled == 'true'
         working-directory: frontend
         run: npm ci --no-audit --no-fund
       - name: Typecheck frontend
+        if: steps.fallback.outputs.enabled == 'true'
         working-directory: frontend
         run: npm run typecheck
       - name: Build exact production bundle
+        if: steps.fallback.outputs.enabled == 'true'
         working-directory: frontend
         run: npm run build
       - name: Read release identity from bundle
+        if: steps.fallback.outputs.enabled == 'true'
         id: release
         working-directory: frontend
         shell: bash
@@ -67,6 +76,7 @@ jobs:
           test -n "$release"
           echo "value=$release" >> "$GITHUB_OUTPUT"
       - name: Verify production Edge endpoints are bundled
+        if: steps.fallback.outputs.enabled == 'true'
         working-directory: frontend
         run: |
           grep -R -F 'cozinha360-gateway-v42' dist/assets/*.js >/dev/null
@@ -77,11 +87,13 @@ jobs:
           grep -R -F 'PREVISÃO OPERACIONAL' dist/assets/*.js >/dev/null
           grep -R -F 'SLAs da operação' dist/assets/*.js >/dev/null
       - name: Deploy prebuilt bundle to Netlify fallback
+        if: steps.fallback.outputs.enabled == 'true'
         working-directory: frontend
         run: |
           npx --yes netlify-cli@27.5.0 deploy --dir=dist --prod --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN" --message="Cozinha 360 fallback release ${{ steps.release.outputs.value }} · $GITHUB_SHA" --json > /tmp/netlify-deploy.json
           node -e "const x=require('/tmp/netlify-deploy.json'); if(!x.deploy_url && !x.deployUrl && !x.url) process.exit(1); console.log('Netlify deploy accepted:', x.deploy_url||x.deployUrl||x.url)"
       - name: Verify fallback alias serves this release
+        if: steps.fallback.outputs.enabled == 'true'
         shell: bash
         run: |
           marker="<meta name=\"c360-release\" content=\"${{ steps.release.outputs.value }}\""
