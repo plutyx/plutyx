@@ -21,8 +21,9 @@ from convrank_worker.app import (
     safe_get,
     validate_public_url,
 )
+from convrank_worker.fallback_sources import commoncrawl_snapshot
 
-APP_VERSION = "0.3.2"
+APP_VERSION = "0.3.3"
 app = FastAPI(title="ConvRank SAC Audit Worker + axe-core", version=APP_VERSION)
 
 
@@ -41,14 +42,7 @@ def detect_access_limit(response: httpx.Response, static: dict[str, Any], render
         "challenge-platform",
         "cloudflare ray id",
     ]
-    matched = next(
-        (
-            marker
-            for marker in markers
-            if marker in static_title or marker in rendered_title or marker in body
-        ),
-        None,
-    )
+    matched = next((marker for marker in markers if marker in static_title or marker in rendered_title or marker in body), None)
     protected_status = response.status_code in {401, 403, 429}
     cloudflare_hint = "cloudflare" in server or "cf-ray" in {k.lower() for k in response.headers.keys()}
     limited = bool(matched or (protected_status and cloudflare_hint))
@@ -58,8 +52,40 @@ def detect_access_limit(response: httpx.Response, static: dict[str, Any], render
         "http_status": response.status_code,
         "marker": matched,
         "server_hint": "cloudflare" if cloudflare_hint else None,
-        "disclosure": "Challenge/access pages are not scored as target website content." if limited else None,
+        "disclosure": "Challenge/access pages are never scored as target website content." if limited else None,
     }
+
+
+def archived_findings(static: dict[str, Any], fallback: dict[str, Any]) -> list[dict[str, Any]]:
+    """Evaluate only checks that are meaningful on an archived HTML snapshot."""
+    raw = findings(static, {"available": False}, httpx.Headers())
+    excluded = {
+        "SAC-SEC-HSTS",
+        "SAC-SEC-CSP",
+        "SAC-RENDER-MOBILE",
+        "SAC-A11Y-LABEL",
+        "SAC-A11Y-BUTTON",
+    }
+    out: list[dict[str, Any]] = []
+    for item in raw:
+        if item.get("criterion_code") in excluded:
+            continue
+        evidence = dict(item.get("evidence") or {})
+        evidence.update(
+            {
+                "source": "common_crawl",
+                "snapshot_timestamp": fallback.get("snapshot_timestamp"),
+                "index_id": fallback.get("index_id"),
+                "captured_url": fallback.get("captured_url"),
+                "current_state": False,
+            }
+        )
+        item = dict(item)
+        item["evidence"] = evidence
+        item["confidence"] = 0.82
+        item["source_kind"] = "archived_public_snapshot"
+        out.append(item)
+    return out
 
 
 async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
@@ -68,14 +94,8 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
     started = time.perf_counter()
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=["--no-sandbox", "--disable-dev-shm-usage"],
-            )
-            page = await browser.new_page(
-                viewport={"width": 390, "height": 844},
-                device_scale_factor=1,
-            )
+            browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+            page = await browser.new_page(viewport={"width": 390, "height": 844}, device_scale_factor=1)
 
             async def route_handler(route):
                 resource_type = route.request.resource_type
@@ -88,7 +108,6 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                     await route.continue_()
 
             await page.route("**/*", route_handler)
-
             console_errors: list[str] = []
             page.on(
                 "console",
@@ -115,7 +134,6 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                     }
 
             await page.wait_for_timeout(700)
-
             metrics = await page.evaluate(
                 """
                 () => {
@@ -149,7 +167,6 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                 """
             )
 
-            axe_engine: dict[str, Any]
             try:
                 axe_result = await asyncio.wait_for(Axe().run(page=page), timeout=7.0)
                 raw = axe_result.response
@@ -167,7 +184,7 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                             "targets": [node.get("target", []) for node in item.get("nodes", [])[:5]],
                         }
                     )
-                axe_engine = {
+                axe_engine: dict[str, Any] = {
                     "available": True,
                     "version": (raw.get("testEngine") or {}).get("version"),
                     "violations_count": len(raw.get("violations", [])),
@@ -178,11 +195,7 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                     "disclosure": "Automated axe-core findings do not replace manual WCAG evaluation.",
                 }
             except asyncio.TimeoutError:
-                axe_engine = {
-                    "available": False,
-                    "error": "axe_budget_exceeded_7s",
-                    "degraded": True,
-                }
+                axe_engine = {"available": False, "error": "axe_budget_exceeded_7s", "degraded": True}
             except Exception as exc:
                 axe_engine = {"available": False, "error": str(exc)[:1000]}
 
@@ -219,6 +232,13 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
                 pass
 
 
+async def fallback_for_protected(final_url: str) -> dict[str, Any]:
+    try:
+        return await asyncio.wait_for(commoncrawl_snapshot(final_url), timeout=22.0)
+    except asyncio.TimeoutError:
+        return {"available": False, "source": "common_crawl", "reason": "fallback_budget_exceeded_22s"}
+
+
 @app.get("/health")
 async def health() -> dict[str, Any]:
     return {
@@ -240,15 +260,13 @@ async def health() -> dict[str, Any]:
             "official_sac_score": False,
             "graceful_preview_degradation": True,
             "anti_bot_challenge_detection": True,
+            "common_crawl_fallback": True,
         },
     }
 
 
 @app.post("/audit")
-async def audit(
-    req: AuditRequest,
-    x_sac_worker_token: str | None = Header(default=None),
-) -> dict[str, Any]:
+async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(default=None)) -> dict[str, Any]:
     require_token(x_sac_worker_token)
     started = time.perf_counter()
     root = await validate_public_url(str(req.url))
@@ -264,34 +282,56 @@ async def audit(
         response, final_url = await safe_get(client, root)
         if "text/html" not in response.headers.get("content-type", "").lower():
             raise HTTPException(status_code=415, detail="Target did not return HTML")
-        static = extract_static(final_url, response)
+        origin_static = extract_static(final_url, response)
 
-        if req.render_js:
-            try:
-                rendered = await asyncio.wait_for(
-                    render_and_axe(final_url, req.include_screenshot),
-                    timeout=30.0,
-                )
-            except asyncio.TimeoutError:
-                rendered = {
-                    "available": False,
-                    "error": "render_budget_exceeded_30s",
-                    "degraded": True,
-                    "axe": {"available": False, "error": "skipped_after_render_budget"},
-                }
-        else:
-            rendered = {"available": False, "error": "render_disabled_by_request", "axe": {"available": False}}
+        # Detect obvious challenge pages before spending browser budget on them.
+        access = detect_access_limit(response, origin_static, {"metrics": {}})
+        fallback: dict[str, Any] = {"available": False}
 
-        access = detect_access_limit(response, static, rendered)
         if access["limited"]:
-            result_findings: list[dict[str, Any]] = []
-            if isinstance(rendered.get("axe"), dict):
-                rendered["axe"]["valid_for_target"] = False
+            rendered = {
+                "available": False,
+                "error": "origin_access_challenge_skipped",
+                "axe": {"available": False, "valid_for_target": False},
+            }
+            fallback = await fallback_for_protected(final_url)
+            if fallback.get("available"):
+                static = fallback.get("static") or origin_static
+                result_findings = archived_findings(static, fallback)
+            else:
+                static = origin_static
+                result_findings = []
         else:
-            result_findings = findings(static, rendered, response.headers)
+            static = origin_static
+            if req.render_js:
+                try:
+                    rendered = await asyncio.wait_for(render_and_axe(final_url, req.include_screenshot), timeout=30.0)
+                except asyncio.TimeoutError:
+                    rendered = {
+                        "available": False,
+                        "error": "render_budget_exceeded_30s",
+                        "degraded": True,
+                        "axe": {"available": False, "error": "skipped_after_render_budget"},
+                    }
+            else:
+                rendered = {"available": False, "error": "render_disabled_by_request", "axe": {"available": False}}
 
-    axe_available = bool((rendered.get("axe") or {}).get("available")) and not access["limited"]
-    if axe_available:
+            post_access = detect_access_limit(response, origin_static, rendered)
+            if post_access["limited"]:
+                access = post_access
+                fallback = await fallback_for_protected(final_url)
+                if fallback.get("available"):
+                    static = fallback.get("static") or origin_static
+                    result_findings = archived_findings(static, fallback)
+                else:
+                    result_findings = []
+                if isinstance(rendered.get("axe"), dict):
+                    rendered["axe"]["valid_for_target"] = False
+            else:
+                result_findings = findings(static, rendered, response.headers)
+
+    current_axe_available = bool((rendered.get("axe") or {}).get("available")) and not access["limited"]
+    if current_axe_available:
         for violation in (rendered.get("axe") or {}).get("violations", []):
             result_findings.append(
                 {
@@ -303,10 +343,15 @@ async def audit(
                         "nodes_count": violation.get("nodes_count"),
                         "targets": violation.get("targets"),
                         "help_url": violation.get("help_url"),
+                        "source": "current_browser_render",
                     },
                     "recommendation": violation.get("description"),
                 }
             )
+
+    fallback_available = bool(fallback.get("available"))
+    content_source = "common_crawl" if fallback_available else "current_origin"
+    site_content_available = (not access["limited"]) or fallback_available
 
     return {
         "engine": {
@@ -323,24 +368,41 @@ async def audit(
             "duration_ms": round((time.perf_counter() - started) * 1000),
             "completed_at": now_iso(),
         },
-        "access": access,
+        "access": {
+            **access,
+            "fallback_used": fallback_available,
+            "fallback_source": fallback.get("source") if fallback_available else None,
+        },
+        "content_source": {
+            "kind": content_source,
+            "current": not fallback_available,
+            "snapshot_timestamp": fallback.get("snapshot_timestamp") if fallback_available else None,
+            "index_id": fallback.get("index_id") if fallback_available else None,
+            "captured_url": fallback.get("captured_url") if fallback_available else None,
+            "disclosure": fallback.get("freshness_disclosure") if fallback_available else "Current origin response/render.",
+        },
+        "origin_static": origin_static if fallback_available else None,
         "static": static,
         "rendered": rendered,
+        "fallback": fallback if fallback_available else None,
         "findings": result_findings,
         "coverage": {
             "javascript_rendering": bool(rendered.get("available")) and not access["limited"],
-            "axe": axe_available,
+            "axe": current_axe_available,
             "lighthouse": False,
             "visual_ai": False,
             "official_scoring": False,
-            "degraded": bool(rendered.get("degraded")),
-            "site_content": not access["limited"],
+            "degraded": bool(rendered.get("degraded")) or access["limited"],
+            "site_content": site_content_available,
+            "current_site_content": not access["limited"],
+            "archived_site_content": fallback_available,
+            "content_source": content_source,
             "access_limited": access["limited"],
             "access_reason": access["reason"],
         },
         "disclosure": (
-            "Target website content was not scored because an anti-bot/access challenge page was detected."
-            if access["limited"]
+            "Current origin was protected, so content/SEO/structure evidence came from a timestamped public Common Crawl snapshot. Current performance, current security state and current accessibility were not inferred from that archive."
+            if fallback_available
             else "Deterministic evidence is always returned. Rendered/axe evidence may degrade under a strict preview budget. No official SAC Score and no claim of actual conversion rate."
         ),
     }
