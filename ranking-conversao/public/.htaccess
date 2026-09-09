@@ -1,11 +1,22 @@
 RewriteEngine On
-RewriteBase /ranking-conversao/
+RewriteBase /ranking-site/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /ranking-conversao/index.html [L]
+RewriteRule . /ranking-site/index.html [L]
 
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
 </IfModule>
