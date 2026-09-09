@@ -1,0 +1,10 @@
+const GCL_MEMBER_VIEWS='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/gcl-member-api';
+const GCL_SESSION_VIEWS='gcl_session_v1';
+function vSession(){try{return JSON.parse(localStorage.getItem(GCL_SESSION_VIEWS)||'null')}catch{return null}}
+async function vMember(body){const s=vSession();if(!s?.access_token)throw new Error('authentication_required');const r=await fetch(GCL_MEMBER_VIEWS,{method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${s.access_token}`},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d.result??d}
+if(location.pathname.match(/\/ranking-site\/community\/?$/)&&vSession()?.access_token){
+ const timers=new WeakMap();
+ const io=new IntersectionObserver(entries=>{for(const entry of entries){const card=entry.target;if(card.dataset.gclViewTracked==='1'){io.unobserve(card);continue}if(entry.isIntersecting&&entry.intersectionRatio>=.5){if(timers.has(card))continue;const t=setTimeout(async()=>{timers.delete(card);const r=card.getBoundingClientRect();const vh=window.innerHeight||document.documentElement.clientHeight;const visible=Math.max(0,Math.min(r.bottom,vh)-Math.max(r.top,0));if(!r.height||visible/r.height<.5)return;card.dataset.gclViewTracked='1';io.unobserve(card);try{const out=await vMember({action:'view_post',post_id:card.dataset.postId});const meta=card.querySelector('.gcl-social-meta span');if(meta&&out?.view_count!=null)meta.textContent=`${Number(out.view_count)} visualizações`}catch{card.dataset.gclViewTracked='0'}} ,800);timers.set(card,t)}else{const t=timers.get(card);if(t){clearTimeout(t);timers.delete(card)}}}}, {threshold:[0,.5,.75,1]});
+ function scan(){document.querySelectorAll('.gcl-social-post[data-post-id]').forEach(card=>{if(!card.dataset.gclViewObserved){card.dataset.gclViewObserved='1';io.observe(card)}})}
+ const obs=new MutationObserver(scan);obs.observe(document.documentElement,{childList:true,subtree:true});scan();
+}
