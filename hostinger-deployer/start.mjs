@@ -1,4 +1,6 @@
 import { hydrateDeploySecrets } from './secrets.mjs';
 
-await hydrateDeploySecrets();
+if (process.env.DEPLOY_ENABLED === '1') {
+  await hydrateDeploySecrets();
+}
 await import('./deploy.mjs');
