@@ -1,0 +1,9 @@
+{
+  "name": "plutyx-hostinger-deployer",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "basic-ftp": "^5.0.5",
+    "ssh2-sftp-client": "^11.0.0"
+  }
+}
