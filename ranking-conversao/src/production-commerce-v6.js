@@ -1,0 +1,54 @@
+const MEMBER='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/gcl-member-api';
+const SESSION_KEY='gcl_session_v1';
+
+function session(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}}
+async function member(body){const s=session();if(!s?.access_token)throw new Error('authentication_required');const r=await fetch(MEMBER,{method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${s.access_token}`},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d.result??d}
+function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function el(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild}
+function money(v){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v||0))}
+
+function guardHomeCommerce(){
+  document.querySelectorAll('.s4-gate aside button').forEach(btn=>{
+    if(btn.dataset.gclGuard)return;btn.dataset.gclGuard='1';btn.disabled=true;btn.innerHTML='Pagamentos em homologação';
+    const note=el('<div class="gcl-prod-note"><strong>Infraestrutura pronta para abertura.</strong><span>O checkout real será habilitado somente quando a conta Stripe live estiver conectada. Nenhum cartão real é cobrado nesta fase.</span><a href="/ranking-site/account/">Criar minha conta e acompanhar a abertura →</a></div>');btn.after(note);
+  });
+  const map=[['Entrar no ranking','sac_ranking_monthly'],['Entrar na comunidade','sac_community_monthly'],['Quero o clube','sac_ranking_community_monthly'],['Escolher Complete Pass','sac_complete_entry_2026']];
+  document.querySelectorAll('.s4-pricegrid article,.s4-complete').forEach(card=>{
+    const text=card.textContent||'';for(const [label,plan] of map){if(text.includes(label)){const btn=[...card.querySelectorAll('button')].find(x=>(x.textContent||'').includes(label));if(btn&&!btn.dataset.gclPlan){btn.dataset.gclPlan=plan;btn.disabled=false;btn.onclick=()=>location.href=`/ranking-site/account/?plan=${encodeURIComponent(plan)}`;}}}
+  });
+  const postScore=document.querySelector('.s4-postscore button');if(postScore&&!postScore.dataset.gclPlan){postScore.dataset.gclPlan='sac_ranking_community_monthly';postScore.disabled=false;postScore.onclick=()=>location.href='/ranking-site/account/?plan=sac_ranking_community_monthly';}
+}
+
+function verifiedDomains(dash){return (dash?.domains||[]).filter(d=>d.verified)}
+function planNeedsDomain(code){return ['sac_ranking_monthly','sac_ranking_community_monthly','sac_complete_entry_2026','sac_awards_entry_2026'].includes(code)}
+function planLabel(code){return ({sac_ranking_monthly:'Ranking GCL',sac_community_monthly:'GCL Community',sac_ranking_community_monthly:'Ranking + Community',sac_complete_entry_2026:'Complete Pass 2026',sac_awards_entry_2026:'Global Conversion Awards 2026'})[code]||code}
+
+async function mountAccountOps(){
+  if(!location.pathname.match(/\/ranking-site\/(account|dashboard)\/?$/))return;
+  if(!session()?.access_token)return;
+  let anchor=null;for(let i=0;i<40;i++){anchor=document.querySelector('.gcl-dashboard-grid');if(anchor)break;await new Promise(r=>setTimeout(r,100));}if(!anchor||document.getElementById('gcl-production-account'))return;
+  const box=el('<section id="gcl-production-account" class="gcl-prod-account"><header><div><span>PRODUCTION ONBOARDING</span><h2>Compras, análises e propriedade do site</h2></div><b class="gcl-prod-health">seguro por evidência</b></header><div class="gcl-prod-body"><div class="gcl-prod-loading">Carregando sua operação…</div></div></section>');
+  anchor.before(box);const body=box.querySelector('.gcl-prod-body');
+  try{
+    const dash=await member({action:'dashboard'});const analyses=dash?.analyses||[];const purchases=dash?.purchases||[];const domains=dash?.domains||[];const params=new URLSearchParams(location.search);const plan=params.get('plan');
+    body.innerHTML=`<div class="gcl-prod-cols"><article><h3>Suas análises</h3>${analyses.length?analyses.map(a=>`<div class="gcl-prod-row"><span><b>${esc(a.normalized_domain)}</b><small>${esc(a.scan_status||a.status)}</small></span>${a.report_path?`<a href="${esc(a.report_path)}">Abrir relatório</a>`:'<em>processando</em>'}</div>`).join(''):'<p>Nenhuma análise vinculada a esta conta ainda.</p>'}</article><article><h3>Compras reconciliadas</h3>${purchases.length?purchases.map(p=>`<div class="gcl-prod-row"><span><b>${esc(p.name||p.product_code)}</b><small>${esc(p.status)}</small></span><strong>${money(p.amount)}</strong></div>`).join(''):'<p>Nenhuma compra vinculada.</p>'}</article></div><div class="gcl-prod-domain"><h3>Propriedade de domínio</h3><p>Pagamento não prova propriedade. Ranking e Awards exigem uma prova externa antes de tornar o site participante.</p><div class="gcl-prod-domain-list">${domains.length?domains.map(d=>`<span class="${d.verified?'verified':''}"><b>${esc(d.normalized_domain)}</b><small>${d.verified?'✓ verificado': 'não verificado'}</small></span>`).join(''):'<span><small>Nenhum domínio reivindicado.</small></span>'}</div><button id="gcl-begin-claim">Verificar um domínio</button></div>${plan?`<div class="gcl-prod-plan"><span>PLANO SELECIONADO</span><h3>${esc(planLabel(plan))}</h3><p id="gcl-plan-msg">${planNeedsDomain(plan)&&!verifiedDomains(dash).length?'Verifique um domínio para continuar.':'Checkout real permanece bloqueado até a ativação Stripe live.'}</p><button id="gcl-plan-action">Continuar</button></div>`:''}`;
+    box.querySelector('#gcl-begin-claim')?.addEventListener('click',()=>claimFlow(box,dash));
+    box.querySelector('#gcl-plan-action')?.addEventListener('click',async()=>{
+      const v=verifiedDomains(dash);if(planNeedsDomain(plan)&&!v.length){claimFlow(box,dash);return}
+      try{const co=await member({action:'checkout',product_code:plan,domain_id:planNeedsDomain(plan)?v[0].id:null});const msg=box.querySelector('#gcl-plan-msg');if(co.provider_environment==='test'){msg.textContent='Checkout sandbox validado, mas oculto de leads reais. Conecte Stripe live para abrir cobrança real.';return}if(co.url)location.href=co.url;else msg.textContent='Checkout ainda não está disponível.';}catch(e){box.querySelector('#gcl-plan-msg').textContent=e.message==='checkout_unavailable'?'Checkout real ainda não está ativo.':`Não foi possível abrir o checkout: ${e.message}`;}
+    });
+  }catch(e){body.innerHTML=`<div class="gcl-prod-error">Não foi possível carregar a operação da conta: ${esc(e.message)}</div>`;}
+}
+
+async function claimFlow(box,dash){
+  const host=prompt('Qual domínio você quer verificar? Ex.: empresa.com');if(!host)return;const method=prompt('Método: meta, file ou dns','meta');if(!method)return;
+  try{const c=await member({action:'begin_domain_claim',domain:host,method});const inst=c.instructions||{};const html=inst.html||inst.content||`${inst.record_type||''} ${inst.host||''} ${inst.value||''}`;const modal=el(`<div class="gcl-claim-modal"><div><button class="close">×</button><span>VERIFICAÇÃO DE PROPRIEDADE</span><h2>${esc(c.domain)}</h2><p>Publique a prova abaixo e depois clique em verificar. O GCL fará a leitura externamente.</p><pre>${esc(html)}</pre>${inst.path?`<small>Caminho: ${esc(inst.path)}</small>`:''}${inst.host?`<small>Host: ${esc(inst.host)}</small>`:''}<button class="verify">Verificar agora</button><p class="result"></p></div></div>`);document.body.appendChild(modal);modal.querySelector('.close').onclick=()=>modal.remove();modal.querySelector('.verify').onclick=async()=>{const r=modal.querySelector('.result');r.textContent='Verificando…';try{const v=await member({action:'verify_domain',claim_token:c.claim_token});if(v.verified){r.textContent='✓ Domínio verificado. Recarregando sua área…';setTimeout(()=>location.reload(),800)}else r.textContent='Prova ainda não encontrada. Aguarde propagação/publicação e tente novamente.';}catch(e){r.textContent=`Falha de verificação: ${e.message}`;}};
+  }catch(e){alert(`Não foi possível iniciar a verificação: ${e.message}`)}
+}
+
+function injectStyles(){if(document.getElementById('gcl-prod-styles'))return;const s=document.createElement('style');s.id='gcl-prod-styles';s.textContent=`
+.gcl-prod-note{margin-top:12px;padding:14px;border:1px solid rgba(120,255,190,.18);border-radius:14px;background:rgba(2,14,10,.7);display:grid;gap:5px}.gcl-prod-note strong{color:#b9ffd8}.gcl-prod-note span{font-size:12px;color:#91a39b}.gcl-prod-note a{font-size:12px;color:#6fffb5}.gcl-prod-account{max-width:1280px;margin:0 auto 24px;padding:22px;border:1px solid rgba(120,255,190,.16);border-radius:22px;background:rgba(7,16,13,.86)}.gcl-prod-account>header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.gcl-prod-account header span,.gcl-prod-plan>span{font-size:10px;letter-spacing:.16em;color:#62e99e}.gcl-prod-account h2{margin:6px 0 0}.gcl-prod-health{font-size:11px;color:#83ffbc}.gcl-prod-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}.gcl-prod-cols article,.gcl-prod-domain,.gcl-prod-plan{padding:18px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08)}.gcl-prod-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.07)}.gcl-prod-row span{display:grid}.gcl-prod-row small{color:#83958d}.gcl-prod-row a{color:#69ffb1}.gcl-prod-domain,.gcl-prod-plan{margin-top:16px}.gcl-prod-domain-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.gcl-prod-domain-list span{padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04);display:grid}.gcl-prod-domain-list .verified{border:1px solid rgba(80,255,160,.25)}.gcl-prod-domain button,.gcl-prod-plan button,.gcl-claim-modal button.verify{border:0;border-radius:10px;padding:11px 15px;background:#75f6ad;color:#05110b;font-weight:800;cursor:pointer}.gcl-claim-modal{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.76);display:grid;place-items:center;padding:20px}.gcl-claim-modal>div{max-width:620px;width:100%;padding:26px;border-radius:20px;background:#08110e;border:1px solid rgba(120,255,190,.22);position:relative}.gcl-claim-modal .close{position:absolute;right:16px;top:12px;background:transparent;color:white;border:0;font-size:26px}.gcl-claim-modal pre{white-space:pre-wrap;overflow:auto;padding:14px;border-radius:12px;background:#020604;color:#8dffbd}.gcl-claim-modal small{display:block;color:#93a79d;margin:6px 0}.gcl-prod-error{color:#ff9a9a}@media(max-width:800px){.gcl-prod-cols{grid-template-columns:1fr}.gcl-prod-account{margin-inline:12px}}
+`;document.head.appendChild(s)}
+
+injectStyles();
+const obs=new MutationObserver(()=>guardHomeCommerce());obs.observe(document.documentElement,{childList:true,subtree:true});guardHomeCommerce();mountAccountOps();
