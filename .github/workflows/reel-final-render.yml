@@ -1,0 +1,166 @@
+name: Render Cozinha 360 Reel Final
+
+on:
+  push:
+    branches:
+      - tmp-audio-bridge-20260909
+    paths:
+      - .github/workflows/reel-final-render.yml
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Download source and synchronized narration blocks
+        run: |
+          set -euo pipefail
+          mkdir -p render
+          curl -fL --retry 4 --retry-delay 2 'https://at.adobe.com/1mGfmbRMreLL66qs' -o render/source.mp4
+          curl -fL --retry 4 'https://resource2.heygen.ai/text_to_speech/005c69f06f3e44ff81f749f5ddb39560/6872a840c4194f42a7f8ce0aee47660c/id=54166298-501b-495d-bd8c-1522e1e8eb73.wav' -o render/v1.wav
+          curl -fL --retry 4 'https://resource2.heygen.ai/text_to_speech/005c69f06f3e44ff81f749f5ddb39560/6872a840c4194f42a7f8ce0aee47660c/id=521a760b-a460-4111-b0d1-7f7701a510f6.wav' -o render/v2.wav
+          curl -fL --retry 4 'https://resource2.heygen.ai/text_to_speech/005c69f06f3e44ff81f749f5ddb39560/6872a840c4194f42a7f8ce0aee47660c/id=d09e592c-ba07-4fae-a2cf-dd017fca3782.wav' -o render/v3.wav
+          curl -fL --retry 4 'https://resource2.heygen.ai/text_to_speech/005c69f06f3e44ff81f749f5ddb39560/6872a840c4194f42a7f8ce0aee47660c/id=796a610b-9a4b-4a76-99e8-f5e22f5bbec5.wav' -o render/v4.wav
+          curl -fL --retry 4 'https://resource2.heygen.ai/text_to_speech/005c69f06f3e44ff81f749f5ddb39560/6872a840c4194f42a7f8ce0aee47660c/id=61512a6d-bb2f-4fa8-9d40-ededa650d25e.wav' -o render/v5.wav
+          curl -fL --retry 4 'https://resource2.heygen.ai/text_to_speech/005c69f06f3e44ff81f749f5ddb39560/6872a840c4194f42a7f8ce0aee47660c/id=7c7b2f8a-24e8-4849-9f54-bc18e056c8d1.wav' -o render/v6.wav
+          curl -fL --retry 4 'https://resource2.heygen.ai/text_to_speech/005c69f06f3e44ff81f749f5ddb39560/6872a840c4194f42a7f8ce0aee47660c/id=2ed29388-20fd-4c06-8ce1-62b100c1b985.wav' -o render/v7.wav
+          curl -fL --retry 4 'https://resource2.heygen.ai/text_to_speech/005c69f06f3e44ff81f749f5ddb39560/6872a840c4194f42a7f8ce0aee47660c/id=95262b27-a079-4522-8e59-a8c4755e600a.wav' -o render/v8.wav
+          ffprobe -v error -show_entries stream=width,height,r_frame_rate -show_entries format=duration -of json render/source.mp4
+
+      - name: Build original music bed and attention SFX
+        run: |
+          python3 - <<'PY'
+          import math, random, wave, struct
+          SR=48000
+          DUR=48.853333
+          N=int(SR*DUR)
+          beat=60/112.0
+          progression=[(110.00,[220.00,261.63,329.63]),(87.31,[174.61,220.00,261.63]),(130.81,[261.63,329.63,392.00]),(98.00,[196.00,246.94,293.66])]
+          rnd=random.Random(3602026)
+          music=wave.open('render/music.wav','wb'); music.setnchannels(2); music.setsampwidth(2); music.setframerate(SR)
+          sfx=wave.open('render/sfx.wav','wb'); sfx.setnchannels(2); sfx.setsampwidth(2); sfx.setframerate(SR)
+          chunk_m=[]; chunk_s=[]
+          def env_decay(x,d,k=6.0):
+              return math.exp(-k*x/d) if 0<=x<d else 0.0
+          def whoosh(t,start,dur,amp=0.30):
+              x=t-start
+              if not 0<=x<dur: return 0.0
+              e=math.sin(math.pi*x/dur)**1.6
+              return amp*e*(rnd.random()*2-1)*(0.25+0.75*x/dur)
+          def ping(t,start,amp=0.34):
+              x=t-start
+              if not 0<=x<0.55: return 0.0
+              e=math.exp(-6*x)
+              return amp*e*(math.sin(2*math.pi*880*x)+0.55*math.sin(2*math.pi*1320*x))
+          def chime(t,start,f=660,amp=0.28):
+              x=t-start
+              if not 0<=x<0.8: return 0.0
+              e=math.exp(-4.6*x)
+              return amp*e*(math.sin(2*math.pi*f*x)+0.5*math.sin(2*math.pi*f*1.5*x))
+          for i in range(N):
+              t=i/SR
+              # musical bed: 4/4, 112 bpm; warm electronic/corporate pulse
+              bar=int(t/(beat*4)); root,triad=progression[bar%4]
+              val=0.0
+              fade=min(1.0,t/1.2,(DUR-t)/1.4)
+              for f in triad:
+                  val += 0.018*math.sin(2*math.pi*f*t) + 0.006*math.sin(2*math.pi*(f/2)*t)
+              bp=t%beat
+              if bp<0.20:
+                  e=math.exp(-18*bp)
+                  fk=64-18*(bp/0.20)
+                  val += 0.11*e*math.sin(2*math.pi*fk*bp)
+              hp=t%(beat/2)
+              if hp<0.055:
+                  val += 0.020*math.exp(-55*hp)*(rnd.random()*2-1)
+              ep=t%(beat/2)
+              note=triad[int((t/(beat/2))%3)]*2
+              if ep<0.23:
+                  val += 0.032*math.exp(-12*ep)*math.sin(2*math.pi*note*ep)
+              val *= max(0.0,fade)
+              # SFX aligned to visual beats
+              fx=0.0
+              # opening impact
+              x=t-0.05
+              if 0<=x<0.45:
+                  fx += 0.27*math.exp(-10*x)*math.sin(2*math.pi*(78-45*x)*x) + whoosh(t,0.03,0.42,0.12)
+              fx += ping(t,6.15,0.30)
+              fx += whoosh(t,11.72,0.48,0.22)
+              fx += whoosh(t,17.48,0.62,0.27)
+              # camera shutter: two crisp clicks
+              for st,a in [(25.90,0.22),(25.985,0.15)]:
+                  x=t-st
+                  if 0<=x<0.035: fx += a*math.exp(-90*x)*(rnd.random()*2-1)
+              fx += chime(t,30.05,660,0.22)
+              fx += chime(t,37.90,740,0.27)
+              fx += whoosh(t,41.72,0.62,0.24)
+              fx += chime(t,46.40,920,0.18)
+              m=max(-0.95,min(0.95,val)); q=max(-0.95,min(0.95,fx))
+              im=int(m*32767); iq=int(q*32767)
+              chunk_m.append(struct.pack('<hh',im,im)); chunk_s.append(struct.pack('<hh',iq,iq))
+              if len(chunk_m)>=4096:
+                  music.writeframesraw(b''.join(chunk_m)); sfx.writeframesraw(b''.join(chunk_s)); chunk_m.clear(); chunk_s.clear()
+          if chunk_m:
+              music.writeframesraw(b''.join(chunk_m)); sfx.writeframesraw(b''.join(chunk_s))
+          music.close(); sfx.close()
+          PY
+
+      - name: Synchronize narration to the visual caption blocks
+        run: |
+          set -euo pipefail
+          ffmpeg -y \
+            -i render/v1.wav -i render/v2.wav -i render/v3.wav -i render/v4.wav \
+            -i render/v5.wav -i render/v6.wav -i render/v7.wav -i render/v8.wav \
+            -filter_complex "\
+              [0:a]aresample=48000,volume=1.10,adelay=200:all=1[a1];\
+              [1:a]aresample=48000,atempo=1.06,volume=1.10,adelay=5450:all=1[a2];\
+              [2:a]aresample=48000,volume=1.10,adelay=11950:all=1[a3];\
+              [3:a]aresample=48000,atempo=1.32,volume=1.10,adelay=17750:all=1[a4];\
+              [4:a]aresample=48000,volume=1.10,adelay=25750:all=1[a5];\
+              [5:a]aresample=48000,volume=1.10,adelay=30100:all=1[a6];\
+              [6:a]aresample=48000,volume=1.10,adelay=37700:all=1[a7];\
+              [7:a]aresample=48000,volume=1.10,adelay=41950:all=1[a8];\
+              [a1][a2][a3][a4][a5][a6][a7][a8]amix=inputs=8:duration=longest:normalize=0,atrim=0:48.853333,loudnorm=I=-16:TP=-1.5:LRA=6,alimiter=limit=0.96[voice]" \
+            -map '[voice]' -ar 48000 -ac 2 render/voice_timeline.wav
+
+      - name: Mix narration, ducked music and SFX
+        run: |
+          set -euo pipefail
+          ffmpeg -y -i render/music.wav -i render/voice_timeline.wav -i render/sfx.wav \
+            -filter_complex "\
+              [0:a]volume=0.42[music];\
+              [1:a]asplit=2[side][voice];\
+              [music][side]sidechaincompress=threshold=0.015:ratio=10:attack=8:release=260:makeup=1[ducked];\
+              [2:a]volume=0.80[sfx];\
+              [ducked][voice][sfx]amix=inputs=3:duration=longest:normalize=0,atrim=0:48.853333,loudnorm=I=-14:TP=-1.0:LRA=8,alimiter=limit=0.97[final]" \
+            -map '[final]' -ar 48000 -ac 2 render/final_audio.wav
+
+      - name: Mux on untouched original visual track
+        run: |
+          set -euo pipefail
+          ffmpeg -y -i render/source.mp4 -i render/final_audio.wav \
+            -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k \
+            -t 48.853333 -movflags +faststart render/cozinha_de_bolso_360_REEL_FINAL.mp4
+          ffprobe -v error -show_entries stream=index,codec_name,codec_type,width,height,r_frame_rate,sample_rate,channels -show_entries format=duration,size -of json render/cozinha_de_bolso_360_REEL_FINAL.mp4 > render/verification.json
+          ffmpeg -y -ss 44 -i render/cozinha_de_bolso_360_REEL_FINAL.mp4 -frames:v 1 render/frame_44s.jpg >/dev/null 2>&1
+          cat render/verification.json
+
+      - name: Upload finished MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: cozinha-de-bolso-360-reel-final
+          path: |
+            render/cozinha_de_bolso_360_REEL_FINAL.mp4
+            render/verification.json
+            render/frame_44s.jpg
+          if-no-files-found: error
+          retention-days: 1
