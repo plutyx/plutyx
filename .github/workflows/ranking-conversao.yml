@@ -9,6 +9,9 @@ on:
       - '.github/workflows/ranking-conversao.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -48,6 +51,9 @@ jobs:
           gate htaccess_exists test -f ranking-conversao/dist/.htaccess
           gate base_path grep -q '/ranking-site/' ranking-conversao/dist/index.html
           gate rewrite_base grep -q 'RewriteBase /ranking-site/' ranking-conversao/dist/.htaccess
+          gate gcl_title grep -q 'Global Conversion League' ranking-conversao/dist/index.html
+          gate community_progression grep -R -q 'PROGRESSÃO POR IMPACTO' ranking-conversao/dist/assets
+          gate action_lab grep -R -q 'ACTION LAB' ranking-conversao/dist/assets
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' ranking-conversao/dist; then echo 'FAIL no_service_role_secret' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_service_role_secret' | tee -a "$report"; fi
           if grep -R -q 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' ranking-conversao/dist; then echo 'FAIL no_legacy_jwt' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_legacy_jwt' | tee -a "$report"; fi
           echo "FAILURES $failures" | tee -a "$report"
@@ -60,3 +66,12 @@ jobs:
             ranking-conversao/dist
             ranking-conversao/validation-report.txt
           include-hidden-files: true
+      - name: Publish Hostinger-ready branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: convrank-hostinger-dist
+          publish_dir: ./ranking-conversao/dist
+          force_orphan: true
+          enable_jekyll: false
+          commit_message: "deploy(gcl): ${{ github.sha }}"
