@@ -34,6 +34,7 @@ async function validateBundle() {
   const index = await fs.readFile(path.join(LOCAL_DIST, 'index.html'), 'utf8');
   const ht = await fs.readFile(path.join(LOCAL_DIST, '.htaccess'), 'utf8');
   if (!index.includes('/ranking-site/')) throw new Error('bundle_base_path_invalid');
+  if (!/Global Conversion League|Sites de Alta Conversão|Ranking Site/i.test(index)) throw new Error('bundle_product_signature_missing');
   if (!ht.includes('RewriteBase /ranking-site/')) throw new Error('htaccess_rewrite_invalid');
   const names = await fs.readdir(LOCAL_DIST);
   if (!names.includes('assets')) throw new Error('bundle_assets_missing');
@@ -107,7 +108,6 @@ async function deployViaSftp() {
       throw err;
     }
 
-    // Keep only a bounded emergency backup. Failure to remove it never fails deploy.
     try {
       if (backedUp && await sftp.exists(backup)) {
         const list = await sftp.list(publicRoot);
@@ -189,22 +189,28 @@ async function deployViaFtp() {
   }
 }
 
+async function smokeOne(url, expectAsset = false) {
+  const response = await fetch(url, { redirect: 'follow', cache: 'no-store' });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`http_${response.status}:${url}`);
+  if (!/Global Conversion League|Sites de Alta Conversão/i.test(text)) throw new Error(`product_signature_missing:${url}`);
+  if (expectAsset) {
+    const match = text.match(/(?:src|href)="([^"]*\/ranking-site\/assets\/[^"]+)"/);
+    if (!match) throw new Error('asset_reference_missing');
+    const asset = new URL(match[1], PUBLIC_URL).toString();
+    const ar = await fetch(asset, { cache: 'no-store' });
+    if (!ar.ok) throw new Error(`asset_http_${ar.status}`);
+  }
+  return response.status;
+}
+
 async function publicSmoke() {
   let last = null;
   for (let i = 0; i < 12; i++) {
     try {
-      const response = await fetch(PUBLIC_URL, { redirect: 'follow', cache: 'no-store' });
-      const text = await response.text();
-      if (response.ok && text.includes('Ranking Site') && text.includes('/ranking-site/assets/')) {
-        const match = text.match(/(?:src|href)="([^"]+\/ranking-site\/assets\/[^"]+)"/);
-        if (match) {
-          const asset = new URL(match[1], PUBLIC_URL).toString();
-          const ar = await fetch(asset, { cache: 'no-store' });
-          if (!ar.ok) throw new Error(`asset_http_${ar.status}`);
-        }
-        return { status: response.status, verified: true };
-      }
-      last = `http_${response.status}`;
+      const rootStatus = await smokeOne(PUBLIC_URL, true);
+      const communityStatus = await smokeOne(new URL('community/', PUBLIC_URL).toString(), false);
+      return { status: rootStatus, communityStatus, verified: true };
     } catch (err) {
       last = safeError(err);
     }
