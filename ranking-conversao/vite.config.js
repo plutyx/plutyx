@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH || '/ranking-conversao/',
+  base: process.env.VITE_BASE_PATH || '/ranking-site/',
   plugins: [tailwindcss(), react()],
   build: {
     target: 'es2022',
