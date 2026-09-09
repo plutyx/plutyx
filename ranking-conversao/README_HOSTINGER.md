@@ -1,25 +1,33 @@
-# Ranking Conversão — Hostinger subpath build
+# Ranking Site — Hostinger subpath build
 
-Target public route: `https://plutyx.com/ranking-conversao/`
+Target public route: `https://plutyx.com/ranking-site/`
 
 ## Build
 
 ```bash
 npm install
-npm run build
+VITE_BASE_PATH=/ranking-site/ npm run build
 ```
 
-Upload **the contents of `dist/`** to the Hostinger folder that maps to `public_html/ranking-conversao/`.
+Publish **the contents of `dist/`** to the existing Hostinger folder mapped to `public_html/ranking-site/`.
 
-The Vite base is already `/ranking-conversao/`, and `public/.htaccess` is copied into `dist/.htaccess` so client-side navigation and security headers remain scoped to this folder.
+The production Vite base is `/ranking-site/`, and `public/.htaccess` is copied into `dist/.htaccess` so SPA navigation, scoped rewrites and security headers remain inside this folder.
 
 ## Backend boundary
 
-The browser calls only the Supabase Edge Function `sac-public-api` with the project's public anon credential. Service-role credentials, Render worker tokens, `pg_net` request IDs and the internal `sac` schema are not exposed to the browser.
+The browser calls only the server-side gateway `sac-ranking-site-api`. Service-role credentials, Render worker tokens, pg_net request IDs and the internal `sac` schema are not exposed to the browser.
 
-## Integrity gates
+## Operational metric policy
 
-- Public preview is **not** the official SAC Score.
-- Ranking stays locked while `ranking_live=false`.
-- The `10.000+ analisados` claim must only be shown when `benchmark.claim_10000_ready=true`.
-- Lighthouse is lab data; it must not be presented as CrUX/field data.
+- A metric is active in the public analyzer only when it has an implemented autonomous collector.
+- Private/RUM/experiment/provider-only metrics stay in the scientific catalogue but do not count toward the public score or active metric total.
+- Absence of evidence is never treated as pass.
+- Browser/snapshot CRO evidence is labeled synthetic/browser and is not represented as RUM, eye-tracking or actual conversion rate.
+- Official/layer scores remain coverage-gated.
+
+## Current production target
+
+- Public route: `/ranking-site/`
+- Active public metrics: autonomous collectors only.
+- Backend gateway: Supabase Edge Function `sac-ranking-site-api`.
+- Heavy browser/lab work runs in dedicated workers and is materialized with provenance.
