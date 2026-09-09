@@ -97,6 +97,7 @@ const Network360Route = lazy(async () => ({ default: (await import("./network-36
 const SmartCMVRoute = lazy(async () => ({ default: (await import("./smart-cmv-v50")).SmartCMVRoute }));
 const Purchases360Route = lazy(async () => ({ default: (await import("./purchases-360-v51")).Purchases360Route }));
 const Suppliers360Route = lazy(async () => ({ default: (await import("./suppliers-360-v52")).Suppliers360Route }));
+const RankingSiteRoute = lazy(async () => ({ default: (await import("./ranking-site")).RankingSiteRoute }));
 
 const tabLabels: Record<string, string> = { hoje: "Hoje", pedidos: "Pedidos", producao: "Produção", produtos: "Produtos", custos: "Custos", financeiro: "Financeiro", clientes: "Clientes", equipe: "Equipe", config: "Minha área" };
 function TabHashBridge() {
@@ -123,6 +124,8 @@ function OperatorRoute({ children, alerts = true }: { children: React.ReactNode;
   return <><ExperienceOrchestratorV74 />{children}<ActivationCircuitV76 />{alerts && <KitchenAlerts />}<SessionAwareControls /><OfflineQueueStatus /></>;
 }
 function Root() {
+  const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
+  if (pathname === "/ranking-site") return <RankingSiteRoute />;
   const params = new URLSearchParams(window.location.search);
   const hasAccountRoute = Boolean(params.get("reset_token") || params.get("verify_token") || params.get("forgot") === "1" || params.get("security") === "1");
   const tracking = params.get("track") || "", storeSlug = params.get("loja") || "";
@@ -160,6 +163,6 @@ function registerServiceWorker() {
 async function boot() {
   registerServiceWorker();
   await prepareOperatingMemory();
-  createRoot(document.getElementById("root")!).render(<React.StrictMode><Suspense fallback={<main className="center"><div className="loader">COZINHA 360</div></main>}><Root /></Suspense></React.StrictMode>);
+  createRoot(document.getElementById("root")!).render(<React.StrictMode><Suspense fallback={<main className="center"><div className="loader">PLUTYX</div></main>}><Root /></Suspense></React.StrictMode>);
 }
 void boot();
