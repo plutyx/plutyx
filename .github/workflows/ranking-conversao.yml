@@ -28,15 +28,35 @@ jobs:
           VITE_BASE_PATH: /ranking-site/
         run: npm run build
       - name: Validate production bundle
+        id: validate
+        shell: bash
         run: |
-          test -f ranking-conversao/dist/index.html
-          test -f ranking-conversao/dist/.htaccess
-          grep -q '/ranking-site/' ranking-conversao/dist/index.html
-          grep -q 'RewriteBase /ranking-site/' ranking-conversao/dist/.htaccess
-          ! grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' ranking-conversao/dist
-          ! grep -R -q 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' ranking-conversao/dist
+          set +e
+          failures=0
+          report=ranking-conversao/validation-report.txt
+          : > "$report"
+          gate() {
+            name="$1"; shift
+            if "$@"; then
+              echo "PASS $name" | tee -a "$report"
+            else
+              echo "FAIL $name" | tee -a "$report"
+              failures=$((failures+1))
+            fi
+          }
+          gate index_exists test -f ranking-conversao/dist/index.html
+          gate htaccess_exists test -f ranking-conversao/dist/.htaccess
+          gate base_path grep -q '/ranking-site/' ranking-conversao/dist/index.html
+          gate rewrite_base grep -q 'RewriteBase /ranking-site/' ranking-conversao/dist/.htaccess
+          if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' ranking-conversao/dist; then echo 'FAIL no_service_role_secret' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_service_role_secret' | tee -a "$report"; fi
+          if grep -R -q 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' ranking-conversao/dist; then echo 'FAIL no_legacy_jwt' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_legacy_jwt' | tee -a "$report"; fi
+          echo "FAILURES $failures" | tee -a "$report"
+          exit "$failures"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: ranking-site-hostinger
-          path: ranking-conversao/dist
+          path: |
+            ranking-conversao/dist
+            ranking-conversao/validation-report.txt
           include-hidden-files: true
