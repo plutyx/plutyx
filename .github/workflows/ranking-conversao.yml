@@ -1,4 +1,4 @@
-name: Ranking Conversao Hostinger Build
+name: Ranking Site Hostinger Build
 
 on:
   push:
@@ -22,16 +22,21 @@ jobs:
       - name: Install
         working-directory: ranking-conversao
         run: npm install --no-audit --no-fund
-      - name: Build Hostinger subpath bundle
+      - name: Build Hostinger /ranking-site bundle
         working-directory: ranking-conversao
+        env:
+          VITE_BASE_PATH: /ranking-site/
         run: npm run build
-      - name: Validate bundle
+      - name: Validate production bundle
         run: |
           test -f ranking-conversao/dist/index.html
           test -f ranking-conversao/dist/.htaccess
-          grep -q '/ranking-conversao/' ranking-conversao/dist/index.html
+          grep -q '/ranking-site/' ranking-conversao/dist/index.html
+          grep -q 'RewriteBase /ranking-site/' ranking-conversao/dist/.htaccess
+          ! grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' ranking-conversao/dist
+          ! grep -R -q 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' ranking-conversao/dist
       - uses: actions/upload-artifact@v4
         with:
-          name: ranking-conversao-hostinger
+          name: ranking-site-hostinger
           path: ranking-conversao/dist
           include-hidden-files: true
