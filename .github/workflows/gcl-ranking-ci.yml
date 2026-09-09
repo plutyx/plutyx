@@ -1,0 +1,41 @@
+name: gcl-ranking-ci
+
+on:
+  push:
+    branches: [convrank-hostinger-front]
+    paths:
+      - 'ranking-conversao/**'
+      - '.github/workflows/gcl-ranking-ci.yml'
+  pull_request:
+    paths:
+      - 'ranking-conversao/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ranking-conversao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ranking-conversao/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Verify GCL production surfaces
+        run: |
+          test -f dist/index.html
+          grep -R -F 'Global Conversion League' dist >/dev/null
+          grep -R -F 'sac-ranking-site-api' dist/assets/*.js >/dev/null
+          grep -R -F 'gcl-member-api' dist/assets/*.js >/dev/null
+          grep -R -F 'production-commerce-v6' dist/assets/*.js >/dev/null || true
+      - name: Upload GCL bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcl-ranking-dist-${{ github.sha }}
+          path: ranking-conversao/dist
+          if-no-files-found: error
+          retention-days: 7
