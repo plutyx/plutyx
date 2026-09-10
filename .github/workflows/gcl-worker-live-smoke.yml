@@ -5,27 +5,32 @@ on:
     branches:
       - convrank-sac-worker-v2
     paths:
+      - 'convrank_worker/**'
       - '.github/workflows/gcl-worker-live-smoke.yml'
   workflow_dispatch:
 
 jobs:
   live-health:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 6
     steps:
       - name: Verify deployed v4 worker health and capabilities
         shell: bash
         run: |
           set -euo pipefail
           tmp="$(mktemp)"
-          curl --fail --silent --show-error --location \
-            --connect-timeout 10 --max-time 30 --retry 4 --retry-delay 3 \
-            'https://convrank-sac-audit-v4.onrender.com/health' -o "$tmp"
-          cat "$tmp"
-          jq -e '.ok == true' "$tmp"
-          jq -e '.service == "convrank-gcl-audit"' "$tmp"
-          jq -e '.version == "0.5.0"' "$tmp"
-          jq -e '.capabilities.javascript_rendering == true' "$tmp"
-          jq -e '.capabilities.axe_core == true' "$tmp"
-          jq -e '.capabilities.lighthouse == true' "$tmp"
-          jq -e '.capabilities.fail_soft_components == true' "$tmp"
+          ok=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --location \
+              --connect-timeout 10 --max-time 30 \
+              'https://convrank-sac-audit-v4.onrender.com/health' -o "$tmp"; then
+              cat "$tmp"
+              if jq -e '.ok == true and .service == "convrank-gcl-audit" and .version == "0.5.1" and .capabilities.javascript_rendering == true and .capabilities.axe_core == true and .capabilities.lighthouse == true and .capabilities.lighthouse_process_group_cleanup == true and .capabilities.process_reap_budget_seconds == 5 and .capabilities.fail_soft_components == true' "$tmp" >/dev/null; then
+                ok=1
+                break
+              fi
+            fi
+            echo "Worker v0.5.1 not live yet (attempt $attempt/30); waiting for Render rollout..."
+            sleep 10
+          done
+          test "$ok" -eq 1
