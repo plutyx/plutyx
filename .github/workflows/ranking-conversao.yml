@@ -67,6 +67,8 @@ jobs:
           gate gcl_title grep -q 'Global Conversion League' ranking-conversao/dist/index.html
           gate community_progression grep -R -q 'PROGRESSÃO POR IMPACTO' ranking-conversao/dist/assets
           gate action_lab grep -R -q 'ACTION LAB' ranking-conversao/dist/assets
+          gate notification_center grep -R -q 'GCL INBOX' ranking-conversao/dist/assets
+          gate notification_high_value grep -R -q 'Hot Seats, Awards e movimentos relevantes do Ranking' ranking-conversao/dist/assets
           gate evidence_os grep -R -q 'GCL EVIDENCE OS' ranking-conversao/dist/assets
           gate competitive_mission grep -R -q 'COMPETITIVE MISSION' ranking-conversao/dist/assets
           gate awards_methodology grep -R -q 'Três sinais. Nenhum pay-to-win.' ranking-conversao/dist/assets
