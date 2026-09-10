@@ -48,10 +48,17 @@ jobs:
           grep -R -F 'Uma denúncia não remove conteúdo automaticamente' dist/assets/*.js >/dev/null
           grep -R -F 'RANKING MONITOR · DEEP RE-AUDIT' dist/assets/*.js >/dev/null
           grep -R -F 'cedem lugar a análises recém-pagas' dist/assets/*.js >/dev/null
+          grep -R -F 'DISTRIBUIÇÃO DE PONTOS DO CANDIDATO' dist/assets/*.js >/dev/null
+          grep -R -F 'Perfil de Pontuação' dist/assets/*.js >/dev/null
+          grep -R -F 'Dimensão ausente nunca é desenhada como nota zero' dist/assets/*.js >/dev/null
           grep -F "'lighthouse_full'" supabase/migrations/20260910215400_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
           grep -F "'scheduled_monitoring'" supabase/migrations/20260910215400_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
           grep -F "'yield_to_full_paid'" supabase/migrations/20260910215400_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
           grep -F 'MAX_BODY_BYTES=8192' supabase/functions/gcl-monitoring-api/index.ts >/dev/null
+          grep -F "'GCL-RADAR-1.0'" supabase/migrations/20260910222200_gcl_score_distribution_radar_v42.sql >/dev/null
+          grep -F "'diagnostic_score_distribution'" supabase/migrations/20260910222200_gcl_score_distribution_radar_v42.sql >/dev/null
+          grep -F "'source_matches_gcl_score'" supabase/migrations/20260910222200_gcl_score_distribution_radar_v42.sql >/dev/null
+          grep -F 'score_distribution' supabase/migrations/20260910222200_gcl_score_distribution_radar_v42.sql >/dev/null
           grep -q '/ranking-site/' dist/index.html
           grep -q 'RewriteBase /ranking-site/' dist/.htaccess
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' dist; then echo 'service role leaked into bundle'; exit 1; fi
@@ -84,6 +91,15 @@ jobs:
           for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
           curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-preview-experience.log; exit 1; }
           npm run test:experience
+      - name: Browser gate — score distribution radar
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview-radar.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-preview-radar.log; exit 1; }
+          npm run test:score-radar
       - name: Browser gate — WCAG A/AA accessibility
         shell: bash
         run: |
