@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:member-area": "playwright test e2e/member-area.spec.js --reporter=line"
   },
   "dependencies": {
     "lucide-react": "0.542.0",
@@ -14,6 +15,7 @@
     "react-dom": "19.1.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.55.0",
     "@tailwindcss/vite": "4.1.13",
     "@vitejs/plugin-react": "5.0.2",
     "tailwindcss": "4.1.13",
