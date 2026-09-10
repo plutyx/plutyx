@@ -36,12 +36,15 @@ jobs:
           grep -R -F 'gcl-member-api' dist/assets/*.js >/dev/null
           grep -R -F 'Sua temporada em 5 movimentos' dist/assets/*.js >/dev/null
           grep -R -F 'MEMBER AREA · RECOVERY MODE' dist/assets/*.js >/dev/null
+          grep -R -F 'COMMUNITY · STADIUM LOBBY' dist/assets/*.js >/dev/null
+          grep -R -F 'PRÓXIMA JOGADA' dist/assets/*.js >/dev/null
+          grep -R -F 'OFICIAL · GCL INTELLIGENCE' dist/assets/*.js >/dev/null
           grep -q '/ranking-site/' dist/index.html
           grep -q 'RewriteBase /ranking-site/' dist/.htaccess
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' dist; then echo 'service role leaked into bundle'; exit 1; fi
-      - name: Install browser for member-area gate
+      - name: Install browser gates
         run: npx playwright install --with-deps chromium
-      - name: Browser gate — member area must render
+      - name: Browser gates — member and public product journeys
         shell: bash
         run: |
           npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview.log 2>&1 &
@@ -60,6 +63,7 @@ jobs:
             exit 1
           fi
           npm run test:member-area
+          npm run test:public-surfaces
       - name: Upload GCL bundle
         uses: actions/upload-artifact@v4
         with:
