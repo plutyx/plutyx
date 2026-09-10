@@ -1,0 +1,15 @@
+const SK35_SELECTOR='.gcl-loading,.s3-loading,[data-loading="true"]';
+function sk35Enhance(root=document){
+ root.querySelectorAll(SK35_SELECTOR).forEach(el=>{
+  if(el.dataset.gclSkeleton==='1')return;el.dataset.gclSkeleton='1';el.classList.add('gcl-skeleton35-host');
+  const status=(el.textContent||'Carregando conteúdo').trim();
+  if(!el.getAttribute('role'))el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.setAttribute('aria-busy','true');
+  const sr=document.createElement('span');sr.className='gcl-sr35';sr.textContent=status||'Carregando conteúdo';
+  const visual=document.createElement('span');visual.className='gcl-skeleton35';visual.setAttribute('aria-hidden','true');visual.innerHTML='<i></i><b></b><b></b><b></b>';
+  el.replaceChildren(sr,visual);
+ });
+}
+function sk35Styles(){if(document.getElementById('gcl-skeleton35-style'))return;const s=document.createElement('style');s.id='gcl-skeleton35-style';s.textContent=`
+.gcl-sr35{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.gcl-skeleton35-host{display:block!important;width:100%!important;min-height:118px!important;padding:14px!important;border:1px solid rgba(255,255,255,.055)!important;background:rgba(255,255,255,.012)!important;border-radius:15px!important}.gcl-skeleton35{display:grid;width:100%;grid-template-columns:54px 1fr;grid-template-rows:18px 13px 13px;gap:10px 13px;align-items:center}.gcl-skeleton35 i{grid-row:1/4;width:54px;height:54px;border-radius:14px;background:rgba(255,255,255,.055)}.gcl-skeleton35 b{display:block;height:12px;border-radius:999px;background:rgba(255,255,255,.055)}.gcl-skeleton35 b:nth-of-type(1){width:min(55%,360px)}.gcl-skeleton35 b:nth-of-type(2){width:min(88%,650px)}.gcl-skeleton35 b:nth-of-type(3){width:min(68%,480px)}.gcl-skeleton35 i,.gcl-skeleton35 b{position:relative;overflow:hidden}.gcl-skeleton35 i::after,.gcl-skeleton35 b::after{content:"";position:absolute;inset:0;transform:translateX(-110%);background:linear-gradient(90deg,transparent,rgba(144,255,190,.07),transparent);animation:gcl-sk35 1.45s ease-in-out infinite}@keyframes gcl-sk35{to{transform:translateX(110%)}}[data-gcl-motion="reduced"] .gcl-skeleton35 i::after,[data-gcl-motion="reduced"] .gcl-skeleton35 b::after,[data-gcl-data="save"] .gcl-skeleton35 i::after,[data-gcl-data="save"] .gcl-skeleton35 b::after{animation:none;display:none}@media(prefers-reduced-motion:reduce){.gcl-skeleton35 i::after,.gcl-skeleton35 b::after{animation:none;display:none}}@media(max-width:560px){.gcl-skeleton35{grid-template-columns:42px 1fr}.gcl-skeleton35 i{width:42px;height:42px}.gcl-skeleton35-host{min-height:100px!important}}
+`;document.head.appendChild(s)}
+sk35Styles();sk35Enhance();new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)if(n.nodeType===1){if(n.matches?.(SK35_SELECTOR))sk35Enhance(n.parentElement||document);else sk35Enhance(n)}}).observe(document.documentElement,{childList:true,subtree:true});
