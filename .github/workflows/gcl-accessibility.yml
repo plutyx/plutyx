@@ -1,0 +1,49 @@
+name: gcl-accessibility
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [convrank-hostinger-front]
+    paths:
+      - 'ranking-conversao/e2e/accessibility.spec.js'
+      - 'ranking-conversao/package.json'
+      - '.github/workflows/gcl-accessibility.yml'
+
+jobs:
+  wcag-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: ranking-conversao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ranking-conversao/package.json
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+        env:
+          VITE_BASE_PATH: /ranking-site/
+      - run: npx playwright install --with-deps chromium
+      - name: WCAG A/AA audit — critical public journeys
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-a11y-preview.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-a11y-preview.log; exit 1; }
+          npm run test:a11y
+      - name: Upload WCAG evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcl-accessibility-${{ github.run_id }}
+          path: |
+            ranking-conversao/a11y-result.json
+            ranking-conversao/test-results
+          if-no-files-found: warn
+          retention-days: 30
