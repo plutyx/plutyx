@@ -13,7 +13,12 @@
     <div id="root"></div>
     <script type="module" src="/src/url-hygiene-v1.js"></script>
     <script type="module" src="/src/report-cache-v12.js"></script>
-    <script type="module" src="/src/platform-router.jsx"></script>
+    <script type="module">
+      const gclRoute = location.pathname.replace(/^\/ranking-site\/?/,'').replace(/\/$/,'');
+      const standalone = new Set(['legal','terms','privacy','cookies','refunds','awards-rules']);
+      if (standalone.has(gclRoute)) import('/src/legal-center-v37.js');
+      else import('/src/platform-router.jsx');
+    </script>
     <script type="module" src="/src/experience-layer-v33.js"></script>
     <script type="module" src="/src/loading-experience-v35.js"></script>
     <script type="module" src="/src/production-commerce-v6.js"></script>
@@ -48,6 +53,5 @@
     <script type="module" src="/src/connection-center-v28.js"></script>
     <script type="module" src="/src/moderation-experience-v29.js"></script>
     <script type="module" src="/src/moderation-console-v31.js"></script>
-    <script type="module" src="/src/legal-center-v37.js"></script>
   </body>
 </html>
