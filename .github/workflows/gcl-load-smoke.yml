@@ -28,9 +28,11 @@ on:
         required: false
         default: '8'
   push:
-    branches: [convrank-hostinger-front]
+    branches: [convrank-hostinger-front, gcl-production-hardening-v38]
     paths:
       - 'ranking-conversao/scripts/load-smoke.mjs'
+      - 'ranking-conversao/scripts/market-edge-smoke.mjs'
+      - 'ranking-conversao/supabase/functions/gcl-market-request/**'
       - '.github/workflows/gcl-load-smoke.yml'
 
 jobs:
@@ -45,6 +47,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Public services edge abuse guards
+        env:
+          GCL_MARKET_ENDPOINT: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/gcl-market-request
+        run: node scripts/market-edge-smoke.mjs
       - name: Controlled public production load smoke
         env:
           GCL_LOAD_READ_REQUESTS: ${{ inputs.read_requests || '100' }}
