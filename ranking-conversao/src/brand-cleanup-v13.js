@@ -1,4 +1,6 @@
 const REPLACEMENTS=[
+ ['SITES DE ALTA CONVERSÃO','GLOBAL CONVERSION LEAGUE'],
+ ['by Plutyx · índice em calibração','Founding Season 2026 · Conversion Intelligence'],
  ['A assinatura compra presença; a posição continua determinada pela evidência do SAC.','A assinatura libera presença oficial; a posição continua determinada pela evidência GCL.'],
  ['Raio-X SAC','GCL Conversion Audit'],
  ['SAC Score','GCL Score'],
