@@ -1,6 +1,9 @@
 name: GCL Production Browser Smoke
 
 on:
+  workflow_run:
+    workflows: ["Ranking Site Hostinger Build"]
+    types: [completed]
   push:
     branches: [convrank-hostinger-front]
     paths:
@@ -9,12 +12,16 @@ on:
 
 jobs:
   production-live:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     defaults:
       run:
         working-directory: ranking-conversao
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: convrank-hostinger-front
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -28,8 +35,41 @@ jobs:
         run: |
           set -euo pipefail
           for path in '' ranking/ awards/ community/ services/ blog/ about/ account/; do
-            curl --fail --silent --show-error --retry 3 --retry-delay 2 "https://plutyx.com/ranking-site/${path}" >/dev/null
+            curl --fail --silent --show-error --retry 5 --retry-delay 3 "https://plutyx.com/ranking-site/${path}" >/dev/null
           done
+      - name: Read and validate live build provenance
+        id: provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=""
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            expected="${{ github.event.workflow_run.head_sha }}"
+          fi
+          tmp="$(mktemp)"
+          matched=0
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error --retry 2 --retry-delay 2 "https://plutyx.com/ranking-site/gcl-build.json?attempt=${attempt}" -o "$tmp"; then
+              source_sha="$(jq -r '.source_sha // empty' "$tmp")"
+              app="$(jq -r '.application // empty' "$tmp")"
+              artifact="$(jq -r '.artifact // empty' "$tmp")"
+              base="$(jq -r '.base_path // empty' "$tmp")"
+              test "$app" = "Global Conversion League"
+              test "$artifact" = "hostinger-production-bundle"
+              test "$base" = "/ranking-site/"
+              test -n "$source_sha"
+              echo "Live GCL provenance: $source_sha"
+              echo "live_sha=$source_sha" >> "$GITHUB_OUTPUT"
+              if [ -z "$expected" ] || [ "$source_sha" = "$expected" ]; then matched=1; break; fi
+            fi
+            echo "Waiting for Hostinger provenance ${expected:0:12}; attempt $attempt/12"
+            sleep 10
+          done
+          if [ "$matched" -ne 1 ]; then
+            echo "Production provenance did not reach expected source SHA: $expected" >&2
+            cat "$tmp" >&2 || true
+            exit 1
+          fi
       - name: Browser smoke — public production surfaces
         run: npm run test:production-public
       - name: Browser smoke — production member area
