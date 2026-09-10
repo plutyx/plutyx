@@ -12,10 +12,10 @@ function rx33Parse(block){
  return {n,title:(sentence?.[1]||text).trim(),detail:(sentence?.[2]||'').trim()};
 }
 function rx33SetMode(root,mode){
- root.dataset.rxMode=mode;root.querySelectorAll('[data-rx-mode]').forEach(b=>{const active=b.dataset.rxMode===mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
+ root.dataset.rxMode=mode;document.querySelectorAll('.gcl-rx33-toolbar [data-rx-mode]').forEach(b=>{const active=b.dataset.rxMode===mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
  const state=rx33SafeGet(rx33Key())||{};state.mode=mode;state.updatedAt=Date.now();rx33SafeSet(rx33Key(),state);
 }
-function rx33ToggleFocus(root){const on=!document.body.classList.contains('gcl-rx-focus33');document.body.classList.toggle('gcl-rx-focus33',on);const b=root.querySelector('[data-rx-focus]');if(b){b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));b.textContent=on?'Sair do foco':'Modo foco'}if(on)root.scrollIntoView({behavior:rx33Reduced()?'auto':'smooth',block:'start'})}
+function rx33ToggleFocus(root){const on=!document.body.classList.contains('gcl-rx-focus33');document.body.classList.toggle('gcl-rx-focus33',on);const b=document.querySelector('.gcl-rx33-toolbar [data-rx-focus]');if(b){b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));b.textContent=on?'Sair do foco':'Modo foco'}if(on)root.scrollIntoView({behavior:rx33Reduced()?'auto':'smooth',block:'start'})}
 function rx33Enhance(){
  rx33Scheduled=false;if(!RX33_ROUTE())return;
  const box=document.querySelector('.gcl-article .markdown');if(!box||box.dataset.gclResearch==='33')return;
@@ -27,7 +27,7 @@ function rx33Enhance(){
  meta.innerHTML=`<div class="gcl-rx33-meta-main"><span>${mins} min de leitura</span><span>GCL Intelligence</span><span>Aplicação prática</span></div><div class="gcl-rx33-completion" aria-live="polite"><b>0%</b><small>concluído</small></div>`;
  box.before(meta);
  const toolbar=rx33Make('div','gcl-rx33-toolbar');toolbar.setAttribute('aria-label','Controles de leitura');
- toolbar.innerHTML=`<div class="gcl-rx33-modes" role="group" aria-label="Profundidade de leitura"><button type="button" data-rx-mode="quick">Rápido</button><button type="button" data-rx-mode="guided">Guiado</button><button type="button" data-rx-mode="complete">Completo</button></div><div class="gcl-rx33-tools"><button type="button" data-rx-focus aria-pressed="false">Modo foco</button><button type="button" data-rx-top>Topo ↑</button></div>`;
+ toolbar.innerHTML=`<div class="gcl-rx33-modes" role="group" aria-label="Profundidade de leitura"><button type="button" data-rx-mode="quick" aria-pressed="false">Rápido</button><button type="button" data-rx-mode="guided" aria-pressed="false">Guiado</button><button type="button" data-rx-mode="complete" aria-pressed="false">Completo</button></div><div class="gcl-rx33-tools"><button type="button" data-rx-focus aria-pressed="false">Modo foco</button><button type="button" data-rx-top>Topo ↑</button></div>`;
  meta.after(toolbar);
  const progress=rx33Make('div','gcl-rx33-progress');progress.setAttribute('aria-hidden','true');progress.innerHTML='<i></i>';toolbar.after(progress);
  box.textContent='';
