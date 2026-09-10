@@ -1,0 +1,29 @@
+name: GCL Worker Live Smoke
+
+on:
+  push:
+    branches:
+      - convrank-sac-worker-v2
+    paths:
+      - '.github/workflows/gcl-worker-live-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  live-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify deployed v4 worker health and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          curl --fail --silent --show-error --location \
+            --connect-timeout 10 --max-time 30 --retry 4 --retry-delay 3 \
+            'https://convrank-sac-audit-v4.onrender.com/health' -o "$tmp"
+          cat "$tmp"
+          jq -e '.ok == true' "$tmp"
+          jq -e '.service == "convrank-sac-audit"' "$tmp"
+          jq -e '.version == "0.3.4"' "$tmp"
+          jq -e '.capabilities.javascript_rendering == true' "$tmp"
+          jq -e '.capabilities.axe_core == true' "$tmp"
