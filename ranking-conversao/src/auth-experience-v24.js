@@ -1,5 +1,35 @@
 const AX24_SESSION='gcl_session_v1';
 function ax24HasSession(){try{return!!JSON.parse(localStorage.getItem(AX24_SESSION)||'null')?.access_token}catch{return false}}
-function ax24Patch(){if(!location.pathname.match(/\/ranking-site\/(account|dashboard|community)\/?$/))return;const auth=document.querySelector('.gcl-auth');if(!auth)return;auth.classList.add('ax24-auth');const tabs=auth.querySelectorAll('.gcl-auth-tabs button');if(tabs[0])tabs[0].textContent='Entrar na arena';if(tabs[1])tabs[1].textContent='Criar meu passaporte';const submit=auth.querySelector('form button');if(submit&&!submit.querySelector('.spin')){const mode=tabs[1]?.classList.contains('active')?'signup':'login';submit.lastChild&&submit.lastChild.nodeType===3&&(submit.lastChild.textContent=mode==='signup'?' Criar conta e entrar':' Entrar na minha área')}auth.querySelectorAll('p').forEach(p=>{const t=(p.textContent||'').trim();if(t==='email_not_confirmed'||t.includes('conta antiga ainda estava presa'))p.textContent='Este cadastro ficou preso no fluxo antigo. Abra “Criar meu passaporte” e cadastre novamente usando o mesmo e-mail; a conta antiga sem atividade será recuperada automaticamente.';else if(t==='account_exists')p.textContent='Este e-mail já tem uma conta ativa. Entre com a senha cadastrada.';else if(t==='invalid_credentials')p.textContent='E-mail ou senha não conferem. Confira os dados e tente novamente.';else if(t.includes('Verifique seu email')||t.includes('Verifique seu e-mail'))p.textContent='Conta criada. Entrando na sua área GCL…'});const small=auth.querySelector(':scope > small');if(small)small.innerHTML='<b>Sem espera por e-mail.</b> Crie sua conta e entre direto na sua área. Ranking, Community e Awards são liberados separadamente conforme sua participação na temporada.';if(ax24HasSession()){const community=location.pathname.includes('/community');if(community&&auth){setTimeout(()=>location.reload(),450)}}}
+function ax24SetText(el,text){if(el&&el.textContent!==text)el.textContent=text}
+function ax24Patch(){
+  if(!location.pathname.match(/\/ranking-site\/(account|dashboard|community)\/?$/))return false;
+  const auth=document.querySelector('.gcl-auth');if(!auth)return false;
+  if(auth.dataset.ax24Patched==='1')return true;
+  auth.dataset.ax24Patched='1';auth.classList.add('ax24-auth');
+  const tabs=auth.querySelectorAll('.gcl-auth-tabs button');
+  ax24SetText(tabs[0],'Entrar na arena');ax24SetText(tabs[1],'Criar meu passaporte');
+  const submit=auth.querySelector('form button');
+  if(submit&&!submit.querySelector('.spin')){
+    const mode=tabs[1]?.classList.contains('active')?'signup':'login';
+    const wanted=mode==='signup'?'Criar conta e entrar':'Entrar na minha área';
+    if(submit.textContent?.trim()!==wanted)submit.textContent=wanted;
+  }
+  auth.querySelectorAll('p').forEach(p=>{
+    const t=(p.textContent||'').trim();
+    if(t==='email_not_confirmed'||t.includes('conta antiga ainda estava presa'))ax24SetText(p,'Este cadastro ficou preso no fluxo antigo. Abra “Criar meu passaporte” e cadastre novamente usando o mesmo e-mail; a conta antiga sem atividade será recuperada automaticamente.');
+    else if(t==='account_exists')ax24SetText(p,'Este e-mail já tem uma conta ativa. Entre com a senha cadastrada.');
+    else if(t==='invalid_credentials')ax24SetText(p,'E-mail ou senha não conferem. Confira os dados e tente novamente.');
+    else if(t.includes('Verifique seu email')||t.includes('Verifique seu e-mail'))ax24SetText(p,'Conta criada. Entrando na sua área GCL…');
+  });
+  const small=auth.querySelector(':scope > small');
+  if(small)small.innerHTML='<b>Sem espera por e-mail.</b> Crie sua conta e entre direto na sua área. Ranking, Community e Awards são liberados separadamente conforme sua participação na temporada.';
+  if(ax24HasSession()&&location.pathname.includes('/community'))setTimeout(()=>location.reload(),450);
+  return true;
+}
 function ax24Styles(){if(document.getElementById('ax24-style'))return;const s=document.createElement('style');s.id='ax24-style';s.textContent=`.ax24-auth{border-color:rgba(231,195,79,.2)!important;background:radial-gradient(circle at 85% 0,rgba(231,195,79,.08),transparent 34%),rgba(7,16,11,.94)!important}.ax24-auth:before{content:'GCL PLAYER PASS · FOUNDING SEASON 2026';display:block;margin-bottom:16px;font-size:9px;letter-spacing:.19em;color:#dec04e}.ax24-auth .gcl-auth-tabs button.active{color:#f1d372!important}.ax24-auth form button{background:#e7c34f!important;color:#0b0c06!important}.ax24-auth>small{display:block!important;padding:12px 14px!important;border:1px solid rgba(255,255,255,.07)!important;border-radius:12px!important;background:rgba(255,255,255,.025)!important;line-height:1.5!important}.ax24-auth>small b{color:#e5c85c}`;document.head.appendChild(s)}
-ax24Styles();ax24Patch();new MutationObserver(ax24Patch).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+ax24Styles();
+if(!ax24Patch()){
+  const observer=new MutationObserver(()=>{if(ax24Patch())observer.disconnect()});
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  setTimeout(()=>observer.disconnect(),8000);
+}
