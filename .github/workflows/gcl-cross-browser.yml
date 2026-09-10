@@ -9,6 +9,7 @@ on:
       - 'ranking-conversao/public/**'
       - 'ranking-conversao/index.html'
       - 'ranking-conversao/e2e/public-surfaces.spec.js'
+      - 'ranking-conversao/e2e/experience.spec.js'
       - 'ranking-conversao/playwright.cross.config.js'
       - '.github/workflows/gcl-cross-browser.yml'
 
