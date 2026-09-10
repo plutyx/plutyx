@@ -6,7 +6,7 @@ const forbidden=[
   'O corpus HTTP e o cohort',
   'Percentis do corpus profundo permanecem bloqueados',
   'Um selo que pode ser provado.',
-  'Três sinais. Nenhum pay-to-win.',
+  'pay-to-win',
   'GCL Labs',
   'GCL LABS',
   'chatgpt',
