@@ -10,6 +10,7 @@
     "test:member-area": "playwright test e2e/member-area.spec.js --reporter=line",
     "test:public-surfaces": "playwright test e2e/public-surfaces.spec.js --reporter=line",
     "test:moderation": "playwright test e2e/moderation.spec.js --reporter=line",
+    "test:a11y": "playwright test e2e/accessibility.spec.js --reporter=line",
     "test:production-public": "playwright test e2e/production-public.spec.js --reporter=line"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
     "react-dom": "19.1.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
     "@playwright/test": "1.55.0",
     "@tailwindcss/vite": "4.1.13",
     "@vitejs/plugin-react": "5.0.2",
