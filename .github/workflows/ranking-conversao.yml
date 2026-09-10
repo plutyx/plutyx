@@ -6,6 +6,7 @@ on:
       - convrank-hostinger-front
     paths:
       - 'ranking-conversao/**'
+      - 'hostinger-deployer/**'
       - '.github/workflows/ranking-conversao.yml'
   workflow_dispatch:
 
@@ -30,6 +31,12 @@ jobs:
       - name: Install
         working-directory: ranking-conversao
         run: npm install --no-audit --no-fund
+      - name: Validate Hostinger deployer runtime syntax
+        shell: bash
+        run: |
+          node --check hostinger-deployer/start.mjs
+          node --check hostinger-deployer/deploy.mjs
+          node --check hostinger-deployer/secrets.mjs
       - name: Build Hostinger /ranking-site bundle
         working-directory: ranking-conversao
         env:
