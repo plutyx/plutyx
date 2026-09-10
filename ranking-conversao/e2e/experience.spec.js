@@ -36,7 +36,7 @@ test('Research supports quick guided complete and focus reading modes',async({pa
  await expect(page.locator('.gcl-rx33-detail').first()).toBeHidden();
  await toolbar.getByRole('button',{name:'Completo'}).click();await expect(page.locator('.markdown')).toHaveAttribute('data-rx-mode','complete');await expect(page.locator('.gcl-rx33-detail').first()).toBeVisible();
  await toolbar.getByRole('button',{name:'Rápido'}).click();await expect(page.locator('.markdown')).toHaveAttribute('data-rx-mode','quick');await expect(page.locator('.gcl-rx33-detail').first()).toBeHidden();
- const focus=toolbar.getByRole('button',{name:'Modo foco'});await focus.click();await expect(page.locator('body')).toHaveClass(/gcl-rx-focus33/);await expect(focus).toHaveAttribute('aria-pressed','true');
+ const focus=toolbar.getByRole('button',{name:'Modo foco'});await focus.click();await expect(page.locator('body')).toHaveClass(/gcl-rx-focus33/);await expect(toolbar.getByRole('button',{name:'Sair do foco'})).toHaveAttribute('aria-pressed','true');
 });
 
 test('experience layer honors reduced-motion preference',async({page})=>{
@@ -47,4 +47,24 @@ test('experience layer honors reduced-motion preference',async({page})=>{
 test('adaptive controls do not create horizontal overflow on mobile',async({page})=>{
  await page.setViewportSize({width:390,height:844});await mock(page);await page.goto(`${BASE}/blog/`,{waitUntil:'domcontentloaded'});await page.getByText(article.title,{exact:true}).first().click();await expect(page.locator('.gcl-rx33-toolbar')).toBeVisible({timeout:10000});
  const dims=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth}));expect(dims.sw).toBeLessThanOrEqual(dims.cw+1);
+});
+
+test('Decision Lens filters dense audit priorities without changing score data',async({page})=>{
+ await mock(page);await page.goto(`${BASE}/?scan=11111111-1111-4111-8111-111111111111`,{waitUntil:'domcontentloaded'});
+ await page.evaluate(()=>{
+  const host=document.createElement('div');host.innerHTML=`
+   <section id="gcl-report-intelligence-v11">
+    <article class="gcl-v11-panel evidence"><h3>Fontes analisadas</h3></article>
+    <article class="gcl-v11-panel pages"><h3>Páginas analisadas</h3></article>
+   </section>
+   <section id="gcl-action-center-v12"><div class="gcl-action-list">
+    <details><summary><span><strong>CTA principal não observado</strong><small>Conversão</small></span><em class="fail">Crítico</em></summary><div>Home / preço</div></details>
+    <details><summary><span><strong>Prova social fraca</strong><small>Confiança</small></span><em class="warning">Atenção</em></summary><div>Landing page</div></details>
+   </div></section>`;document.body.appendChild(host);
+ });
+ const lens=page.locator('#gcl-report-lens34');await expect(lens).toBeVisible({timeout:10000});
+ const tools=page.locator('.gcl-rl34-tools');await expect(tools).toContainText('2 de 2 prioridades exibidas');
+ await tools.getByRole('button',{name:/Críticas/}).click();await expect(tools).toContainText('1 de 2 prioridades exibidas');
+ await expect(page.locator('#gcl-action-center-v12 details').nth(0)).toBeVisible();await expect(page.locator('#gcl-action-center-v12 details').nth(1)).toBeHidden();
+ await tools.getByRole('button',{name:/Todas/}).click();await tools.getByRole('searchbox',{name:'Buscar dentro das prioridades'}).fill('Prova social');await expect(tools).toContainText('1 de 2 prioridades exibidas');
 });
