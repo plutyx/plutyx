@@ -2,7 +2,7 @@ const SR42_REPORT_API='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac
 const SR42_MEMBER_API='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/gcl-member-api';
 const SR42_SESSION='gcl_session_v1';
 
-const sr42Esc=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const sr42Esc=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sr42Num=(v,d=1)=>v!==null&&v!==undefined&&Number.isFinite(Number(v))?new Intl.NumberFormat('pt-BR',{maximumFractionDigits:d,minimumFractionDigits:d}).format(Number(v)):'—';
 const sr42Clamp=v=>Math.max(0,Math.min(100,Number(v)||0));
 const sr42Pct=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))?`${sr42Num(v,0)}%`:'—';
@@ -57,7 +57,7 @@ function sr42InstallStyles(){if(document.getElementById('sr42-style'))return;con
 @media(prefers-reduced-motion:reduce){.sr42-area{animation:none}}
 `;document.head.appendChild(s)}
 
-async function sr42MountReport(){const params=new URLSearchParams(location.search);const token=params.get('scan');if(!token)return;let host=null;for(let i=0;i<140;i++){host=document.getElementById('gcl-report-intelligence-v11')||document.querySelector('.s3-report-kpis')||document.querySelector('.s3-report-head');if(host)break;await new Promise(r=>setTimeout(r,100))}if(!host||document.getElementById('gcl-score-profile'))return;try{const d=await sr42Report(token);const dist=d?.score_distribution;if(!d?.found||!dist)return;const wrap=document.createElement('div');wrap.className='sr42-report-host';wrap.innerHTML=sr42Card(dist,{domain:d?.domain?.normalized_domain||'Candidato GCL',anchor:'gcl-score-profile',id:'sr42-report',marketHref:`/ranking-site/services/?scan=${encodeURIComponent(token)}`});host.after(wrap)}catch(e){console.warn('score-radar-v42 report',e.message)}
+async function sr42MountReport(){const params=new URLSearchParams(location.search);const token=params.get('scan');if(!token)return;let host=null;for(let i=0;i<140;i++){host=document.getElementById('gcl-report-intelligence-v11')||document.querySelector('.s3-report-kpis')||document.querySelector('.s3-report-head');if(host)break;await new Promise(r=>setTimeout(r,100))}if(!host||document.getElementById('gcl-score-profile'))return;try{const d=await sr42Report(token);const dist=d?.score_distribution;if(!d?.found||!dist)return;const wrap=document.createElement('div');wrap.className='sr42-report-host';wrap.innerHTML=sr42Card(dist,{domain:d?.domain?.normalized_domain||'Candidato GCL',anchor:'gcl-score-profile',id:'sr42-report',marketHref:`/ranking-site/services/?scan=${encodeURIComponent(token)}`});host.after(wrap)}catch(e){console.warn('score-radar-v42 report',e.message)}}
 
 function sr42MemberAnalysisLabel(a,i){const date=a?.scan_completed_at||a?.paid_at||a?.created_at;let ds='';try{ds=date?new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(date)):''}catch{}return`${a?.normalized_domain||'Análise GCL'}${ds?` · ${ds}`:''}${i===0?' · MAIS RECENTE':''}`}
 function sr42RenderMember(section,a){const dist=a?.score_distribution||{};const token=a?.scan_public_token;section.innerHTML=`${sr42Card(dist,{domain:a?.normalized_domain||'Candidato GCL',anchor:'gcl-score-profile',id:'sr42-member',reportHref:a?.report_path||null,marketHref:token?`/ranking-site/services/?scan=${encodeURIComponent(token)}`:null})}`}
