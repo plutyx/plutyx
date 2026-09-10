@@ -1,4 +1,4 @@
-name: GCL Production Member Smoke
+name: GCL Production Browser Smoke
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  member-area-live:
+  production-live:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -23,8 +23,15 @@ jobs:
       - run: npm install --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Verify production route responds
-        run: curl --fail --silent --show-error --retry 3 https://plutyx.com/ranking-site/account/ >/dev/null
+      - name: Verify canonical Hostinger routes respond
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in '' ranking/ awards/ community/ services/ blog/ about/ account/; do
+            curl --fail --silent --show-error --retry 3 --retry-delay 2 "https://plutyx.com/ranking-site/${path}" >/dev/null
+          done
+      - name: Browser smoke — public production surfaces
+        run: npm run test:production-public
       - name: Browser smoke — production member area
         env:
           GCL_E2E_BASE: https://plutyx.com/ranking-site
