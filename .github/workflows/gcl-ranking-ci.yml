@@ -64,6 +64,15 @@ jobs:
           for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
           curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-preview-public.log; exit 1; }
           npm run test:public-surfaces
+      - name: Browser gate — WCAG A/AA accessibility
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview-a11y.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-preview-a11y.log; exit 1; }
+          npm run test:a11y
       - name: Browser gate — reporting and moderation UX
         shell: bash
         run: |
@@ -77,13 +86,14 @@ jobs:
           code=$?
           set -e
           exit $code
-      - name: Upload moderation diagnostics
+      - name: Upload browser diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gcl-moderation-diagnostics-${{ github.run_id }}
+          name: gcl-browser-diagnostics-${{ github.run_id }}
           path: |
             ranking-conversao/moderation-test-result.json
+            ranking-conversao/a11y-result.json
             ranking-conversao/test-results
           if-no-files-found: warn
           retention-days: 7
