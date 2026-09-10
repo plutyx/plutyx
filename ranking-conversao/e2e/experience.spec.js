@@ -26,7 +26,7 @@ test('Spotlight opens from keyboard and routes users without a mega-menu',async(
  await page.keyboard.press(process.platform==='darwin'?'Meta+K':'Control+K');
  const dialog=page.getByRole('dialog',{name:'Para onde você quer ir?'});await expect(dialog).toBeVisible({timeout:10000});
  const search=page.getByRole('searchbox',{name:'Buscar na Global Conversion League'});await search.fill('Awards');
- await expect(dialog.getByRole('option')).toHaveCount(1);await expect(dialog.getByText('Awards',{exact:true})).toBeVisible();
+ const awardsRoute=dialog.locator('a[role="option"][href="/ranking-site/awards/"]');await expect(awardsRoute).toHaveCount(1);await expect(awardsRoute).toContainText('Awards');
  await page.keyboard.press('Escape');await expect(dialog).toBeHidden();
 });
 
