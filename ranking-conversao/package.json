@@ -10,6 +10,7 @@
     "test:member-area": "playwright test e2e/member-area.spec.js --reporter=line",
     "test:public-surfaces": "playwright test e2e/public-surfaces.spec.js --reporter=line",
     "test:moderation": "playwright test e2e/moderation.spec.js --reporter=line",
+    "test:experience": "playwright test e2e/experience.spec.js --reporter=line",
     "test:a11y": "playwright test e2e/accessibility.spec.js --reporter=line",
     "test:production-public": "playwright test e2e/production-public.spec.js --reporter=line"
   },
