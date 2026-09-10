@@ -10,7 +10,12 @@ const canonicalReplacements=[
   ['Raio-X SAC','GCL Conversion Audit'],
   ['SAC Score','GCL Score'],
   ['SAC Awards','Global Conversion Awards'],
-  ['Reconhecimento principal SAC','Reconhecimento principal GCL']
+  ['Reconhecimento principal SAC','Reconhecimento principal GCL'],
+  ['Competition without pay-to-win','Competição por mérito digital'],
+  ['Pagamento libera participação, visibilidade e serviços. Nunca compra posição ou Award.','Cada conquista nasce da evolução do site ao longo da temporada.'],
+  ['Posição é conquistada. Compra não altera score. Dados observados, estimados e first-party permanecem identificados separadamente.','Cada rodada revela uma nova oportunidade: analise, implemente, reaudite e veja até onde seu site consegue chegar.'],
+  ['A assinatura compra presença; a posição continua determinada pela evidência GCL.','Entre no placar oficial e acompanhe sua evolução a cada rodada.'],
+  ['O ranking oficial começa vazio por design: benchmark não é participante. O primeiro site pagante e elegível inaugura o placar.','As primeiras posições da Founding Season ainda estão abertas. Seu site pode inaugurar essa história.']
 ];
 
 function canonicalCopy(){
