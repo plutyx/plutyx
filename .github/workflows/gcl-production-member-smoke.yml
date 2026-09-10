@@ -44,15 +44,29 @@ jobs:
               exit 1
             fi
           done
-      - name: Read and validate live build provenance
-        id: provenance
+      - name: Resolve expected validated distribution
+        id: expected
         shell: bash
         run: |
           set -euo pipefail
           expected=""
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             expected="${{ github.event.workflow_run.head_sha }}"
+          else
+            dist="$(mktemp)"
+            curl --fail --silent --show-error --location --connect-timeout 8 --max-time 20 --retry 3 --retry-delay 2 \
+              "https://raw.githubusercontent.com/plutyx/plutyx/convrank-hostinger-dist/gcl-build.json?run=${GITHUB_RUN_ID}" -o "$dist"
+            expected="$(jq -r '.source_sha // empty' "$dist")"
           fi
+          test -n "$expected"
+          echo "Expected validated distribution: $expected"
+          echo "sha=$expected" >> "$GITHUB_OUTPUT"
+      - name: Read and validate live build provenance
+        id: provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ steps.expected.outputs.sha }}"
           tmp="$(mktemp)"
           matched=0
           for attempt in $(seq 1 12); do
@@ -67,13 +81,13 @@ jobs:
               test -n "$source_sha"
               echo "Live GCL provenance: $source_sha"
               echo "live_sha=$source_sha" >> "$GITHUB_OUTPUT"
-              if [ -z "$expected" ] || [ "$source_sha" = "$expected" ]; then matched=1; break; fi
+              if [ "$source_sha" = "$expected" ]; then matched=1; break; fi
             fi
             echo "Waiting for Hostinger provenance ${expected:0:12}; attempt $attempt/12"
             sleep 10
           done
           if [ "$matched" -ne 1 ]; then
-            echo "Production provenance did not reach expected source SHA: $expected" >&2
+            echo "Production provenance did not reach latest validated distribution: $expected" >&2
             cat "$tmp" >&2 || true
             exit 1
           fi
