@@ -4,6 +4,7 @@ import asyncio
 import gc
 import json
 import os
+import signal
 import time
 from pathlib import Path
 from typing import Any
@@ -25,11 +26,12 @@ from convrank_worker.app import (
 from convrank_worker.axe_app import archived_findings, detect_access_limit, render_and_axe
 from convrank_worker.fallback_sources import commoncrawl_site_sample
 
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.5.1"
 ROOT = Path(__file__).resolve().parent
 LIGHTHOUSE_BIN = ROOT / "node_modules" / ".bin" / "lighthouse"
 LIGHTHOUSE_BUDGET_SECONDS = 55
 RENDER_BUDGET_SECONDS = 25
+PROCESS_REAP_SECONDS = 5
 app = FastAPI(title="ConvRank GCL Audit Worker + axe-core + Lighthouse", version=APP_VERSION)
 
 
@@ -47,6 +49,34 @@ def compact_audit(item: dict[str, Any] | None) -> dict[str, Any] | None:
         "numeric_unit": item.get("numericUnit"),
         "display_value": item.get("displayValue"),
     }
+
+
+async def terminate_process_tree(proc: asyncio.subprocess.Process | None) -> None:
+    """Terminate Lighthouse and its Chromium descendants, then reap boundedly.
+
+    Lighthouse launches Chrome as a child process. Killing only the Node CLI can leave
+    Chromium holding stdout/stderr pipe descriptors open, which can make communicate()
+    hang past the upstream HTTP transport timeout and retain hundreds of MB of memory.
+    Render is Linux, so every Lighthouse run is started in a dedicated process group.
+    """
+    if proc is None:
+        return
+    if proc.returncode is None:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        except Exception:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            except Exception:
+                pass
+    try:
+        await asyncio.wait_for(proc.communicate(), timeout=PROCESS_REAP_SECONDS)
+    except Exception:
+        pass
 
 
 async def run_lighthouse(url: str) -> dict[str, Any]:
@@ -76,13 +106,12 @@ async def run_lighthouse(url: str) -> dict[str, Any]:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
+            start_new_session=True,
         )
         try:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=LIGHTHOUSE_BUDGET_SECONDS)
         except asyncio.TimeoutError:
-            if proc.returncode is None:
-                proc.kill()
-                await proc.communicate()
+            await terminate_process_tree(proc)
             return {
                 "available": False,
                 "error": f"lighthouse_budget_exceeded_{LIGHTHOUSE_BUDGET_SECONDS}s",
@@ -90,6 +119,7 @@ async def run_lighthouse(url: str) -> dict[str, Any]:
                 "duration_ms": round((time.perf_counter() - started) * 1000),
                 "mode": "lab",
                 "field_data": False,
+                "process_tree_reaped": True,
             }
         if proc.returncode != 0:
             return {
@@ -136,17 +166,10 @@ async def run_lighthouse(url: str) -> dict[str, Any]:
             "disclosure": "Lighthouse metrics are laboratory measurements for this run, not CrUX field data.",
         }
     except asyncio.CancelledError:
-        if proc is not None and proc.returncode is None:
-            proc.kill()
-            await proc.communicate()
+        await terminate_process_tree(proc)
         raise
     except Exception as exc:
-        if proc is not None and proc.returncode is None:
-            try:
-                proc.kill()
-                await proc.communicate()
-            except Exception:
-                pass
+        await terminate_process_tree(proc)
         return {
             "available": False,
             "error": str(exc)[:2000],
@@ -155,6 +178,9 @@ async def run_lighthouse(url: str) -> dict[str, Any]:
             "mode": "lab",
             "field_data": False,
         }
+    finally:
+        if proc is not None and proc.returncode is None:
+            await terminate_process_tree(proc)
 
 
 async def archived_site_fallback(url: str, max_pages: int) -> dict[str, Any]:
@@ -215,6 +241,8 @@ async def health() -> dict[str, Any]:
             "archived_multi_page_sample": True,
             "bounded_render_budget_seconds": RENDER_BUDGET_SECONDS,
             "bounded_lighthouse_budget_seconds": LIGHTHOUSE_BUDGET_SECONDS,
+            "lighthouse_process_group_cleanup": True,
+            "process_reap_budget_seconds": PROCESS_REAP_SECONDS,
             "fail_soft_components": True,
         },
     }
@@ -372,7 +400,7 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             "version": APP_VERSION,
             "ranking_eligible": False,
             "official_sac_score": False,
-            "budget_profile": "bounded-sequential-v1",
+            "budget_profile": "bounded-sequential-v2",
         },
         "audit": {
             "requested_url": str(req.url),
