@@ -2,10 +2,10 @@ const SR42_REPORT_API='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac
 const SR42_MEMBER_API='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/gcl-member-api';
 const SR42_SESSION='gcl_session_v1';
 
-const sr42Esc=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const sr42Num=(v,d=1)=>Number.isFinite(Number(v))?new Intl.NumberFormat('pt-BR',{maximumFractionDigits:d,minimumFractionDigits:d}).format(Number(v)):'—';
+const sr42Esc=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const sr42Num=(v,d=1)=>v!==null&&v!==undefined&&Number.isFinite(Number(v))?new Intl.NumberFormat('pt-BR',{maximumFractionDigits:d,minimumFractionDigits:d}).format(Number(v)):'—';
 const sr42Clamp=v=>Math.max(0,Math.min(100,Number(v)||0));
-const sr42Pct=v=>Number.isFinite(Number(v))?`${sr42Num(v,0)}%`:'—';
+const sr42Pct=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))?`${sr42Num(v,0)}%`:'—';
 
 function sr42Session(){try{return JSON.parse(localStorage.getItem(SR42_SESSION)||'null')}catch{return null}}
 async function sr42Report(token){const r=await fetch(SR42_REPORT_API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'report',token})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d.result||null}
@@ -18,9 +18,10 @@ function sr42ScoreClass(a){if(a?.score_100==null)return'unknown';if(a?.prelimina
 
 function sr42RadarSvg(dist,id='sr42'){
   const axes=Array.isArray(dist?.axes)?dist.axes.slice(0,6):[];
-  if(axes.length!==6||axes.filter(a=>Number.isFinite(Number(a?.score_100))).length<3)return`<div class="sr42-empty"><b>Perfil ainda em formação</b><span>O radar aparece quando pelo menos 3 dimensões possuem evidência materializada. Nenhuma nota ausente é tratada como zero.</span></div>`;
-  const w=620,h=520,cx=310,cy=255,r=164,labelR=211;const values=axes.map(a=>a?.score_100==null?0:Number(a.score_100));
-  const aria=axes.map(a=>`${a.label}: ${a.score_100==null?'sem evidência':`${sr42Num(a.score_100,1)} de 100${a.preliminary?', preliminar':''}`}`).join('; ');
+  const complete=axes.length===6&&axes.every(a=>a?.score_100!==null&&a?.score_100!==undefined&&Number.isFinite(Number(a.score_100)));
+  if(!complete)return`<div class="sr42-empty"><b>Perfil ainda em formação</b><span>O polígono aparece quando as 6 dimensões possuem evidência materializada. Dimensão ausente nunca é desenhada como nota zero.</span></div>`;
+  const w=620,h=520,cx=310,cy=255,r=164,labelR=211;const values=axes.map(a=>Number(a.score_100));
+  const aria=axes.map(a=>`${a.label}: ${sr42Num(a.score_100,1)} de 100${a.preliminary?', preliminar':''}`).join('; ');
   return `<svg class="sr42-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Distribuição de pontos do candidato. ${sr42Esc(aria)}">
     <defs>
       <linearGradient id="${id}-fill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9a72" stop-opacity=".78"/><stop offset=".52" stop-color="#e4c451" stop-opacity=".62"/><stop offset="1" stop-color="#72efaa" stop-opacity=".72"/></linearGradient>
@@ -32,13 +33,13 @@ function sr42RadarSvg(dist,id='sr42'){
       ${axes.map((_,i)=>{const p=sr42Point(cx,cy,r,i*60);return`<line x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}"/>`}).join('')}
     </g>
     <polygon class="sr42-area" filter="url(#${id}-glow)" points="${sr42Poly(cx,cy,r,6,values)}" fill="url(#${id}-fill)" stroke="url(#${id}-stroke)"/>
-    ${axes.map((a,i)=>{const p=sr42Point(cx,cy,r*sr42Clamp(a?.score_100)/100,i*60);const missing=a?.score_100==null;return`<circle class="sr42-dot ${sr42ScoreClass(a)}" cx="${p.x}" cy="${p.y}" r="${missing?3.5:5}" aria-hidden="true"/>`}).join('')}
-    ${axes.map((a,i)=>{const p=sr42Point(cx,cy,labelR,i*60);const anchor=sr42TextAnchor(p.x,cx);const score=a?.score_100==null?'—':sr42Num(a.score_100,1);return`<g class="sr42-label ${sr42ScoreClass(a)}"><text x="${p.x}" y="${p.y-7}" text-anchor="${anchor}">${sr42Esc(a.label)}</text><text class="sr42-label-score" x="${p.x}" y="${p.y+13}" text-anchor="${anchor}">${score}${a?.preliminary?' · PRELIM.':''}</text></g>`}).join('')}
+    ${axes.map((a,i)=>{const p=sr42Point(cx,cy,r*sr42Clamp(a.score_100)/100,i*60);return`<circle class="sr42-dot ${sr42ScoreClass(a)}" cx="${p.x}" cy="${p.y}" r="5" aria-hidden="true"/>`}).join('')}
+    ${axes.map((a,i)=>{const p=sr42Point(cx,cy,labelR,i*60);const anchor=sr42TextAnchor(p.x,cx);return`<g class="sr42-label ${sr42ScoreClass(a)}"><text x="${p.x}" y="${p.y-7}" text-anchor="${anchor}">${sr42Esc(a.label)}</text><text class="sr42-label-score" x="${p.x}" y="${p.y+13}" text-anchor="${anchor}">${sr42Num(a.score_100,1)}${a?.preliminary?' · PRELIM.':''}</text></g>`}).join('')}
     <g class="sr42-center"><circle cx="${cx}" cy="${cy}" r="45"/><text x="${cx}" y="${cy-4}" text-anchor="middle">GCL SCORE</text><text class="sr42-center-score" x="${cx}" y="${cy+20}" text-anchor="middle">${dist?.gcl_score_100!=null?sr42Num(dist.gcl_score_100,1):'—'}</text></g>
   </svg>`;
 }
 
-function sr42AxisList(dist){const axes=Array.isArray(dist?.axes)?dist.axes:[];return`<div class="sr42-axis-list">${axes.map(a=>`<article class="${sr42ScoreClass(a)}"><div><span>${sr42Esc(a.label)}</span><strong>${a.score_100!=null?sr42Num(a.score_100,1):'—'}</strong></div><div class="sr42-mini"><i style="--score:${sr42Clamp(a.score_100)}%"></i></div><small>${a.score_100==null?'Sem evidência suficiente para estimar':`${a.preliminary?'Preliminar · ':''}cobertura ${sr42Pct(a.coverage_100)} · confiança ${sr42Pct(a.confidence_100)}`}</small></article>`).join('')}</div>`}
+function sr42AxisList(dist){const axes=Array.isArray(dist?.axes)?dist.axes:[];return`<div class="sr42-axis-list">${axes.map(a=>`<article class="${sr42ScoreClass(a)}"><div><span>${sr42Esc(a.label)}</span><strong>${a.score_100!=null?sr42Num(a.score_100,1):'—'}</strong></div><div class="sr42-mini"><i style="--score:${a.score_100!=null?sr42Clamp(a.score_100):0}%"></i></div><small>${a.score_100==null?'Sem evidência suficiente para estimar':`${a.preliminary?'Preliminar · ':''}cobertura ${sr42Pct(a.coverage_100)} · confiança ${sr42Pct(a.confidence_100)}`}</small></article>`).join('')}</div>`}
 
 function sr42Card(dist,opts={}){
   const domain=opts.domain||'Candidato GCL';const strongest=dist?.strongest;const weakest=dist?.weakest;const prelim=Number(dist?.preliminary_axes||0);const sourceOk=dist?.source_matches_gcl_score!==false;
@@ -56,7 +57,7 @@ function sr42InstallStyles(){if(document.getElementById('sr42-style'))return;con
 @media(prefers-reduced-motion:reduce){.sr42-area{animation:none}}
 `;document.head.appendChild(s)}
 
-async function sr42MountReport(){const params=new URLSearchParams(location.search);const token=params.get('scan');if(!token)return;let host=null;for(let i=0;i<140;i++){host=document.getElementById('gcl-report-intelligence-v11')||document.querySelector('.s3-report-kpis')||document.querySelector('.s3-report-head');if(host)break;await new Promise(r=>setTimeout(r,100))}if(!host||document.getElementById('gcl-score-profile'))return;try{const d=await sr42Report(token);const dist=d?.score_distribution;if(!d?.found||!dist)return;const wrap=document.createElement('div');wrap.className='sr42-report-host';wrap.innerHTML=sr42Card(dist,{domain:d?.domain?.normalized_domain||'Candidato GCL',anchor:'gcl-score-profile',id:'sr42-report',marketHref:`/ranking-site/services/?scan=${encodeURIComponent(token)}`});host.after(wrap)}catch(e){console.warn('score-radar-v42 report',e.message)}}
+async function sr42MountReport(){const params=new URLSearchParams(location.search);const token=params.get('scan');if(!token)return;let host=null;for(let i=0;i<140;i++){host=document.getElementById('gcl-report-intelligence-v11')||document.querySelector('.s3-report-kpis')||document.querySelector('.s3-report-head');if(host)break;await new Promise(r=>setTimeout(r,100))}if(!host||document.getElementById('gcl-score-profile'))return;try{const d=await sr42Report(token);const dist=d?.score_distribution;if(!d?.found||!dist)return;const wrap=document.createElement('div');wrap.className='sr42-report-host';wrap.innerHTML=sr42Card(dist,{domain:d?.domain?.normalized_domain||'Candidato GCL',anchor:'gcl-score-profile',id:'sr42-report',marketHref:`/ranking-site/services/?scan=${encodeURIComponent(token)}`});host.after(wrap)}catch(e){console.warn('score-radar-v42 report',e.message)}
 
 function sr42MemberAnalysisLabel(a,i){const date=a?.scan_completed_at||a?.paid_at||a?.created_at;let ds='';try{ds=date?new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(date)):''}catch{}return`${a?.normalized_domain||'Análise GCL'}${ds?` · ${ds}`:''}${i===0?' · MAIS RECENTE':''}`}
 function sr42RenderMember(section,a){const dist=a?.score_distribution||{};const token=a?.scan_public_token;section.innerHTML=`${sr42Card(dist,{domain:a?.normalized_domain||'Candidato GCL',anchor:'gcl-score-profile',id:'sr42-member',reportHref:a?.report_path||null,marketHref:token?`/ranking-site/services/?scan=${encodeURIComponent(token)}`:null})}`}
