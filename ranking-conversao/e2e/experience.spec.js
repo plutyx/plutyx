@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 const BASE=process.env.GCL_E2E_BASE||'http://127.0.0.1:4173/ranking-site';
+const TOKEN='11111111-1111-4111-8111-111111111111';
+const AUDIT_ID='22222222-2222-4222-8222-222222222222';
 const article={
  slug:'adaptive-reading-test',
  title:'Como transformar sinais em decisões de conversão',
@@ -50,7 +52,7 @@ test('adaptive controls do not create horizontal overflow on mobile',async({page
 });
 
 test('Decision Lens filters dense audit priorities without changing score data',async({page})=>{
- await mock(page);await page.goto(`${BASE}/?scan=11111111-1111-4111-8111-111111111111`,{waitUntil:'domcontentloaded'});
+ await mock(page);await page.goto(`${BASE}/?scan=${TOKEN}`,{waitUntil:'domcontentloaded'});
  await page.evaluate(()=>{
   const host=document.createElement('div');host.innerHTML=`
    <section id="gcl-report-intelligence-v11">
@@ -67,4 +69,29 @@ test('Decision Lens filters dense audit priorities without changing score data',
  await tools.getByRole('button',{name:/Críticas/}).click();await expect(tools).toContainText('1 de 2 prioridades exibidas');
  await expect(page.locator('#gcl-action-center-v12 details').nth(0)).toBeVisible();await expect(page.locator('#gcl-action-center-v12 details').nth(1)).toBeHidden();
  await tools.getByRole('button',{name:/Todas/}).click();await tools.getByRole('searchbox',{name:'Buscar dentro das prioridades'}).fill('Prova social');await expect(tools).toContainText('1 de 2 prioridades exibidas');
+});
+
+test('loading states become visual skeletons while preserving screen-reader status',async({page})=>{
+ await mock(page);await page.goto(`${BASE}/ranking/`,{waitUntil:'domcontentloaded'});
+ await page.evaluate(()=>{const x=document.createElement('div');x.className='gcl-loading';x.textContent='Carregando dados da liga…';document.body.appendChild(x)});
+ const host=page.locator('.gcl-loading').last();await expect(host).toHaveAttribute('role','status');await expect(host).toHaveAttribute('aria-busy','true');await expect(host.locator('.gcl-skeleton35')).toHaveCount(1);await expect(host.locator('.gcl-sr35')).toContainText('Carregando dados da liga');
+});
+
+test('authenticated audit owner can persist execution status without touching score',async({page})=>{
+ let submitted=null;
+ await page.addInitScript(()=>localStorage.setItem('gcl_session_v1',JSON.stringify({access_token:'e2e-token',refresh_token:'e2e-refresh',expires_at:Math.floor(Date.now()/1000)+3600})));
+ await page.route('**/functions/v1/sac-ranking-site-api',async route=>{
+  let body={};try{body=JSON.parse(route.request().postData()||'{}')}catch{}
+  const result=body.action==='report'?{found:true,audit:{id:AUDIT_ID},domain:{id:'33333333-3333-4333-8333-333333333333'}}:home;
+  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,result})});
+ });
+ await page.route('**/functions/v1/gcl-action-plan-api',async route=>{
+  const body=JSON.parse(route.request().postData()||'{}');
+  if(body.action==='list')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,result:[]})});
+  submitted=body;return route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({ok:true,result:{id:'44444444-4444-4444-8444-444444444444',issue_key:body.issue_key,status:body.status}})});
+ });
+ await page.goto(`${BASE}/?scan=${TOKEN}`,{waitUntil:'domcontentloaded'});
+ await page.evaluate(()=>{const host=document.createElement('div');host.innerHTML=`<section id="gcl-report-intelligence-v11"></section><section id="gcl-action-center-v12"><div class="gcl-action-list"><details><summary><span><strong>CTA principal não observado</strong><small>Conversão</small></span><em class="fail">Crítico</em></summary><div class="gcl-action-body"><div class="gcl-action-advice"><p>Defina um CTA primário claro acima da dobra.</p><small>Impacto técnico associado ao critério: até 8 pontos.</small></div></div></details></div></section>`;document.body.appendChild(host)});
+ const board=page.locator('#gcl-ap36-board');await expect(board).toBeVisible({timeout:10000});await expect(board).toContainText('Marcar uma tarefa como feita não altera o GCL Score');
+ const status=page.locator('.gcl-ap36-current').first();await status.click();await page.locator('.gcl-ap36-menu [data-status="in_progress"]').first().click();await expect(status).toContainText('Em execução');expect(submitted).toMatchObject({action:'upsert',audit_run_id:AUDIT_ID,status:'in_progress',label:'CTA principal não observado'});await expect(board.locator('[data-ap36-doing]')).toHaveText('1');
 });
