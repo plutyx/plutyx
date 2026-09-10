@@ -78,6 +78,10 @@ jobs:
           gate trophy_room grep -R -q 'SALA DE TROFÉUS' ranking-conversao/dist/assets
           gate qualifiers_open grep -R -q 'CLASSIFICATÓRIAS ABERTAS' ranking-conversao/dist/assets
           gate account_passport grep -R -q 'passaporte para a temporada GCL' ranking-conversao/dist/assets
+          gate member_area_v25 grep -R -q 'Sua temporada em 5 movimentos' ranking-conversao/dist/assets
+          gate member_recovery_mode grep -R -q 'MEMBER AREA · RECOVERY MODE' ranking-conversao/dist/assets
+          gate member_retry_ui grep -R -q 'Tentar novamente' ranking-conversao/dist/assets
+          gate auth_observer_idempotent grep -R -q 'ax24Patched' ranking-conversao/dist/assets
           gate community_progression grep -R -q 'PROGRESSÃO POR IMPACTO' ranking-conversao/dist/assets
           gate action_lab grep -R -q 'ACTION LAB' ranking-conversao/dist/assets
           gate notification_center grep -R -q 'GCL INBOX' ranking-conversao/dist/assets
@@ -89,6 +93,7 @@ jobs:
           forbid no_award_registry_copy 'Um selo que pode ser provado.'
           forbid no_old_awards_methodology 'Três sinais. Nenhum pay-to-win.'
           forbid no_benchmark_deepening_ui 'GCL INTELLIGENCE · BENCHMARK DEEPENING'
+          forbid no_auth_characterdata_observer 'characterData:true'
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' ranking-conversao/dist; then echo 'FAIL no_service_role_secret' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_service_role_secret' | tee -a "$report"; fi
           if grep -R -q 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' ranking-conversao/dist; then echo 'FAIL no_legacy_jwt' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_legacy_jwt' | tee -a "$report"; fi
           echo "FAILURES $failures" | tee -a "$report"
