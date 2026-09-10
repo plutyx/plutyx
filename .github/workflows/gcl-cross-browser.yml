@@ -40,12 +40,18 @@ jobs:
           trap 'kill $pid 2>/dev/null || true' EXIT
           for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
           curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-cross-preview.log; exit 1; }
-          npx playwright test --config=playwright.cross.config.js
+          set +e
+          npx playwright test --config=playwright.cross.config.js --reporter=json > cross-browser-result.json
+          code=$?
+          set -e
+          exit $code
       - name: Upload cross-browser diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gcl-cross-browser-${{ github.run_id }}
-          path: ranking-conversao/test-results
+          path: |
+            ranking-conversao/cross-browser-result.json
+            ranking-conversao/test-results
           if-no-files-found: warn
           retention-days: 14
