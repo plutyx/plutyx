@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/sanitize-build.mjs",
+    "build": "vite build && node scripts/write-provenance.mjs && node scripts/sanitize-build.mjs",
     "preview": "vite preview",
     "test:member-area": "playwright test e2e/member-area.spec.js --reporter=line",
     "test:public-surfaces": "playwright test e2e/public-surfaces.spec.js --reporter=line",
