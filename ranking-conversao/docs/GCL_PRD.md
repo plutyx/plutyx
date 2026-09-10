@@ -12,8 +12,8 @@
 ## 1. Controle do Documento
 
 **Nome:** GCL / Global Conversion League — Product Requirements Document (PRD)  
-**Versão:** 1.0.0  
-**Data-base:** 09/09/2026  
+**Versão:** 1.0.1  
+**Data-base:** 10/09/2026  
 **Produto:** Global Conversion League (GCL) + SAC / Sites de Alta Conversão  
 **URL de produção:** https://plutyx.com/ranking-site/  
 **Repositório:** GitHub `plutyx/plutyx`  
@@ -35,7 +35,7 @@ A plataforma não deve ser posicionada como um “SEO checker” ou concurso pur
 
 **Marca-mãe:** Global Conversion League (GCL) — “The global league for high-conversion digital experiences.”  
 **Motor de análise:** SAC / Sites de Alta Conversão — Evidence OS + Conversion Readiness.  
-**Pesquisa e metodologia:** GCL Labs.  
+**Pesquisa, metodologia e inteligência:** GCL Intelligence.  
 **Premiação:** Global Conversion Awards.  
 **Comunidade:** GCL Community.  
 **Marketplace/serviços:** GCL Market.
@@ -51,8 +51,8 @@ Diferenciais defensáveis:
 - Ranking com cobertura mínima e separação entre técnico, voto popular e júri.
 - Benchmark público próprio em larga escala.
 - Community baseada em implementação/casos e não apenas conteúdo.
-- Market conectado às lacunas reais do scan.
-- Reauditoria como mecanismo de prova.
+- Market conectado às lacunas reais do scan e ao potencial técnico de recuperação.
+- Reauditoria como mecanismo de prova; serviços nunca compram pontos.
 - Revenue Architecture para operações de VSL, high-ticket, SaaS, perpétuo e lançamentos.
 - Regras explícitas de “não inventar” métricas comportamentais/receita sem first-party data.
 
@@ -71,53 +71,53 @@ Diferenciais defensáveis:
 
 **6.1 Atração** — usuário acessa Home, vê liga/temporada, benchmark, ranking, nominees e proposta “quanto seu site pontua?”.  
 **6.2 Qualificação sem scan profundo** — cola URL. O sistema cria um `analysis_checkout_intent`, normaliza domínio, valida URL e mostra o que será analisado. Não deve consumir o worker pesado antes do pagamento.  
-**6.3 Monetização core** — Raio-X completo é desbloqueado após pagamento confirmado.  
+**6.3 Monetização core** — GCL Conversion Audit completo é desbloqueado após pagamento confirmado.  
 **6.4 Execução** — webhook idempotente concede purchase e coloca o full scan na fila automaticamente.  
-**6.5 Resultado** — dashboard visual com score/posição (se elegível), dimensões, issues, métricas, evidências, páginas, awards progress, Revenue Architecture e Market recomendado.  
+**6.5 Resultado** — dashboard visual com score/posição (se elegível), dimensões, issues, métricas, evidências, páginas, Awards progress, Revenue Architecture e Market recomendado.  
 **6.6 Expansão** — usuário cria conta/reconcilia compra, verifica domínio, assina Ranking/Community e/ou paga Awards.  
-**6.7 Retenção** — Community, histórico, missões, cases, experiments, reauditorias e rank movement.  
+**6.7 Retenção** — Community, histórico, missões, cases, experiments, reauditorias profundas agendadas e rank movement.  
 **6.8 Monetização principal de longo prazo** — serviços/soluções para corrigir gaps e reauditar.
 
-**Regra de preview:** não mostrar “nota borrada” inventada para o domínio se o scan ainda não ocorreu. O teaser gratuito deve usar dados de produto/metodologia, benchmark público já existente ou um relatório demonstrativo; score do próprio usuário só pode existir após coleta real.
+**Regra de preview:** não mostrar “nota borrada” inventada para o domínio se o scan ainda não ocorreu. O teaser gratuito deve usar dados de produto/metodologia, benchmark público já existente ou relatório demonstrativo; score do próprio usuário só pode existir após coleta real.
 
 ## 7. Modelo de Monetização
 
 O modelo é híbrido:
-1. **Transacional:** Raio-X completo e inscrição Awards.
+1. **Transacional:** auditoria completa e inscrição Awards.
 2. **Recorrente:** Ranking, Community e bundle.
 3. **Serviços/Market:** implantação de melhorias ligadas a gaps do scan.
 4. **Futuro enterprise:** portfolios, seats, API, SLA, private benchmarking e integrações premium.
 
-**Regra anti-pay-to-win:** nenhuma compra altera score/rank diretamente. Um slot promocional, se existir, deve estar visualmente separado do ranking oficial e rotulado como “sponsored/editorial”; nunca “fixado” dentro da ordem técnica.
+**Regra anti-pay-to-win:** nenhuma compra altera score/rank diretamente. Um slot promocional, se existir, deve estar visualmente separado do ranking oficial e rotulado como sponsored/editorial; nunca fixado dentro da ordem técnica.
 
 ## 8. Catálogo Comercial Atual
 
-Os valores abaixo refletem o catálogo de homologação atual e devem ser tratados como configuração, não constante de código.
+Os valores são configuração de homologação e não constante de código.
 
 | Produto | Código | Preço | Cobrança | Estado |
 |---|---|---:|---|---|
-| Raio-X SAC · Análise Completa | sac_analysis_2026 | R$ 97 | Pagamento único | Sandbox homologado; live bloqueado |
-| Ranking Global GCL | sac_ranking_monthly | R$ 59/mês | Assinatura | Sandbox homologado; live bloqueado |
-| GCL Community | sac_community_monthly | R$ 39/mês | Assinatura | Sandbox homologado; live bloqueado |
-| Ranking + Community | sac_ranking_community_monthly | R$ 79/mês | Assinatura | Sandbox homologado; live bloqueado |
-| Global Conversion Awards 2026 | sac_awards_entry_2026 | R$ 297/site | Pagamento único por temporada | Sandbox homologado; live bloqueado |
-| Complete Pass | sac_complete_entry_2026 + sac_complete_monthly | R$ 349 + R$ 79/mês | Entrada + assinatura | Sandbox homologado; live bloqueado |
+| GCL Conversion Audit · Análise Completa | sac_analysis_2026 | R$ 97 | Único | Sandbox homologado; live bloqueado |
+| Ranking Global GCL | sac_ranking_monthly | R$ 59/mês | Recorrente | Sandbox homologado; live bloqueado |
+| GCL Community | sac_community_monthly | R$ 39/mês | Recorrente | Sandbox homologado; live bloqueado |
+| GCL Club · Ranking + Community | sac_ranking_community_monthly | R$ 79/mês | Recorrente | Sandbox homologado; live bloqueado |
+| Global Conversion Awards 2026 | sac_awards_entry_2026 | R$ 297/site | Único/temporada | Sandbox homologado; live bloqueado |
+| GCL Season Pass 2026 | sac_complete_entry_2026 + recurring | R$ 349 + R$ 79/mês | Entrada + recorrência | Sandbox homologado; live bloqueado |
 
 ## 9. Requisitos Funcionais — Superfícies Públicas
 
 **Home/Challenge:** hero competitivo; input URL; benchmark; prova metodológica; ranking; Awards; Community; Market; CTA de análise; transparência do paywall; estados de erro; health degradado sem quebrar UX.
 
-**Ranking:** ordenação somente por score/evidência entre participantes elegíveis; filtros futuros por país, vertical, tecnologia e arquétipo; histórico e rank delta; ranking público deve usar snapshot/cache, nunca recalcular tudo por pageview.
+**Ranking:** ordenação somente por score/evidência entre participantes elegíveis; histórico e `rank_delta`; ranking público por snapshot/cache, nunca recalcular tudo por pageview. Filtros por país, vertical, tecnologia e arquétipo continuam evolução P1.
 
-**Awards:** temporada, nominees, categorias, tecnologia, storytelling, score técnico, voto Community e júri separados. Compra de inscrição não garante nomination/award.
+**Awards:** temporada, nominees, categorias, storytelling, score técnico, voto Community e júri separados. Compra de inscrição não garante nomination/award.
 
-**GCL Labs/Blog:** metodologia, changelog do score, benchmarks, estudos, cases, explicação de fontes e pesquisas. Conteúdo é parte da credibilidade institucional.
+**GCL Intelligence / Research:** metodologia, changelog do score, benchmarks, estudos, cases, explicação de fontes e pesquisas. Conteúdo é parte da credibilidade institucional.
 
-**Market:** catálogo de soluções com matching para gaps observados. Todo card deve dizer que pontos só mudam após reauditoria.
+**Market:** catálogo de soluções com matching para gaps observados. Quando há scan válido, a UI pode priorizar soluções por gaps/checks e teto técnico de recuperação, sem somar potenciais entre serviços e sem prometer melhoria. Todo card deve explicar que pontos só mudam após reauditoria.
 
 ## 10. Requisitos Funcionais — Área do Membro
 
-Login/cadastro via Supabase Auth; dashboard; perfil; sites; análises; purchases; memberships; claim de domínio; checkout contextual; notificações; missões; histórico; acesso a Community, Ranking e Awards conforme entitlement.
+Login/cadastro via Supabase Auth; dashboard; perfil; sites; análises; purchases; memberships; claim de domínio; checkout contextual; notificações; missões; histórico; monitoramento/reauditoria; acesso a Community, Ranking e Awards conforme entitlement.
 
 Compra antes do cadastro deve ser reconciliada pelo e-mail **verificado**. Reconciliação de compra não prova propriedade do domínio.
 
@@ -125,27 +125,27 @@ Claim de domínio obrigatório para Ranking/Awards. Métodos implementados: meta
 
 ## 11. Community — Produto Social e de Implementação
 
-A Community não deve ser um fórum genérico. Espaços: Feed, Hot Seats, Resultados/Wins, Ajuda CRO, Swipe Vault, Action Lab/Classroom, Experiment Lab, Eventos, Projetos & Vagas, Diretório e Announcements.
+A Community não é fórum genérico. Espaços: Feed, Hot Seats, Resultados/Wins, Ajuda CRO, Swipe Vault, Action Lab/Classroom, Experiment Lab, Eventos, Projetos & Vagas, Diretório e Announcements.
 
 Interações implementadas/homologadas: posts, comentários, respostas, 4 reações (Útil/Insight/Win/Apoio), reação em comentário, salvar, seguir membro, visualizações únicas, notificações deduplicadas e estados viewer-specific.
 
 Gamificação premia valor recebido de outros membros. Exemplo homologado: reação útil no post +3 pontos; reação útil/insight em comentário +1; troca de reação não duplica contagem. Usuário sem membership recebe `community_access_required`; auto-follow é bloqueado.
 
-**Anti-spam:** não conceder pontos relevantes por mero volume de postagem. Missões devem privilegiar reauditoria, case verificado, ajuda aprovada e experimentação.
+**Anti-spam:** não conceder pontos relevantes por mero volume de postagem. Missões privilegiam reauditoria, case verificado, ajuda aprovada e experimentação. Moderation/reporting existe e uma denúncia não remove conteúdo automaticamente.
 
 ## 12. Awards — Requisitos e Governança
 
 Temporada atual: `GCL-2026 / Founding Season 2026`. Pipeline: purchase → domínio verificado → análise válida → submission → nominee/elegibilidade → voto Community → júri → award.
 
-Dimensões do júri: Conversion Clarity, User Experience, Technical Execution, Trust & Persuasion, Originality (0–10). Score técnico SAC, Jury Score e Community Vote nunca devem ser fundidos em um único número sem rotulagem.
+Dimensões do júri: Conversion Clarity, User Experience, Technical Execution, Trust & Persuasion, Originality (0–10). Score técnico, Jury Score e Community Vote nunca devem ser fundidos em um único número sem rotulagem.
 
-Proteções: self-vote proibido; janelas de submissão/votação; jurado exige entitlement/role; compra não garante Award; badges emitidos apenas quando critérios e cobertura são satisfeitos.
+Proteções: self-vote proibido; janelas de submissão/votação; jurado exige entitlement/role; validação de faixa de score do júri; compra não garante Award; badges emitidos apenas quando critérios e cobertura são satisfeitos.
 
 ## 13. Motor de Análise — Evidence OS
 
-O motor deve privilegiar **evidência observável e proveniência**. Cada métrica tem registry, classe de evidência, collection mode, unidade, threshold/referência, confidence e source_kind.
+O motor privilegia **evidência observável e proveniência**. Cada métrica tem registry, classe de evidência, collection mode, unidade, threshold/referência, confidence e source_kind.
 
-Snapshot atual: **249 métricas registradas**, **154 coletores autônomos implementados**, **685 atomic checks** e **183 critérios estruturais**.
+**Snapshot operacional em 10/09/2026:** 779 métricas no catálogo; 684 métricas públicas/autônomas implementadas; 623 diagnósticos autônomos; 500 métricas validadas; 500 sinais Lighthouse/PageSpeed materializáveis; 95 métricas que exigem conexão; 40 `score_input` governados. Profundidade diagnóstica não significa atribuir peso a cada sinal.
 
 Camadas de evidência:
 - Public URL/HTTP/HTML/DNS.
@@ -165,7 +165,7 @@ Precedência: first-party/RUM > CrUX page > CrUX origin > claim integrity > Page
 - TBT não é INP.
 - Lighthouse `server-response-time` não é TTFB completo.
 - CrUX/field vence lab quando a métrica é equivalente.
-- Feature opcional ausente pode ser `not_applicable`, não “falha”.
+- Feature opcional ausente pode ser `not_applicable`, não falha.
 - JSON-LD válido não prova eligibility para rich results.
 - Tipo de schema não observado no sample não é automaticamente falha.
 - Tráfego, bounce, conversão, rage clicks, scroll, receita e abandono não podem ser inventados.
@@ -180,251 +180,206 @@ Performance/WPO; Core Web Vitals; network/frontend; mobile/responsive; accessibi
 
 ## 16. Revenue Architecture / Direct Response
 
-Camada criada para análises de operações sofisticadas de SaaS, high-ticket, VSL, perpétuo, e-commerce e lançamentos. Mede arquitetura pública observada — **não taxa de conversão ou receita**.
+Camada para operações sofisticadas de SaaS, high-ticket, VSL, perpétuo, e-commerce e lançamentos. Mede arquitetura pública observada — **não taxa de conversão ou receita**.
 
-Sinais atuais: video embeds/providers; checkout links; upsell/downsell/order-bump footprint; lead-funnel paths; guarantee/risk-reversal language; bonus/offer stack; urgency/scarcity; objection handling/FAQ; countdown footprint; payment platform footprints; proof/cases/testimonials; diversidade de componentes.
+Sinais: video embeds/providers; checkout links; upsell/downsell/order-bump footprint; lead-funnel paths; guarantee/risk-reversal; bonus/offer stack; urgency/scarcity; objection handling/FAQ; countdown; payment platforms; proof/cases/testimonials; diversidade de componentes.
 
-Índice `observed_readiness` é experimental e deve permanecer separado do score oficial até validação metodológica/estatística suficiente.
+Índice `observed_readiness` é experimental e permanece separado do score oficial até validação metodológica/estatística suficiente.
 
 ## 17. Benchmark e Base de Comparação
 
-Corpus atual desta versão do documento: **15.950 domínios alvo** e **11.105 respostas HTTP 2xx/3xx válidas**. A fonte de expansão é Majestic Million, usada como baseline técnico público.
+Snapshot em 10/09/2026: **15.950 URLs processadas**, **13.823 auditorias concluídas** e **11.668 respostas HTTP 2xx/3xx com HTML público coletável**. Fonte de expansão: Majestic Million como baseline técnico público.
 
-Definição oficial para a claim “10.000+”: somente resposta HTTP 2xx/3xx com HTML público coletável entra no contador. Jobs concluídos com HTTP de erro não contam.
-
-Benchmark técnico não significa “10.000 páginas de vendas com conversão conhecida”. Comunicação deve dizer exatamente o que a fonte suporta.
+A claim “10.000+” usa somente o contador HTTP válido. Benchmark técnico não significa “10.000 páginas de vendas com conversão conhecida”. O cohort de score profundo materializado continua separado; percentis profundos não devem ser comunicados como corpus-wide enquanto a amostra não atingir o mínimo metodológico.
 
 ## 18. Arquitetura Técnica — Visão Macro
 
-**Frontend:** React/Vite, hospedado na Hostinger em `/ranking-site/`, SPA com fallback de rotas. GitHub branch `convrank-hostinger-front`.  
-**Backend/Data:** Supabase Postgres/Auth/Edge Functions/pg_cron/pg_net/Vault, schema isolado `sac`.  
+**Frontend:** React/Vite na Hostinger `/ranking-site/`; SPA com fallback. Release v39 separa React/Lucide em chunks cacheáveis e usa preconnect ao Supabase.  
+**Backend/Data:** Supabase Postgres/Auth/Edge Functions/pg_cron/pg_net/Vault, schema `sac`.  
 **Workers pesados:** Render (Playwright/Chromium/Lighthouse/axe e deployer Hostinger).  
-**Payment sandbox:** Stripe.  
-**E-mail:** Resend (domínio ainda não verificado).  
-**Deploy:** GitHub CI → build → Render SFTP deployer → Hostinger smoke tests.
+**Payment:** Stripe test mode; live bloqueado.  
+**E-mail:** Resend `mail.plutyx.com`, status DNS `pending`; não usar como canal transacional de go-live ainda.  
+**Deploy:** GitHub CI → build → Render SFTP deployer → Hostinger smoke/proveniência.
 
-Fila é obrigatória para trabalho pesado. Requests públicos não devem manter browser/Lighthouse aberto de forma síncrona.
+Fila é obrigatória para trabalho pesado. Requests públicos não mantêm browser/Lighthouse aberto de forma síncrona.
 
 ## 19. Edge Functions e Contratos
 
-Inventário funcional resumido; nomes/versões devem ser consultados no ambiente antes de mudanças.
-
 | Função | Responsabilidade | Segurança/Notas |
 |---|---|---|
-| sac-ranking-site-api | API pública da plataforma: home, ranking, qualify, status, report, offers, nominees/awards, health. | Pública via Edge; rate limit; sem service key no browser. |
-| gcl-member-api | API autenticada da área do membro e Community. | JWT obrigatório; CORS allowlist; rate limit por usuário. |
-| gcl-domain-verify | Validação de propriedade de domínio por meta tag, arquivo ou DNS TXT. | JWT; SSRF protection; redirects limitados. |
-| gcl-stripe-webhook | Webhook assinado do Stripe para purchase/membership/lifecycle. | Assinatura Stripe; segredo em Vault; idempotência. |
-| sac-current-page-probe | Coleta HTML/headers/cookies/SRI/JSON-LD/sinais atuais. | SSRF protection; token de alvo; evidência pública. |
-| sac-pagespeed-probe | PageSpeed Insights/Lighthouse + CrUX quando disponível. | Quota/rate semantics; lab e field separados. |
-| sac-benchmark-batch | Worker de benchmark público em lotes. | v3: autenticação interna via segredo no Supabase Vault; chamadas externas sem token = 403. |
-| sac-benchmark-expand | Importador controlado de nova faixa do benchmark. | DESATIVADO após import; verify_jwt=true; responde 410. |
+| sac-ranking-site-api | API pública: home, ranking, qualify, status, report, offers, Awards, health e Market contextual. | Edge pública; rate limit; sem service key no browser. |
+| gcl-member-api | Área do membro e Community. | JWT; CORS allowlist; rate limit por usuário. |
+| gcl-monitoring-api | Status/configuração de reauditoria recorrente. | JWT obrigatório; payload 8 KB; domínio verificado + Ranking ativo no RPC. |
+| gcl-domain-verify | Claim por meta, arquivo ou DNS TXT. | JWT; SSRF protection; redirects limitados. |
+| gcl-market-request | Intake de serviços Market. | CORS; limite por IP + combinação; honeypot; body 16 KB; service role só no servidor. |
+| gcl-stripe-webhook | Purchase/membership/lifecycle. | Assinatura Stripe, Vault e idempotência. |
+| sac-current-page-probe | HTML/headers/cookies/SRI/JSON-LD/sinais atuais. | SSRF protection e evidência pública. |
+| sac-pagespeed-probe | PageSpeed/Lighthouse + CrUX quando disponível. | Lab e field separados. |
+| sac-benchmark-batch | Benchmark público em lotes. | Segredo interno Vault; chamada sem token = 403. |
+| sac-benchmark-expand | Importador de expansão. | Desativado após carga controlada. |
 
-## 20. Filas, Workers e Concorrência
+## 20. Filas, Workers, Concorrência e Monitoramento
 
-Full scans, current probes, PageSpeed, browser snapshots e benchmark rodam de forma assíncrona. Use `FOR UPDATE SKIP LOCKED`, idempotência por audit/job e limites de concorrência. O ranking é cacheado/snapshotado.
+Full scans, current probes, PageSpeed, browser snapshots e benchmark são assíncronos. Usar `FOR UPDATE SKIP LOCKED`, idempotência por audit/job e limites de concorrência. Ranking é cacheado/snapshotado.
 
-SLO inicial observado para full scan: média na ordem de ~87s e p95 ~180s em canários anteriores; tratar como baseline, não SLA contratual. Antes de tráfego massivo, executar load test controlado com percentis e custo por audit.
+Capacidade atual `fullscan`: **1 slot global / dispatch batch 1**, com soft limit 25 e hard limit 100. Esta configuração é conservadora e deve permanecer assim até capacity plan/load test comprovar aumento seguro.
 
-Benchmark batch v3 exige token interno armazenado no Supabase Vault; chamada sem token retorna 403. Importador de expansão foi desativado após carga controlada.
+**Scheduled re-audit v40:** `monitoring_schedules` exige domínio verificado + Ranking ativo; semanal/mensal para Ranking e diário apenas para entitlement Enterprise. A execução usa `lighthouse_full`, proveniência `scheduled_monitoring`, admite no máximo uma agenda por ciclo e **cede prioridade se houver qualquer `full_paid` queued/processing**. Conclusão/falha gera notificação deduplicada ao membro. Score/rank só mudam pela materialização normal de evidência.
+
+SLO observado de full scan é baseline operacional, não SLA comercial. Antes de tráfego massivo, executar load test controlado com percentis e custo por audit.
 
 ## 21. Segurança, Privacidade e Antiabuso
 
-Controles implementados: JWT na área do membro; RLS; service-role restrito ao backend; CORS allowlist; CSP/headers na Hostinger; rate limiting persistente; SSRF protection (DNS A/AAAA + private IP block + redirect constraints); webhook Stripe assinado; secrets em Vault; idempotência financeira; grants anônimos revogados das RPCs GCL/SAC sensíveis.
+Controles implementados: JWT na área do membro; RLS; service-role restrito ao backend; CORS allowlist; CSP/headers na Hostinger; rate limiting persistente; SSRF protection; webhook Stripe assinado; secrets em Vault; idempotência financeira; grants anônimos revogados das RPCs sensíveis; limites de payload em endpoints públicos críticos; moderação/reporting Community/Awards.
 
-Pendência de go-live: habilitar **Leaked Password Protection** no Supabase Auth. Antes de clientes enterprise: MFA, audit log administrativo, role governance, DPA, retenção, export/delete, security page e plano SOC 2.
+**Pendência P0 externa:** habilitar Leaked Password Protection no Supabase Auth e revisar política Auth/MFA. Antes de enterprise: MFA, audit log administrativo, role governance, DPA, retenção, export/delete, security page e plano SOC 2/ISO.
 
-LGPD/GDPR: coletar apenas dados necessários; explicitar finalidade; suportar consentimento, exportação e exclusão; first-party integrations devem ter escopos mínimos e revogáveis.
+LGPD/GDPR: coletar apenas dados necessários; explicitar finalidade; suportar consentimento, exportação e exclusão; first-party integrations com escopos mínimos e revogáveis.
 
 ## 22. Pagamentos, Billing e Entitlements
 
-Stripe está conectado em **test mode**. Produtos/prices/Payment Links e webhook estão homologados, mas checkout público deve permanecer fechado até replicar tudo em `livemode`.
+Stripe está em **test mode**. Produtos/prices/Payment Links e webhook estão homologados, mas checkout público deve permanecer fail-closed até replicar tudo em `livemode` e executar compra real controlada + refund/cancel lifecycle.
 
-Webhook: assinatura verificada, ledger idempotente, purchases, memberships, subscription lifecycle, `past_due`, cancelamento, invoice failure/success. Canário confirmou replay = 1 event / 1 purchase / 1 scan.
+Webhook: assinatura verificada, ledger idempotente, purchases, memberships, lifecycle, `past_due`, cancelamento, invoice failure/success. Canário confirmou replay idempotente.
 
-Ranking/Community são recorrentes; Awards e Raio-X são one-time; Complete combina entrada + recorrência. Upgrade/downgrade/cancelamento devem futuramente usar Customer Portal live.
-
-Nunca interpretar `gcl_public_health().payments.operational=true` como “cartões reais habilitados”; significa que a infraestrutura de pagamento está saudável.
+Ranking/Community são recorrentes; Awards e Audit são one-time; Complete combina entrada + recorrência. Customer Portal live é requisito para lifecycle comercial escalável.
 
 ## 23. E-mail e Lifecycle Messaging
 
-Resend está conectado, porém sem domínio verificado. **BLOQUEADO GO-LIVE** para e-mail transacional até validar domínio de envio (ex.: `mail.plutyx.com`).
+Resend está conectado a `mail.plutyx.com`, região `sa-east-1`, sending habilitado, porém o domínio segue **pending** até DKIM/SPF/MX verificarem no DNS. Portanto e-mail transacional continua **BLOQUEADO GO-LIVE**.
 
-Eventos necessários: pagamento confirmado, análise iniciada, análise concluída, claim de domínio, membership ativa, payment failed, cancellation, rank movement, nominee, award, novo comentário/reply, Hot Seat selecionado.
+Eventos necessários: pagamento confirmado, análise iniciada/concluída, claim, membership, payment failed, cancellation, rank movement, nominee, award, comentário/reply, Hot Seat selecionado e scheduled re-audit concluída/falha.
 
 E-mails devem usar idempotência/dedupe e preference center para comunicações não transacionais.
 
 ## 24. CI/CD, Hosting e Ambientes
 
-Frontend:
 - CI dedicado: `.github/workflows/gcl-ranking-ci.yml`.
-- Build Hostinger: workflow `ranking-conversao.yml`.
-- Deployer: Render `plutyx-hostinger-ranking-site-deployer`, branch `convrank-hostinger-front`, SFTP para `public_html/ranking-site`.
-- Rotas críticas devem retornar HTTP 200 após promoção.
+- Build Hostinger: `.github/workflows/ranking-conversao.yml`.
+- Deployer Render: `plutyx-hostinger-ranking-site-deployer`, autoDeploy off, promoção manual após gates.
+- SFTP: `public_html/ranking-site`.
+- Toda promoção aceita exige proveniência SHA + smoke das rotas críticas.
+- Release v39 publicado: `5c411395a42377c346d1beb47f4e4b64baaeb46b`.
 
-Ambientes recomendados para evolução: local → preview/staging → production. Nunca testar migrations destrutivas diretamente em produção sem branch/backup quando houver risco de dados.
-
-Secrets não entram no GitHub, DOCX, README ou frontend.
+Ambientes: local → preview/branch → production. Nunca testar migration destrutiva em produção sem branch/backup quando houver risco de dados. Secrets não entram no GitHub, documentação ou frontend.
 
 ## 25. Observabilidade e SLOs
 
-Health deve cobrir: análise queue, jobs stale, PageSpeed, browser snapshots, current probes, webhook failures, payment states, cron, ranking cache, edge availability e Hostinger.
+Health cobre fila, stale jobs, probes, webhook, payments, cron, ranking cache e infraestrutura. Gates: queue warning >300s; critical >900s; processing stale >600s; ranking cache stale >300s; webhook failure exige investigação; deploy só após CI + smoke.
 
-Gates iniciais:
-- fila warning > 300s;
-- critical > 900s;
-- processing stale > 600s;
-- ranking cache stale > 300s;
-- webhook failure > 0 requer investigação;
-- deploy só é aceito após CI + Hostinger smoke.
-
-Snapshot deste documento: health = **healthy**, fila principal = **0**.
+Snapshot 10/09/2026 21:59 UTC: `ops_health_payload.status = degraded`; fila fullscan queued=0/processing=0; ranking cache ~35s; webhook failures 24h=0. Estado operacional e **commercial go-live são conceitos separados**: checkout live continua bloqueado por Stripe livemode e controles externos P0.
 
 ## 26. Testes e QA Obrigatórios
 
 **E2E visitante:** Home → URL → qualify → paywall; nenhuma análise profunda antes do pagamento.  
 **E2E comprador:** pagamento sandbox/live → webhook → scan → report.  
-**E2E member:** login → reconcile → dashboard → claim → subscription → entitlement.  
-**Community:** post, reação, troca de reação, comentário, reply, save, follow, notification, points, outsider blocked, self-action blocked.  
+**E2E member:** login → reconcile → dashboard → claim → subscription → entitlement → monitoring.  
+**Community:** post, reação/troca, comentário, reply, save, follow, notification, points, outsider/self-action blocked.  
 **Awards:** purchase → verified domain → submit → nominee → vote → self-vote blocked → jury.  
-**Security:** invalid webhook signature, rate limits, SSRF targets, direct RPC exposure, CORS, auth expiry.  
+**Security:** webhook inválido, rate limits, SSRF, RPC exposure, CORS, auth expiry, payload guards.  
 **Data correctness:** evidence precedence, coverage gating, no fabricated metrics.  
-**Cross-device:** Chrome/Safari/Firefox + iOS/Android responsive.  
-**Load:** concurrent qualify, concurrent full scans, feeds, leaderboard, payments and cache under pressure.
+**Cross-device:** Chromium/WebKit/Firefox em CI + iOS/Android físicos antes de paid traffic.  
+**Load:** qualify, full scans, feeds, leaderboard, payments e cache sob pressão.
 
-Todo bug achado em canário deve gerar regression test quando razoável.
+Todo bug achado em canário deve gerar regression gate quando razoável. O bug v40 “monitoramento recorrente usando `rendered_preview`” passa a ser protegido por CI que exige `lighthouse_full`, `scheduled_monitoring` e `yield_to_full_paid`.
 
 ## 27. Requisitos para Atender Grandes Players Globais
 
-**ROADMAP enterprise prioritário:**
-- Organization/workspace multi-seat.
-- RBAC: owner/admin/analyst/marketer/developer/agency/viewer/judge/moderator.
-- SSO/SAML + SCIM.
-- Portfolio de domínios e bulk onboarding.
-- Auditorias agendadas e diff visual/métrico.
-- Deep crawl configurável (10/100/1.000+ páginas) com orçamento de compute.
-- API pública/enterprise com keys, quotas e webhooks.
-- Export PDF/CSV/JSON e share links privados.
-- Private benchmark e benchmark por vertical/geografia/funnel type.
-- GA4, Clarity, Search Console, Stripe/Shopify/HubSpot, VWO/Optimizely e data warehouse connectors.
-- Private Community/teams para empresas.
-- SLA/priority queue, data retention policy e region options.
-- DPA, subprocessors page, security center e roadmap SOC 2/ISO 27001.
-- Multi-language PT/EN/ES e multi-currency/tax.
-- Invoice/contract billing para enterprise.
+**ROADMAP enterprise prioritário:** organizations/workspaces multi-seat; RBAC; SSO/SAML + SCIM; portfolio e bulk onboarding; diff visual/métrico; deep crawl configurável 10/100/1.000+ páginas com orçamento de compute; API/keys/quotas/webhooks; export PDF/CSV/JSON; private benchmark; GA4/Clarity/Search Console/Stripe/Shopify/HubSpot/VWO/Optimizely/data warehouse; Community privada; SLA/priority queue; retention/region; DPA/subprocessors/security center; multi-language/multi-currency/tax; invoice/contract billing.
+
+Auditorias agendadas básicas deixam de ser roadmap a partir da v40; **deep crawl enterprise e diff avançado** continuam roadmap.
 
 ## 28. UX/Branding — Critérios de Qualidade
 
-A plataforma precisa impressionar CMO/CRO/founders sofisticados. Direção: editorial premium, forte typographic hierarchy, density quando é dado, whitespace quando é narrativa, microinterações discretas, zero “template genérico de SaaS”.
+A plataforma precisa impressionar CMO/CRO/founders sofisticados. Direção: editorial premium, hierarquia tipográfica forte, densidade quando é dado, whitespace quando é narrativa, microinterações discretas, zero template genérico de SaaS.
 
-O relatório deve parecer ferramenta de inteligência, não PDF de agência: score + confidence + coverage + provenance + benchmark + issues priorizados + impacto potencial + Market + reauditoria.
+O relatório deve parecer ferramenta de inteligência: score + confidence + coverage + provenance + benchmark + issues priorizados + impacto potencial + Market + reauditoria.
 
-Awwwards é referência de ritual, nominee e prestige; Semrush de densidade e dashboards; Circle/Skool de comunidade; GCL deve ter identidade própria baseada em league/labs/evidence.
+Awwwards é referência de ritual/nominee/prestige; Semrush de densidade/dashboards; Circle/Skool de comunidade. GCL mantém identidade própria baseada em **league + intelligence + evidence**.
 
 ## 29. Requisitos de Dados e Modelo
 
-Entidades centrais: domains, audit_runs, pages, metric_registry, metric_observations, atomic_checks, atomic_evaluations, experience_dimension_scores, benchmark_sources/targets/results, autonomous_ranking_entries/history, commercial_products, analysis_checkout_intents, checkout_intents, purchases, memberships, payment_provider_events, profiles, domain_members/claims, community spaces/posts/comments/reactions/follows/saves/views/notifications, experiments, case_studies, projects, hot_seats, awards entries/votes/jury scores, market listings, blog, ops health.
+Entidades: domains, audit_runs, pages, metric_registry/observations, atomic checks/evaluations, experience scores, benchmark sources/targets/results, ranking entries/history, commercial products, checkout intents, purchases, memberships, payment events, profiles, domain members/claims, community, notifications, monitoring_schedules, experiments, case studies, projects, hot seats, awards, market, blog e ops health.
 
-Toda tabela nova deve definir ownership, RLS, grants, índices, retenção e estratégia de deleção antes de ser considerada pronta.
+Toda tabela nova define ownership, RLS, grants, índices, retenção e deleção antes de ser pronta.
 
 ## 30. Estados e Máquinas de Estado
 
-**Analysis intent:** prepared → paid → scan_queued → scan_started/completed ou failed/expired conforme implementação.  
+**Analysis intent:** prepared → paid → scan_queued → scan_started/completed ou failed/expired.  
 **Audit:** queued → processing → completed/failed.  
-**Membership:** active → past_due → canceled/expired; entitlement acompanha estado.  
+**Membership:** active → past_due → canceled/expired.  
 **Domain claim:** prepared → verified ou failed/expired.  
-**Awards entry:** draft/submitted → nominee/eligible → voting/judging → awarded/not_awarded/withdrawn conforme evolução.  
-**Benchmark target:** queued → processing → completed/failed/skipped.
+**Awards:** draft/submitted → nominee/eligible → voting/judging → awarded/not_awarded/withdrawn.  
+**Benchmark:** queued → processing → completed/failed/skipped.  
+**Scheduled monitoring:** configured → queued_deep_reaudit/in_flight → completed_deep_reaudit ou failed_deep_reaudit; pode ser adiado pela fila paga sem alterar evidência.
 
-Mudanças de estado financeiras devem ser idempotentes e auditáveis.
+Mudanças financeiras são idempotentes e auditáveis.
 
 ## 31. P0 — Bloqueadores para Go-Live Comercial
 
-1. Conectar Stripe `livemode`, replicar produtos/prices/webhook e executar compra real de baixo valor + refund/cancel lifecycle.
-2. Habilitar Leaked Password Protection e revisar políticas Auth/MFA.
-3. Verificar domínio Resend e ligar e-mails transacionais.
-4. Completar E2E visual em browsers/dispositivos reais.
-5. Stress/load test e orçamento/capacity plan para workers.
-6. Publicar termos, privacidade, cookies, refund/cancellation e regras do Awards.
-7. Moderation/abuse/reporting para Community e Awards.
-8. Backups/runbook/incident response e owners operacionais.
-9. Revisão jurídica da linguagem “conversion”, Awards, benchmarks e claims.
-10. Validar acessibilidade da própria GCL.
+1. **BLOQUEADO:** Stripe `livemode`, produtos/prices/webhook, compra real controlada + refund/cancel lifecycle.
+2. **BLOQUEADO:** Leaked Password Protection e revisão Auth/MFA.
+3. **BLOQUEADO:** DNS/Resend `mail.plutyx.com` verified + lifecycle transacional.
+4. **BLOQUEADO EXTERNO:** E2E visual em dispositivos reais iOS/Android e browsers físicos relevantes.
+5. **BLOQUEADO:** stress/load test final e capacity/cost plan para workers pesados.
+6. **IMPLEMENTADO / REVISÃO EXTERNA PENDENTE:** termos, privacidade, cookies, refunds/cancellation e regras Awards estão publicados no produto; revisão jurídica continua obrigatória.
+7. **IMPLEMENTADO/HOMOLOGADO:** moderation/abuse/reporting para Community/Awards.
+8. **PARCIAL/BLOQUEADO:** backups/runbook existem parcialmente; incident response e owners operacionais precisam de fechamento formal.
+9. **BLOQUEADO EXTERNO:** revisão jurídica de “conversion”, Awards, benchmark e claims.
+10. **HOMOLOGADO EM CI / EXTERNO PENDENTE:** WCAG A/AA automatizado passa; completar validação assistiva/device real.
 
 ## 32. P1 — Produto para Crescimento
 
-- Scheduled re-audit + alertas de rank delta.
-- Benchmarks por vertical/país/arquétipo.
-- Connectors first-party (GA4/Clarity/Search Console/commerce).
-- Cases verificados exibidos no Market/profile.
-- Hot Seats/Event rooms.
-- Swipe Vault e templates.
-- Referral/affiliate apenas se não contaminar score.
-- Public profile de especialistas e marketplace de jobs.
-- Share cards e badges verificáveis com URL pública de validação.
+- **IMPLEMENTADO/HOMOLOGADO v40:** scheduled deep re-audit + alertas de rank movement.
+- ROADMAP: benchmarks por vertical/país/arquétipo.
+- ROADMAP: connectors first-party GA4/Clarity/Search Console/commerce.
+- ROADMAP: cases verificados exibidos no Market/profile.
+- IMPLEMENTADO/P1 CONTÍNUO: Hot Seats, Action Lab, jobs/diretório e workflows sociais; evoluir rooms/live.
+- IMPLEMENTADO/P1 CONTÍNUO: Swipe Vault/templates; ampliar acervo e regras de desbloqueio.
+- ROADMAP: referral/affiliate sem contaminar score.
+- IMPLEMENTADO/P1 CONTÍNUO: public profile/especialistas e marketplace de jobs; amadurecer matching/reputação.
+- IMPLEMENTADO/P1 CONTÍNUO: share cards/badges; ampliar validação pública e distribuição.
 
 ## 33. P2 — Enterprise e Defensabilidade
 
-- Enterprise orgs/RBAC/SSO/SCIM.
-- API e warehouse exports.
-- Deep crawl enterprise.
-- Private competitions e internal awards.
-- Statistical benchmarking e percentile por cluster.
-- Research datasets anonimizados do GCL Labs.
-- Anti-gaming/anomaly detection de Awards/Community.
-- SOC 2/ISO roadmap e security reviews independentes.
-- Global billing/tax/localization.
+Enterprise orgs/RBAC/SSO/SCIM; API/warehouse exports; deep crawl; private competitions/internal awards; benchmarking estatístico por cluster; research datasets anonimizados do GCL Intelligence; anti-gaming/anomaly detection; SOC 2/ISO roadmap; global billing/tax/localization.
 
 ## 34. Definition of Done — Feature
 
-Uma feature só é “Done” quando:
-- requisito funcional e estados estão definidos;
-- happy path e principais negative paths passam;
-- auth/RLS/grants foram revisados;
-- idempotência existe quando aplicável;
-- observabilidade/erro útil existe;
-- CI passa;
-- produção/staging foi smoke-tested;
-- copy não faz claim acima da evidência;
-- documentação/PRD/changelog foi atualizada;
-- rollback está definido para mudanças de risco.
+Uma feature só é Done quando requisito/estados estão definidos; happy/negative paths passam; auth/RLS/grants revisados; idempotência quando aplicável; observabilidade e erro útil existem; CI passa; produção/staging foi smoke-tested; copy não faz claim acima da evidência; documentação/changelog atualizados; rollback definido para risco.
 
 ## 35. Definition of Ready — Plataforma para Leads Reais
 
-Para declarar “pronta para tráfego pago”, todos os P0 de go-live devem estar concluídos. Enquanto Stripe estiver em test mode ou e-mail sem domínio verificado, a plataforma pode ser publicamente testada, mas não deve ser anunciada como checkout comercial integral.
+Para declarar “pronta para tráfego pago”, todos os P0 precisam estar concluídos. Enquanto Stripe estiver em test mode ou e-mail sem domínio verificado, a plataforma pode ser publicamente testada, mas **não é checkout comercial integral**.
 
 ## 36. Runbook Operacional Resumido
 
-**Se scan travar:** checar `gcl_public_health`, audit queue, stale jobs, workers Render, PageSpeed/current probes e cron.  
-**Se pagamento não liberar:** verificar Stripe event → assinatura → payment_provider_events → purchase → membership/analysis intent; nunca reenfileirar manualmente antes de conferir idempotência.  
-**Se ranking não atualizar:** checar autonomous ranking refresh e public payload cache.  
-**Se Community falhar:** validar JWT, membership, rate limit e RPC grants.  
-**Se deploy falhar:** manter versão anterior; CI dedicado + build Hostinger + SFTP + smoke HTTP são gates separados.  
-**Se claim metodológica mudar:** atualizar código, GCL Labs e este PRD no mesmo release.
+**Scan travado:** `ops_health_payload`, fila, stale jobs, workers Render, probes e cron.  
+**Pagamento não liberou:** Stripe event → payment_provider_events → purchase → membership/analysis intent; conferir idempotência antes de reenfileirar.  
+**Ranking não atualizou:** refresh oficial/autônomo + payload cache.  
+**Monitoring não rodou:** schedule/entitlement/domain verification → `run_due_monitoring` → paid queue → fullscan job → materialization.  
+**Community falhou:** JWT, membership, rate limit e RPC grants.  
+**Deploy falhou:** manter versão anterior; CI + build + SFTP + smoke são gates separados.  
+**Claim metodológica mudou:** atualizar código, GCL Intelligence e PRD no mesmo release.
 
 ## 37. Governança do Código e Handoff
 
-Branch/paths devem ser identificados no início de cada tarefa. Evitar misturar mudanças do GCL com o produto Cozinha360 que vive no mesmo repositório/Supabase.
-
-Migrations precisam de nomes semânticos e nunca devem “consertar” schemas legados não relacionados durante uma feature GCL.
-
-Decisões metodológicas precisam de ADR/changelog. Alterar threshold, evidence precedence, eligibility ou ranking exige versão de metodologia e backfill/recompute controlado.
-
-Nenhum programador deve substituir valores reais por mocks em produção para “preencher dashboard”.
+Identificar branch/paths no início; não misturar GCL com Cozinha360 no mesmo release. Migrations têm nomes semânticos e não corrigem schemas legados não relacionados. Alterar threshold, evidence precedence, eligibility ou ranking exige versão metodológica e recompute controlado. Nunca substituir dados reais por mocks em produção.
 
 ## 38. Glossário
 
 **SAC:** motor Sites de Alta Conversão.  
 **GCL:** Global Conversion League.  
-**Evidence OS:** camada que materializa métricas/evidências e aplica precedência.  
-**Atomic check:** verificação granular com status/evidência.  
-**Coverage:** proporção de checks/métricas elegíveis realmente observados.  
+**Evidence OS:** materialização/proveniência + precedência de evidência.  
+**Atomic check:** verificação granular.  
+**Coverage:** proporção de checks elegíveis observados.  
 **Confidence:** confiança ponderada da evidência.  
-**Official Score:** score liberado somente após gates de cobertura.  
+**Official Score:** score liberado após gates de cobertura/confiança.  
 **RUM:** Real User Monitoring.  
 **CrUX:** Chrome UX Report.  
 **Nominee:** candidatura elegível/publicada no Awards.  
-**Entitlement:** direito de acesso derivado de compra/membership.
+**Entitlement:** direito derivado de compra/membership.  
+**Deep re-audit:** nova coleta `lighthouse_full` programada por monitoring, sujeita a entitlement/capacidade e sem alteração direta de score.
 
 ## Apêndice A — Rotas de Produção
 
@@ -433,22 +388,24 @@ Nenhum programador deve substituir valores reais por mocks em produção para �
 | Home / Challenge | https://plutyx.com/ranking-site/ | Pública |
 | Ranking | https://plutyx.com/ranking-site/ranking/ | Pública |
 | Awards / Nominees | https://plutyx.com/ranking-site/awards/ | Pública + ações autenticadas |
-| Community | https://plutyx.com/ranking-site/community/ | Conteúdo protegido por membership |
-| Market / Serviços | https://plutyx.com/ranking-site/services/ | Pública; checkout/configuração por contexto |
-| Blog / GCL Labs | https://plutyx.com/ranking-site/blog/ | Pública |
+| Community | https://plutyx.com/ranking-site/community/ | Guest lobby + membership para ações/feed completo |
+| Market / Serviços | https://plutyx.com/ranking-site/services/ | Pública; contextual por scan |
+| Research / GCL Intelligence | https://plutyx.com/ranking-site/blog/ | Pública |
 | Institucional | https://plutyx.com/ranking-site/about/ | Pública |
 | Minha Área | https://plutyx.com/ranking-site/account/ | Autenticada |
 
 ## Apêndice B — Edge Functions Principais
 
-Ver seção 19. O ambiente é a fonte de verdade para versão e configuração ativa de cada função.
+Ver seção 19. O ambiente é fonte de verdade para versão ativa; código/migration precisam permanecer versionados no repositório.
 
 ## Apêndice C — Status Atual e Dependências
 
-**Snapshot:** 09/09/2026 — rodada de produção/handoff.  
-Health: `healthy`. Fila principal: 0. Market listings: 10.  
-Métricas e benchmark são dinâmicos; consultar API/DB para números atuais antes de apresentação externa.
+**Snapshot:** 10/09/2026 — release v39 publicado e v40 em homologação.  
+Operacional: fila principal 0; Ranking operacional/cache ativo; Market 10 listings; benchmark HTTP válido 11.668.  
+Comercial: **go-live permanece bloqueado** por Stripe livemode e controles P0 externos.  
+Métricas/benchmark são dinâmicos; consultar API/DB antes de apresentação externa.
 
 ## Changelog
 
-- **1.0.0 — 09/09/2026:** baseline de produção/handoff criado; inclui arquitetura GCL, SAC Evidence OS, Community social, Awards, Revenue Architecture, billing sandbox, segurança, benchmark estrito e gates de go-live.
+- **1.0.1 — 10/09/2026:** branding canônico GCL Intelligence; benchmark/métricas sincronizados; Market contextual; hardening de intake; separação health operacional/comercial; performance v39; scheduled monitoring corrigido para deep re-audit `lighthouse_full` com prioridade para scans pagos e notificações; P0/P1 reconciliados com produção.
+- **1.0.0 — 09/09/2026:** baseline de produção/handoff com arquitetura GCL, Evidence OS, Community social, Awards, Revenue Architecture, billing sandbox, segurança, benchmark estrito e gates de go-live.
