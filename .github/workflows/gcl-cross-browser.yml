@@ -1,0 +1,51 @@
+name: gcl-cross-browser
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [convrank-hostinger-front]
+    paths:
+      - 'ranking-conversao/src/**'
+      - 'ranking-conversao/public/**'
+      - 'ranking-conversao/index.html'
+      - 'ranking-conversao/e2e/public-surfaces.spec.js'
+      - 'ranking-conversao/playwright.cross.config.js'
+      - '.github/workflows/gcl-cross-browser.yml'
+
+jobs:
+  browser-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    defaults:
+      run:
+        working-directory: ranking-conversao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ranking-conversao/package.json
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+        env:
+          VITE_BASE_PATH: /ranking-site/
+      - name: Install Chromium Firefox and WebKit
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Cross-browser and mobile product surfaces
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-cross-preview.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-cross-preview.log; exit 1; }
+          npx playwright test --config=playwright.cross.config.js
+      - name: Upload cross-browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcl-cross-browser-${{ github.run_id }}
+          path: ranking-conversao/test-results
+          if-no-files-found: warn
+          retention-days: 14
