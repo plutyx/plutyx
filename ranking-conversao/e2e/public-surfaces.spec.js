@@ -81,7 +81,7 @@ test('Research opens with published GCL Intelligence articles',async({page})=>{
  const link=page.getByText(article.title).first();
  await link.click();
  await expect(page.getByText('PRÓXIMA JOGADA')).toBeVisible({timeout:15000});
- await expect(page.getByText('GCL Intelligence',{exact:true}).first()).toBeVisible();
+ await expect(page.locator('.gcl-rx33-meta-main').getByText('GCL Intelligence',{exact:true})).toBeVisible();
  expect(errs).toEqual([]);
 });
 
