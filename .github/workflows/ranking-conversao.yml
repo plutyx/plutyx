@@ -58,6 +58,15 @@ jobs:
               failures=$((failures+1))
             fi
           }
+          forbid() {
+            name="$1"; pattern="$2"
+            if grep -R -q "$pattern" ranking-conversao/dist/assets; then
+              echo "FAIL $name" | tee -a "$report"
+              failures=$((failures+1))
+            else
+              echo "PASS $name" | tee -a "$report"
+            fi
+          }
           gate index_exists test -f ranking-conversao/dist/index.html
           gate htaccess_exists test -f ranking-conversao/dist/.htaccess
           gate provenance_exists test -f ranking-conversao/dist/gcl-build.json
@@ -65,19 +74,21 @@ jobs:
           gate base_path grep -q '/ranking-site/' ranking-conversao/dist/index.html
           gate rewrite_base grep -q 'RewriteBase /ranking-site/' ranking-conversao/dist/.htaccess
           gate gcl_title grep -q 'Global Conversion League' ranking-conversao/dist/index.html
+          gate world_cup_ranking grep -R -q 'A Copa do Mundo' ranking-conversao/dist/assets
+          gate trophy_room grep -R -q 'SALA DE TROFÉUS' ranking-conversao/dist/assets
+          gate qualifiers_open grep -R -q 'CLASSIFICATÓRIAS ABERTAS' ranking-conversao/dist/assets
+          gate account_passport grep -R -q 'passaporte para a temporada GCL' ranking-conversao/dist/assets
           gate community_progression grep -R -q 'PROGRESSÃO POR IMPACTO' ranking-conversao/dist/assets
           gate action_lab grep -R -q 'ACTION LAB' ranking-conversao/dist/assets
           gate notification_center grep -R -q 'GCL INBOX' ranking-conversao/dist/assets
           gate notification_high_value grep -R -q 'Hot Seats, Awards e movimentos relevantes do Ranking' ranking-conversao/dist/assets
           gate evidence_os grep -R -q 'GCL EVIDENCE OS' ranking-conversao/dist/assets
-          gate competitive_mission grep -R -q 'COMPETITIVE MISSION' ranking-conversao/dist/assets
-          gate awards_methodology grep -R -q 'Três sinais. Nenhum pay-to-win.' ranking-conversao/dist/assets
-          gate award_verification grep -R -q 'Um selo que pode ser provado.' ranking-conversao/dist/assets
-          gate award_badge_embed grep -R -q 'gcl-award-verify' ranking-conversao/dist/assets
-          gate benchmark_deepening grep -R -q 'GCL INTELLIGENCE · BENCHMARK DEEPENING' ranking-conversao/dist/assets
-          gate benchmark_distribution_guard grep -R -q 'Percentis do corpus profundo permanecem bloqueados' ranking-conversao/dist/assets
           gate market_request grep -R -q 'Solicitar diagnóstico de implementação' ranking-conversao/dist/assets
-          gate gcl_intelligence grep -R -q 'GCL Intelligence' ranking-conversao/dist/assets
+          forbid no_corpus_cohort_copy 'O corpus HTTP e o cohort'
+          forbid no_percentile_lock_copy 'Percentis do corpus profundo permanecem bloqueados'
+          forbid no_award_registry_copy 'Um selo que pode ser provado.'
+          forbid no_old_awards_methodology 'Três sinais. Nenhum pay-to-win.'
+          forbid no_benchmark_deepening_ui 'GCL INTELLIGENCE · BENCHMARK DEEPENING'
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' ranking-conversao/dist; then echo 'FAIL no_service_role_secret' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_service_role_secret' | tee -a "$report"; fi
           if grep -R -q 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' ranking-conversao/dist; then echo 'FAIL no_legacy_jwt' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_legacy_jwt' | tee -a "$report"; fi
           echo "FAILURES $failures" | tee -a "$report"
