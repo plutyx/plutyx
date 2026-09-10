@@ -31,6 +31,12 @@ function canonicalCopy(){
   };
 }
 
+function stableVendorChunks(id){
+  if(!id.includes('/node_modules/'))return;
+  if(id.includes('/node_modules/react/')||id.includes('/node_modules/react-dom/')||id.includes('/node_modules/scheduler/'))return 'vendor-react';
+  if(id.includes('/node_modules/lucide-react/'))return 'vendor-icons';
+}
+
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || '/ranking-site/',
   plugins: [canonicalCopy(),tailwindcss(), react()],
@@ -39,5 +45,8 @@ export default defineConfig({
     sourcemap: false,
     outDir: 'dist',
     assetsDir: 'assets',
+    rollupOptions:{
+      output:{manualChunks:stableVendorChunks}
+    }
   },
 });
