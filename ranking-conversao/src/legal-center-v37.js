@@ -78,7 +78,14 @@ body.gcl-legal37-open{margin:0;background:#070605;color:#f5f2ed;font-family:Inte
 function injectFooterLinks(){document.querySelectorAll('.gcl-footer').forEach(f=>{if(f.querySelector('[data-gcl-legal37]'))return;const x=document.createElement('div');x.dataset.gclLegal37='1';x.style.cssText='display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:12px';x.innerHTML=`<a href="${BASE}/legal/">Trust Center</a><a href="${BASE}/terms/">Termos</a><a href="${BASE}/privacy/">Privacidade</a><a href="${BASE}/refunds/">Cancelamento</a>`;f.appendChild(x)})}
 
 if(routes.has(current)){
-  css();document.body.classList.add('gcl-legal37-open');const root=document.getElementById('root');if(root)root.innerHTML=current==='legal'?hub():page(current);
+  css();
+  document.body.classList.add('gcl-legal37-open');
+  const renderStandalone=()=>{
+    const root=document.getElementById('root');
+    if(!root)return;
+    root.innerHTML=current==='legal'?hub():page(current);
+  };
+  requestAnimationFrame(()=>requestAnimationFrame(renderStandalone));
 }else{
   const obs=new MutationObserver(injectFooterLinks);obs.observe(document.documentElement,{subtree:true,childList:true});injectFooterLinks();setTimeout(()=>obs.disconnect(),15000);
 }
