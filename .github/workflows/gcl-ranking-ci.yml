@@ -46,26 +46,32 @@ jobs:
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' dist; then echo 'service role leaked into bundle'; exit 1; fi
       - name: Install browser gates
         run: npx playwright install --with-deps chromium
-      - name: Browser gates — member, public and moderation journeys
+      - name: Browser gate — member area
         shell: bash
         run: |
-          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview.log 2>&1 &
-          preview_pid=$!
-          trap 'kill $preview_pid 2>/dev/null || true' EXIT
-          ready=0
-          for _ in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:4173/ranking-site/account/ >/dev/null; then
-              ready=1
-              break
-            fi
-            sleep 1
-          done
-          if [[ "$ready" != "1" ]]; then
-            cat /tmp/gcl-preview.log
-            exit 1
-          fi
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview-member.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/account/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/account/ >/dev/null || { cat /tmp/gcl-preview-member.log; exit 1; }
           npm run test:member-area
+      - name: Browser gate — public surfaces
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview-public.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-preview-public.log; exit 1; }
           npm run test:public-surfaces
+      - name: Browser gate — reporting and moderation UX
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview-moderation.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/community/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/community/ >/dev/null || { cat /tmp/gcl-preview-moderation.log; exit 1; }
           npm run test:moderation
       - name: Upload GCL bundle
         uses: actions/upload-artifact@v4
