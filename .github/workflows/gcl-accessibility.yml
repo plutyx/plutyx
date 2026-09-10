@@ -5,6 +5,9 @@ on:
   push:
     branches: [convrank-hostinger-front]
     paths:
+      - 'ranking-conversao/src/**'
+      - 'ranking-conversao/public/**'
+      - 'ranking-conversao/index.html'
       - 'ranking-conversao/e2e/accessibility.spec.js'
       - 'ranking-conversao/package.json'
       - '.github/workflows/gcl-accessibility.yml'
