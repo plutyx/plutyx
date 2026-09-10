@@ -67,6 +67,15 @@ jobs:
               echo "PASS $name" | tee -a "$report"
             fi
           }
+          forbid_ci() {
+            name="$1"; pattern="$2"
+            if grep -R -i -q "$pattern" ranking-conversao/dist; then
+              echo "FAIL $name" | tee -a "$report"
+              failures=$((failures+1))
+            else
+              echo "PASS $name" | tee -a "$report"
+            fi
+          }
           gate index_exists test -f ranking-conversao/dist/index.html
           gate htaccess_exists test -f ranking-conversao/dist/.htaccess
           gate provenance_exists test -f ranking-conversao/dist/gcl-build.json
@@ -94,6 +103,13 @@ jobs:
           forbid no_old_awards_methodology 'Três sinais. Nenhum pay-to-win.'
           forbid no_benchmark_deepening_ui 'GCL INTELLIGENCE · BENCHMARK DEEPENING'
           forbid no_auth_characterdata_observer 'characterData:true'
+          forbid_ci no_chatgpt_branding 'chatgpt'
+          forbid_ci no_openai_branding 'openai'
+          forbid_ci no_chatgpt_utm 'utm_source=chatgpt'
+          forbid_ci no_render_preview_urls 'onrender.com'
+          forbid_ci no_vercel_preview_urls 'vercel.app'
+          forbid_ci no_netlify_preview_urls 'netlify.app'
+          forbid_ci no_localhost_urls 'localhost:'
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' ranking-conversao/dist; then echo 'FAIL no_service_role_secret' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_service_role_secret' | tee -a "$report"; fi
           if grep -R -q 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' ranking-conversao/dist; then echo 'FAIL no_legacy_jwt' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_legacy_jwt' | tee -a "$report"; fi
           echo "FAILURES $failures" | tee -a "$report"
