@@ -1,0 +1,44 @@
+name: gcl-benchmark-deepening
+
+on:
+  pull_request:
+    paths:
+      - 'ranking-conversao/supabase/migrations/*benchmark_deepening*'
+      - 'ranking-conversao/docs/GCL_CAPACITY_PLAN.md'
+      - '.github/workflows/gcl-benchmark-deepening.yml'
+  push:
+    branches: [convrank-hostinger-front]
+    paths:
+      - 'ranking-conversao/supabase/migrations/*benchmark_deepening*'
+      - 'ranking-conversao/docs/GCL_CAPACITY_PLAN.md'
+      - '.github/workflows/gcl-benchmark-deepening.yml'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify background budget and paid priority remain isolated
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('ranking-conversao/supabase/migrations/20260910220800_gcl_benchmark_deepening_cold_start_budget_v41_1.sql')
+          text=p.read_text()
+          checks={
+            'background_210s':'v_timeout:=210000' in text,
+            'one_root_page':'v_max_pages:=1' in text,
+            'paid_timeout_120s':'v_timeout:=120000' in text,
+            'paid_first':"case when mode='full_paid' then 0" in text,
+            'benchmark_last':"when mode='benchmark_deepening' then 9" in text,
+            'capacity_guard':'v_processing_nonpaid>=v_nonpaid_cap' in text,
+            'no_public_execute':'revoke all on function sac.dispatch_fullscan_jobs(integer) from public,anon,authenticated' in text,
+          }
+          failed=[k for k,v in checks.items() if not v]
+          print(checks)
+          if failed: raise SystemExit('failed: '+', '.join(failed))
+      - name: Verify measured capacity plan remains fail-closed
+        shell: bash
+        run: |
+          grep -F 'global heavy-scan concurrency at **1**' ranking-conversao/docs/GCL_CAPACITY_PLAN.md
+          grep -F 'benchmark deepening disabled for bulk runs' ranking-conversao/docs/GCL_CAPACITY_PLAN.md
+          grep -F 'No capacity purchase or plan upgrade is authorized' ranking-conversao/docs/GCL_CAPACITY_PLAN.md
