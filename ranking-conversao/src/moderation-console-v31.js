@@ -14,7 +14,7 @@ async function mount31(){
   const rows=await api31({action:'queue',status:null,limit:50});
   const open=(rows||[]).filter(r=>['open','reviewing','escalated'].includes(r.status));
   const root=document.createElement('section');root.id='gcl-mod31';root.className='gcl-mod31';
-  root.innerHTML=`<header><div><span>TRUST & SAFETY · STAFF</span><h2>Fila de moderação</h2></div><div class="gcl-mod31-count"><strong>${open.length}</strong><small>casos ativos</small></div></header><p class="gcl-mod31-note">Denúncias são sinais para revisão humana. Nenhuma denúncia altera GCL Score, ranking ou pontos por si só.</p><div class="gcl-mod31-list">${open.length?open.map(row31).join(''):'<article class="gcl-mod31-empty">Nenhum caso ativo. A fila está limpa.</article>'}</div>`;
+  root.innerHTML=`<header><div><span>TRUST & SAFETY · STAFF</span><h2>Fila de moderação</h2></div><div class="gcl-mod31-count"><strong>${open.length}</strong><small>${open.length===1?'caso ativo':'casos ativos'}</small></div></header><p class="gcl-mod31-note">Denúncias são sinais para revisão humana. Nenhuma denúncia altera GCL Score, ranking ou pontos por si só.</p><div class="gcl-mod31-list">${open.length?open.map(row31).join(''):'<article class="gcl-mod31-empty">Nenhum caso ativo. A fila está limpa.</article>'}</div>`;
   anchor.appendChild(root);bind31(root);
  }catch(e){if(String(e?.message)!=='moderator_access_required')console.warn('gcl moderation console',e)}finally{mounting31=false}
 }
