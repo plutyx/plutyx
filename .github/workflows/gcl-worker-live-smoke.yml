@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Verify deployed v4 worker health and version
+      - name: Verify deployed v4 worker health and capabilities
         shell: bash
         run: |
           set -euo pipefail
@@ -23,7 +23,9 @@ jobs:
             'https://convrank-sac-audit-v4.onrender.com/health' -o "$tmp"
           cat "$tmp"
           jq -e '.ok == true' "$tmp"
-          jq -e '.service == "convrank-sac-audit"' "$tmp"
-          jq -e '.version == "0.3.4"' "$tmp"
+          jq -e '.service == "convrank-gcl-audit"' "$tmp"
+          jq -e '.version == "0.5.0"' "$tmp"
           jq -e '.capabilities.javascript_rendering == true' "$tmp"
           jq -e '.capabilities.axe_core == true' "$tmp"
+          jq -e '.capabilities.lighthouse == true' "$tmp"
+          jq -e '.capabilities.fail_soft_components == true' "$tmp"
