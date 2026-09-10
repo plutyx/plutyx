@@ -23,7 +23,7 @@ from convrank_worker.app import (
 )
 from convrank_worker.fallback_sources import commoncrawl_snapshot
 
-APP_VERSION = "0.3.3"
+APP_VERSION = "0.3.4"
 app = FastAPI(title="ConvRank SAC Audit Worker + axe-core", version=APP_VERSION)
 
 
@@ -90,6 +90,7 @@ def archived_findings(static: dict[str, Any], fallback: dict[str, Any]) -> list[
 
 async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
     browser = None
+    page = None
     navigation_warning = None
     started = time.perf_counter()
     try:
@@ -225,6 +226,11 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
             "duration_ms": round((time.perf_counter() - started) * 1000),
         }
     finally:
+        if page is not None:
+            try:
+                await page.unroute_all(behavior="ignoreErrors")
+            except Exception:
+                pass
         if browser is not None:
             try:
                 await browser.close()
