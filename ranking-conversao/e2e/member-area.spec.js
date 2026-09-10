@@ -105,9 +105,13 @@ test('authenticated account route leaves loading state and renders the cockpit',
 
   await expect(page.getByText(/Olá, Teste\./)).toBeVisible({ timeout: 10000 });
   await expect(page.getByText('Sua temporada em 5 movimentos')).toBeVisible();
-  await expect(page.getByText('82,4')).toBeVisible();
-  await expect(page.getByText('#7')).toBeVisible();
-  await expect(page.getByText('Carregando seu cockpit…')).toHaveCount(0);
 
+  const scoreKpi = page.locator('.ma25-kpis article').filter({ hasText: 'MELHOR GCL SCORE' });
+  await expect(scoreKpi.locator('strong')).toHaveText('82,4');
+
+  const rankKpi = page.locator('.ma25-kpis article').filter({ hasText: 'POSIÇÃO' });
+  await expect(rankKpi.locator('strong')).toHaveText('#7');
+
+  await expect(page.getByText('Carregando seu cockpit…')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
