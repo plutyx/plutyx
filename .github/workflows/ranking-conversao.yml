@@ -72,6 +72,8 @@ jobs:
           gate awards_methodology grep -R -q 'Três sinais. Nenhum pay-to-win.' ranking-conversao/dist/assets
           gate award_verification grep -R -q 'Um selo que pode ser provado.' ranking-conversao/dist/assets
           gate award_badge_embed grep -R -q 'gcl-award-verify' ranking-conversao/dist/assets
+          gate benchmark_deepening grep -R -q 'GCL INTELLIGENCE · BENCHMARK DEEPENING' ranking-conversao/dist/assets
+          gate benchmark_distribution_guard grep -R -q 'Percentis do corpus profundo permanecem bloqueados' ranking-conversao/dist/assets
           gate market_request grep -R -q 'Solicitar diagnóstico de implementação' ranking-conversao/dist/assets
           gate gcl_intelligence grep -R -q 'GCL Intelligence' ranking-conversao/dist/assets
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' ranking-conversao/dist; then echo 'FAIL no_service_role_secret' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_service_role_secret' | tee -a "$report"; fi
