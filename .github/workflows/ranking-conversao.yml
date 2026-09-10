@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           built_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          printf '{"source_sha":"%s","run_id":"%s","built_at":"%s","base_path":"/ranking-site/"}\n' \
+          printf '{"source_sha":"%s","run_id":"%s","built_at":"%s","base_path":"/ranking-site/","application":"Global Conversion League","artifact":"hostinger-production-bundle"}\n' \
             "$GITHUB_SHA" "$GITHUB_RUN_ID" "$built_at" > ranking-conversao/dist/gcl-build.json
       - name: Validate production bundle
         id: validate
@@ -80,6 +80,8 @@ jobs:
           gate htaccess_exists test -f ranking-conversao/dist/.htaccess
           gate provenance_exists test -f ranking-conversao/dist/gcl-build.json
           gate provenance_sha grep -q "$GITHUB_SHA" ranking-conversao/dist/gcl-build.json
+          gate provenance_application grep -q '"application":"Global Conversion League"' ranking-conversao/dist/gcl-build.json
+          gate provenance_artifact grep -q '"artifact":"hostinger-production-bundle"' ranking-conversao/dist/gcl-build.json
           gate base_path grep -q '/ranking-site/' ranking-conversao/dist/index.html
           gate rewrite_base grep -q 'RewriteBase /ranking-site/' ranking-conversao/dist/.htaccess
           gate gcl_title grep -q 'Global Conversion League' ranking-conversao/dist/index.html
