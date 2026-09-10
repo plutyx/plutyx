@@ -6,19 +6,27 @@ on:
       read_requests:
         description: Public API read requests
         required: false
-        default: '40'
+        default: '100'
       read_concurrency:
         description: Public API read concurrency
         required: false
-        default: '8'
+        default: '12'
       qualify_requests:
         description: URL qualify requests (no full scan)
         required: false
-        default: '8'
+        default: '12'
       qualify_concurrency:
         description: URL qualify concurrency
         required: false
         default: '4'
+      hostinger_requests:
+        description: Hostinger route requests
+        required: false
+        default: '48'
+      hostinger_concurrency:
+        description: Hostinger route concurrency
+        required: false
+        default: '8'
   push:
     branches: [convrank-hostinger-front]
     paths:
@@ -39,10 +47,12 @@ jobs:
           node-version: '22'
       - name: Controlled public production load smoke
         env:
-          GCL_LOAD_READ_REQUESTS: ${{ inputs.read_requests || '40' }}
-          GCL_LOAD_READ_CONCURRENCY: ${{ inputs.read_concurrency || '8' }}
-          GCL_LOAD_QUALIFY_REQUESTS: ${{ inputs.qualify_requests || '8' }}
+          GCL_LOAD_READ_REQUESTS: ${{ inputs.read_requests || '100' }}
+          GCL_LOAD_READ_CONCURRENCY: ${{ inputs.read_concurrency || '12' }}
+          GCL_LOAD_QUALIFY_REQUESTS: ${{ inputs.qualify_requests || '12' }}
           GCL_LOAD_QUALIFY_CONCURRENCY: ${{ inputs.qualify_concurrency || '4' }}
+          GCL_LOAD_HOSTINGER_REQUESTS: ${{ inputs.hostinger_requests || '48' }}
+          GCL_LOAD_HOSTINGER_CONCURRENCY: ${{ inputs.hostinger_concurrency || '8' }}
           GCL_PUBLIC_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac-ranking-site-api
           GCL_PROD_BASE: https://plutyx.com/ranking-site
         run: node scripts/load-smoke.mjs
