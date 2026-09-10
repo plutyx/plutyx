@@ -95,7 +95,36 @@ test('authenticated account route leaves loading state and renders the cockpit',
             points: 100
           }],
           upcoming_events: [],
-          unread_notifications: 2
+          unread_notifications: 2,
+          connection_center: {
+            catalog_total: 779,
+            autonomous_ready: 684,
+            connection_metrics: 95,
+            implemented_connection_metrics: 0,
+            principle: 'Dados públicos são coletados automaticamente. Dados proprietários só entram quando uma fonte real é conectada.',
+            groups: [
+              {
+                provider_code: 'traffic_provider',
+                label: 'Inteligência de tráfego competitivo',
+                availability: 'public_provider',
+                lens: 'competitive',
+                metric_count: 25,
+                status: 'connector_required',
+                available_now: false,
+                next_action: 'Adicionar provedor licenciado de traffic intelligence'
+              },
+              {
+                provider_code: 'search_console',
+                label: 'Google Search Console',
+                availability: 'first_party_connection',
+                lens: 'first_party',
+                metric_count: 6,
+                status: 'connector_required',
+                available_now: false,
+                next_action: 'Conectar propriedade verificada do Search Console'
+              }
+            ]
+          }
         }
       })
     });
@@ -111,6 +140,12 @@ test('authenticated account route leaves loading state and renders the cockpit',
 
   const rankKpi = page.locator('.ma25-kpis article').filter({ hasText: 'POSIÇÃO' });
   await expect(rankKpi.locator('strong')).toHaveText('#7');
+
+  await expect(page.getByText('GCL DATA CONNECTION CENTER')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('.cc28-score')).toContainText('684');
+  await expect(page.locator('.cc28-score')).toContainText('95');
+  await expect(page.getByText('Google Search Console')).toBeVisible();
+  await expect(page.locator('.cc28-card').filter({ hasText: 'Google Search Console' })).toContainText('AINDA NÃO HABILITADA');
 
   await expect(page.getByText('Carregando seu cockpit…')).toHaveCount(0);
   expect(errors).toEqual([]);
