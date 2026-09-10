@@ -85,6 +85,23 @@ test('Research opens with published GCL Intelligence articles',async({page})=>{
  expect(errs).toEqual([]);
 });
 
+test('Trust Center exposes production policy surfaces and Awards governance',async({page})=>{
+ const errs=errors(page);
+ for(const [path,needle] of [
+   ['/legal/','Regras visíveis antes de qualquer competição.'],
+   ['/terms/','Regras claras para competir, analisar e evoluir.'],
+   ['/privacy/','Dados mínimos, finalidade explícita e evidência rastreável.'],
+   ['/cookies/','Preferências e sessão sem esconder o que está acontecendo.'],
+   ['/refunds/','Cobrança compreensível antes, durante e depois da compra.'],
+   ['/awards-rules/','Prestígio precisa ser conquistado — e verificável.']
+ ]){
+   await page.goto(`${BASE}${path}`,{waitUntil:'domcontentloaded'});
+   await expect(page.getByText(needle,{exact:true})).toBeVisible({timeout:10000});
+   await expect(page.getByText('sujeito a atualização e revisão jurídica',{exact:false})).toBeVisible();
+ }
+ expect(errs).toEqual([]);
+});
+
 test('public bundle keeps the Plutyx GCL surface free of external preview branding',async({page})=>{
  await page.goto(`${BASE}/`,{waitUntil:'domcontentloaded'});
  const html=(await page.locator('body').innerText()).toLowerCase();
