@@ -1,0 +1,56 @@
+name: gcl-load-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      read_requests:
+        description: Public API read requests
+        required: false
+        default: '40'
+      read_concurrency:
+        description: Public API read concurrency
+        required: false
+        default: '8'
+      qualify_requests:
+        description: URL qualify requests (no full scan)
+        required: false
+        default: '8'
+      qualify_concurrency:
+        description: URL qualify concurrency
+        required: false
+        default: '4'
+  push:
+    branches: [convrank-hostinger-front]
+    paths:
+      - 'ranking-conversao/scripts/load-smoke.mjs'
+      - '.github/workflows/gcl-load-smoke.yml'
+
+jobs:
+  production-load-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ranking-conversao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Controlled public production load smoke
+        env:
+          GCL_LOAD_READ_REQUESTS: ${{ inputs.read_requests || '40' }}
+          GCL_LOAD_READ_CONCURRENCY: ${{ inputs.read_concurrency || '8' }}
+          GCL_LOAD_QUALIFY_REQUESTS: ${{ inputs.qualify_requests || '8' }}
+          GCL_LOAD_QUALIFY_CONCURRENCY: ${{ inputs.qualify_concurrency || '4' }}
+          GCL_PUBLIC_API: https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac-ranking-site-api
+          GCL_PROD_BASE: https://plutyx.com/ranking-site
+        run: node scripts/load-smoke.mjs
+      - name: Upload capacity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcl-load-smoke-${{ github.run_id }}
+          path: ranking-conversao/load-smoke-result.json
+          if-no-files-found: warn
+          retention-days: 30
