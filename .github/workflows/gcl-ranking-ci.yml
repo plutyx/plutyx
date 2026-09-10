@@ -35,12 +35,15 @@ jobs:
           grep -R -F 'sac-ranking-site-api' dist/assets/*.js >/dev/null
           grep -R -F 'gcl-member-api' dist/assets/*.js >/dev/null
           grep -R -F 'gcl-moderation-api' dist/assets/*.js >/dev/null
+          grep -R -F 'gcl-action-plan-api' dist/assets/*.js >/dev/null
           grep -R -F 'Sua temporada em 5 movimentos' dist/assets/*.js >/dev/null
           grep -R -F 'MEMBER AREA · RECOVERY MODE' dist/assets/*.js >/dev/null
           grep -R -F 'COMMUNITY · STADIUM LOBBY' dist/assets/*.js >/dev/null
           grep -R -F 'PRÓXIMA JOGADA' dist/assets/*.js >/dev/null
           grep -R -F 'GCL SPOTLIGHT' dist/assets/*.js >/dev/null
           grep -R -F 'CONTINUE DE ONDE PAROU' dist/assets/*.js >/dev/null
+          grep -R -F 'EXECUTION BOARD' dist/assets/*.js >/dev/null
+          grep -R -F 'gcl-skeleton35' dist/assets/*.js >/dev/null
           grep -R -F 'OFICIAL · GCL INTELLIGENCE' dist/assets/*.js >/dev/null
           grep -R -F 'Uma denúncia não remove conteúdo automaticamente' dist/assets/*.js >/dev/null
           grep -q '/ranking-site/' dist/index.html
