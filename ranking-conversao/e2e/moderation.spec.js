@@ -37,8 +37,7 @@ test('member can report community content and UI states that review is non-autom
   await expect(report).toBeVisible({timeout:10000});
   await report.click();
   await expect(page.getByRole('heading',{name:'Sinalizar post'})).toBeVisible();
-  await expect(page.locator('.gcl-report29')).toContainText('não remove conteúdo automaticamente');
-  await expect(page.locator('.gcl-report29')).toContainText('não altera score, ranking ou pontos');
+  await expect(page.locator('.gcl-report29')).toContainText('Uma denúncia não remove conteúdo automaticamente nem altera score, ranking ou pontos.');
   await page.locator('.gcl-report29 select').selectOption('spam');
   await page.locator('.gcl-report29 textarea').fill('Link repetitivo publicado fora do contexto da discussão.');
   await page.getByRole('button',{name:'Enviar denúncia'}).click();
