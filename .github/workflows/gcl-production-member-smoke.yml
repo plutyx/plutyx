@@ -1,0 +1,31 @@
+name: GCL Production Member Smoke
+
+on:
+  push:
+    branches: [convrank-hostinger-front]
+    paths:
+      - '.github/workflows/gcl-production-member-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  member-area-live:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ranking-conversao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ranking-conversao/package.json
+      - run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify production route responds
+        run: curl --fail --silent --show-error --retry 3 https://plutyx.com/ranking-site/account/ >/dev/null
+      - name: Browser smoke — production member area
+        env:
+          GCL_E2E_BASE: https://plutyx.com/ranking-site
+        run: npm run test:member-area
