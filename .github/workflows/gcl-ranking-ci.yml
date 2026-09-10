@@ -46,6 +46,12 @@ jobs:
           grep -R -F 'gcl-skeleton35' dist/assets/*.js >/dev/null
           grep -R -F 'OFICIAL · GCL INTELLIGENCE' dist/assets/*.js >/dev/null
           grep -R -F 'Uma denúncia não remove conteúdo automaticamente' dist/assets/*.js >/dev/null
+          grep -R -F 'RANKING MONITOR · DEEP RE-AUDIT' dist/assets/*.js >/dev/null
+          grep -R -F 'cedem lugar a análises recém-pagas' dist/assets/*.js >/dev/null
+          grep -F "'lighthouse_full'" supabase/migrations/20260910215400_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
+          grep -F "'scheduled_monitoring'" supabase/migrations/20260910215400_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
+          grep -F "'yield_to_full_paid'" supabase/migrations/20260910215400_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
+          grep -F 'MAX_BODY_BYTES=8192' supabase/functions/gcl-monitoring-api/index.ts >/dev/null
           grep -q '/ranking-site/' dist/index.html
           grep -q 'RewriteBase /ranking-site/' dist/.htaccess
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' dist; then echo 'service role leaked into bundle'; exit 1; fi
