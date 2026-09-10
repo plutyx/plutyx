@@ -15,6 +15,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HOSTINGER_FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
+      HOSTINGER_FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+      HOSTINGER_FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+      HOSTINGER_FTP_PATH: ${{ secrets.HOSTINGER_FTP_PATH }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,6 +35,12 @@ jobs:
         env:
           VITE_BASE_PATH: /ranking-site/
         run: npm run build
+      - name: Stamp build provenance
+        shell: bash
+        run: |
+          built_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          printf '{"source_sha":"%s","run_id":"%s","built_at":"%s","base_path":"/ranking-site/"}\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_ID" "$built_at" > ranking-conversao/dist/gcl-build.json
       - name: Validate production bundle
         id: validate
         shell: bash
@@ -49,11 +60,18 @@ jobs:
           }
           gate index_exists test -f ranking-conversao/dist/index.html
           gate htaccess_exists test -f ranking-conversao/dist/.htaccess
+          gate provenance_exists test -f ranking-conversao/dist/gcl-build.json
+          gate provenance_sha grep -q "$GITHUB_SHA" ranking-conversao/dist/gcl-build.json
           gate base_path grep -q '/ranking-site/' ranking-conversao/dist/index.html
           gate rewrite_base grep -q 'RewriteBase /ranking-site/' ranking-conversao/dist/.htaccess
           gate gcl_title grep -q 'Global Conversion League' ranking-conversao/dist/index.html
           gate community_progression grep -R -q 'PROGRESSÃO POR IMPACTO' ranking-conversao/dist/assets
           gate action_lab grep -R -q 'ACTION LAB' ranking-conversao/dist/assets
+          gate evidence_os grep -R -q 'GCL EVIDENCE OS' ranking-conversao/dist/assets
+          gate competitive_mission grep -R -q 'COMPETITIVE MISSION' ranking-conversao/dist/assets
+          gate awards_methodology grep -R -q 'Três sinais. Nenhum pay-to-win.' ranking-conversao/dist/assets
+          gate market_request grep -R -q 'Solicitar diagnóstico de implementação' ranking-conversao/dist/assets
+          gate gcl_intelligence grep -R -q 'GCL Intelligence' ranking-conversao/dist/assets
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' ranking-conversao/dist; then echo 'FAIL no_service_role_secret' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_service_role_secret' | tee -a "$report"; fi
           if grep -R -q 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' ranking-conversao/dist; then echo 'FAIL no_legacy_jwt' | tee -a "$report"; failures=$((failures+1)); else echo 'PASS no_legacy_jwt' | tee -a "$report"; fi
           echo "FAILURES $failures" | tee -a "$report"
@@ -75,3 +93,31 @@ jobs:
           force_orphan: true
           enable_jekyll: false
           commit_message: "deploy(gcl): ${{ github.sha }}"
+      - name: Check Hostinger deployment credentials
+        id: hostinger
+        shell: bash
+        run: |
+          if [[ -n "$HOSTINGER_FTP_SERVER" && -n "$HOSTINGER_FTP_USERNAME" && -n "$HOSTINGER_FTP_PASSWORD" && -n "$HOSTINGER_FTP_PATH" ]]; then
+            if [[ "$HOSTINGER_FTP_PATH" == "/" || "$HOSTINGER_FTP_PATH" == "." || "$HOSTINGER_FTP_PATH" != *"ranking-site"* ]]; then
+              echo "Hostinger deploy credentials exist, but HOSTINGER_FTP_PATH is not safely scoped to ranking-site." >&2
+              exit 1
+            fi
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Hostinger FTPS deploy skipped: configure HOSTINGER_FTP_SERVER, HOSTINGER_FTP_USERNAME, HOSTINGER_FTP_PASSWORD and HOSTINGER_FTP_PATH repository secrets."
+          fi
+      - name: Deploy validated bundle to Hostinger
+        if: steps.hostinger.outputs.ready == 'true'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+          lftp -u "$HOSTINGER_FTP_USERNAME","$HOSTINGER_FTP_PASSWORD" "$HOSTINGER_FTP_SERVER" -e "set ssl:verify-certificate yes; set net:max-retries 2; set net:timeout 20; mirror -R --delete --parallel=4 ./ranking-conversao/dist/ '$HOSTINGER_FTP_PATH'; bye"
+      - name: Verify Hostinger provenance
+        if: steps.hostinger.outputs.ready == 'true'
+        shell: bash
+        run: |
+          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 3 "https://plutyx.com/ranking-site/gcl-build.json?sha=$GITHUB_SHA")"
+          echo "$body" | grep -q "$GITHUB_SHA"
+          echo "Hostinger is serving the validated GCL build $GITHUB_SHA"
