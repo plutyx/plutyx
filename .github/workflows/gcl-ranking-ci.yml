@@ -39,6 +39,8 @@ jobs:
           grep -R -F 'MEMBER AREA · RECOVERY MODE' dist/assets/*.js >/dev/null
           grep -R -F 'COMMUNITY · STADIUM LOBBY' dist/assets/*.js >/dev/null
           grep -R -F 'PRÓXIMA JOGADA' dist/assets/*.js >/dev/null
+          grep -R -F 'GCL SPOTLIGHT' dist/assets/*.js >/dev/null
+          grep -R -F 'CONTINUE DE ONDE PAROU' dist/assets/*.js >/dev/null
           grep -R -F 'OFICIAL · GCL INTELLIGENCE' dist/assets/*.js >/dev/null
           grep -R -F 'Uma denúncia não remove conteúdo automaticamente' dist/assets/*.js >/dev/null
           grep -q '/ranking-site/' dist/index.html
@@ -64,6 +66,15 @@ jobs:
           for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
           curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-preview-public.log; exit 1; }
           npm run test:public-surfaces
+      - name: Browser gate — adaptive experience
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview-experience.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-preview-experience.log; exit 1; }
+          npm run test:experience
       - name: Browser gate — WCAG A/AA accessibility
         shell: bash
         run: |
