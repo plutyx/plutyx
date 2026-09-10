@@ -35,7 +35,14 @@ jobs:
         run: |
           set -euo pipefail
           for path in '' ranking/ awards/ community/ services/ blog/ about/ account/; do
-            curl --fail --silent --show-error --retry 5 --retry-delay 3 "https://plutyx.com/ranking-site/${path}" >/dev/null
+            url="https://plutyx.com/ranking-site/${path}"
+            echo "Probing $url"
+            code="$(curl --silent --show-error --location --connect-timeout 8 --max-time 20 --retry 2 --retry-delay 2 --output /dev/null --write-out '%{http_code}' "$url")"
+            echo "$url -> HTTP $code"
+            if [[ ! "$code" =~ ^[23] ]]; then
+              echo "Production route unhealthy: $url returned HTTP $code" >&2
+              exit 1
+            fi
           done
       - name: Read and validate live build provenance
         id: provenance
@@ -49,7 +56,7 @@ jobs:
           tmp="$(mktemp)"
           matched=0
           for attempt in $(seq 1 12); do
-            if curl --fail --silent --show-error --retry 2 --retry-delay 2 "https://plutyx.com/ranking-site/gcl-build.json?attempt=${attempt}" -o "$tmp"; then
+            if curl --fail --silent --show-error --location --connect-timeout 8 --max-time 20 --retry 2 --retry-delay 2 "https://plutyx.com/ranking-site/gcl-build.json?attempt=${attempt}" -o "$tmp"; then
               source_sha="$(jq -r '.source_sha // empty' "$tmp")"
               app="$(jq -r '.application // empty' "$tmp")"
               artifact="$(jq -r '.artifact // empty' "$tmp")"
