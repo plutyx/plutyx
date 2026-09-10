@@ -140,6 +140,32 @@ base.METRICS_JS = r"""
 """
 
 
+_original_focus_probe = base._focus_probe
+
+
+async def _focus_fast(page, max_tabs: int = 12) -> dict[str, Any]:
+    """Keep keyboard-focus evidence useful without allowing it to consume the browser budget."""
+    try:
+        return await asyncio.wait_for(
+            _original_focus_probe(page, max_tabs=min(max_tabs, 12)),
+            timeout=4.0,
+        )
+    except asyncio.TimeoutError:
+        return {
+            "available": False,
+            "degraded": True,
+            "error": "focus_probe_budget_exceeded_4s",
+            "tab_steps_budget": 12,
+        }
+    except Exception as exc:
+        return {
+            "available": False,
+            "degraded": True,
+            "error": str(exc)[:1000],
+            "tab_steps_budget": 12,
+        }
+
+
 async def _axe_fast(page) -> dict[str, Any]:
     try:
         result = await asyncio.wait_for(
@@ -150,7 +176,7 @@ async def _axe_fast(page) -> dict[str, Any]:
                     "resultTypes": ["violations"],
                 },
             ),
-            timeout=18.0,
+            timeout=6.0,
         )
         raw = result.response
         violations = []
@@ -169,7 +195,7 @@ async def _axe_fast(page) -> dict[str, Any]:
             )
         return {
             "available": True,
-            "mode": "atomic_wcag_rules_18s",
+            "mode": "atomic_wcag_rules_6s",
             "rules_requested": AXE_RULES,
             "version": (raw.get("testEngine") or {}).get("version"),
             "violations_count": len(raw.get("violations", [])),
@@ -177,11 +203,24 @@ async def _axe_fast(page) -> dict[str, Any]:
             "disclosure": "Targeted axe-core automated checks only; absence of a violation is interpreted only for explicitly requested rules and manual WCAG evaluation is not implied.",
         }
     except asyncio.TimeoutError:
-        return {"available": False, "mode": "atomic_wcag_rules_18s", "error": "axe_atomic_timeout_18s", "rules_requested": AXE_RULES}
+        return {
+            "available": False,
+            "degraded": True,
+            "mode": "atomic_wcag_rules_6s",
+            "error": "axe_atomic_budget_exceeded_6s",
+            "rules_requested": AXE_RULES,
+        }
     except Exception as exc:
-        return {"available": False, "mode": "atomic_wcag_rules_18s", "error": str(exc)[:1000], "rules_requested": AXE_RULES}
+        return {
+            "available": False,
+            "degraded": True,
+            "mode": "atomic_wcag_rules_6s",
+            "error": str(exc)[:1000],
+            "rules_requested": AXE_RULES,
+        }
 
 
+base._focus_probe = _focus_fast
 base._axe = _axe_fast
-base.APP_VERSION = "0.2.0-fast-axe-cro"
+base.APP_VERSION = "0.3.0-fast-axe-cro-failsoft"
 app = base.app
