@@ -21,6 +21,9 @@ jobs:
       HOSTINGER_FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
       HOSTINGER_FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
       HOSTINGER_FTP_PATH: ${{ secrets.HOSTINGER_FTP_PATH }}
+      DEPLOY_PART_A: ${{ secrets.DEPLOY_PART_A }}
+      DEPLOY_PART_B: ${{ secrets.DEPLOY_PART_B }}
+      DEPLOY_PART_C: ${{ secrets.DEPLOY_PART_C }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,6 +40,9 @@ jobs:
           node --check hostinger-deployer/start.mjs
           node --check hostinger-deployer/deploy.mjs
           node --check hostinger-deployer/secrets.mjs
+          node --check hostinger-deployer/deployment-strategy.mjs
+          node --check hostinger-deployer/ci-run.mjs
+          node --test hostinger-deployer/deployment-strategy.test.mjs
       - name: Build Hostinger /ranking-site bundle
         working-directory: ranking-conversao
         env:
@@ -140,31 +146,40 @@ jobs:
           force_orphan: true
           enable_jekyll: false
           commit_message: "deploy(gcl): ${{ github.sha }}"
-      - name: Check Hostinger deployment credentials
+      - name: Select Hostinger deployment strategy
         id: hostinger
         shell: bash
         run: |
-          if [[ -n "$HOSTINGER_FTP_SERVER" && -n "$HOSTINGER_FTP_USERNAME" && -n "$HOSTINGER_FTP_PASSWORD" && -n "$HOSTINGER_FTP_PATH" ]]; then
-            if [[ "$HOSTINGER_FTP_PATH" == "/" || "$HOSTINGER_FTP_PATH" == "." || "$HOSTINGER_FTP_PATH" != *"ranking-site"* ]]; then
-              echo "Hostinger deploy credentials exist, but HOSTINGER_FTP_PATH is not safely scoped to ranking-site." >&2
-              exit 1
-            fi
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+          mode="$(node --input-type=module -e "import { chooseDeployStrategy } from './hostinger-deployer/deployment-strategy.mjs'; process.stdout.write(chooseDeployStrategy(process.env).mode)")"
+          reason="$(node --input-type=module -e "import { chooseDeployStrategy } from './hostinger-deployer/deployment-strategy.mjs'; process.stdout.write(chooseDeployStrategy(process.env).reason)")"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          if [[ "$mode" == "none" ]]; then
+            echo "Hostinger deploy unavailable: $reason. Configure scoped HOSTINGER_FTP_* secrets or all DEPLOY_PART_A/B/C fragments." >&2
           else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Hostinger FTPS deploy skipped: configure HOSTINGER_FTP_SERVER, HOSTINGER_FTP_USERNAME, HOSTINGER_FTP_PASSWORD and HOSTINGER_FTP_PATH repository secrets."
+            echo "Hostinger deployment strategy: $mode ($reason)"
           fi
-      - name: Deploy validated bundle to Hostinger
-        if: steps.hostinger.outputs.ready == 'true'
+      - name: Deploy validated bundle via direct FTPS
+        if: steps.hostinger.outputs.mode == 'direct_ftps'
         shell: bash
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq lftp
           lftp -u "$HOSTINGER_FTP_USERNAME","$HOSTINGER_FTP_PASSWORD" "$HOSTINGER_FTP_SERVER" -e "set ssl:verify-certificate yes; set net:max-retries 2; set net:timeout 20; mirror -R --delete --parallel=4 ./ranking-conversao/dist/ '$HOSTINGER_FTP_PATH'; bye"
+      - name: Deploy validated bundle via encrypted deployer
+        if: steps.hostinger.outputs.mode == 'encrypted_deployer'
+        shell: bash
+        env:
+          DEPLOY_ENABLED: '1'
+          LOCAL_DIST: ranking-conversao/dist
+          PORT: '10000'
+        run: |
+          npm install --prefix hostinger-deployer --no-audit --no-fund
+          node hostinger-deployer/ci-run.mjs
       - name: Verify Hostinger provenance
-        if: steps.hostinger.outputs.ready == 'true'
+        if: steps.hostinger.outputs.mode != 'none'
         shell: bash
         run: |
-          body="$(curl --fail --silent --show-error --retry 3 --retry-delay 3 "https://plutyx.com/ranking-site/gcl-build.json?sha=$GITHUB_SHA")"
+          body="$(curl --fail --silent --show-error --retry 6 --retry-delay 3 "https://plutyx.com/ranking-site/gcl-build.json?sha=$GITHUB_SHA")"
           echo "$body" | grep -q "$GITHUB_SHA"
           echo "Hostinger is serving the validated GCL build $GITHUB_SHA"
