@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import SftpClient from 'ssh2-sftp-client';
 import { Client as FtpClient } from 'basic-ftp';
+import { handleControlPlaneRequest } from './control-plane.mjs';
 
 const PORT = Number(process.env.PORT || 10000);
 const DOMAIN = process.env.HOSTINGER_DOMAIN || 'plutyx.com';
@@ -262,13 +263,14 @@ async function runDeploy() {
 const server = http.createServer((req, res) => {
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.setHeader('cache-control', 'no-store');
-  if (req.url === '/health') {
-    res.statusCode = 200;
-    res.end(JSON.stringify({ ok: true, service: 'plutyx-hostinger-deployer', phase: state.phase }));
-    return;
-  }
-  res.statusCode = state.ok ? 200 : 500;
-  res.end(JSON.stringify(state));
+  const control = globalThis.__GCL_RELEASE_CONTROL__ || {};
+  const routed = handleControlPlaneRequest(req.url, {
+    serviceState: state,
+    syncRelease: control.syncRelease || null,
+    getAutosyncState: control.getAutosyncState || null,
+  });
+  res.statusCode = routed.status;
+  res.end(JSON.stringify(routed.body));
 });
 
 server.listen(PORT, '0.0.0.0', () => {
