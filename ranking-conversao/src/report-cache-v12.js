@@ -1,6 +1,7 @@
 const GCL_REPORT_ENDPOINT='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac-ranking-site-api';
 const gclOriginalFetch=window.fetch.bind(window);
 const gclReportCache=new Map();
+const GCL_REPORT_CACHE_TTL_MS=15000;
 window.__GCL_REPORT_CACHE_STATS={hits:0,misses:0};
 
 function gclCachedResponse(entry){
@@ -15,17 +16,25 @@ window.fetch=async function(input,init){
       const body=JSON.parse(init.body);
       if(body?.action==='report'&&body?.token){
         const key=String(body.token);const now=Date.now();const cached=gclReportCache.get(key);
-        if(cached&&now-cached.createdAt<15000){window.__GCL_REPORT_CACHE_STATS.hits++;const entry=await cached.promise;return gclCachedResponse(entry)}
+        const reusable=cached&&(!cached.settledAt||now-cached.settledAt<GCL_REPORT_CACHE_TTL_MS);
+        if(reusable){window.__GCL_REPORT_CACHE_STATS.hits++;const entry=await cached.promise;return gclCachedResponse(entry)}
         window.__GCL_REPORT_CACHE_STATS.misses++;
+        const cacheEntry={createdAt:now,settledAt:null,promise:null};
         const promise=(async()=>{
           const res=await gclOriginalFetch(input,init);const text=await res.clone().text();
           const headers=new Headers();res.headers.forEach((v,k)=>headers.set(k,v));
           const entry={text,status:res.status,statusText:res.statusText,headers,createdAt:Date.now()};
           let keep=res.ok;try{const parsed=JSON.parse(text);keep=keep&&parsed?.result?.found===true}catch{keep=false}
-          if(!keep)setTimeout(()=>{if(gclReportCache.get(key)?.promise===promise)gclReportCache.delete(key)},0);
+          if(keep){
+            const current=gclReportCache.get(key);
+            if(current===cacheEntry)current.settledAt=entry.createdAt;
+          }else{
+            setTimeout(()=>{if(gclReportCache.get(key)===cacheEntry)gclReportCache.delete(key)},0);
+          }
           return entry;
         })();
-        gclReportCache.set(key,{createdAt:now,promise});
+        cacheEntry.promise=promise;
+        gclReportCache.set(key,cacheEntry);
         const entry=await promise;return gclCachedResponse(entry);
       }
     }
