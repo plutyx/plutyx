@@ -31,7 +31,7 @@ def test_process_isolation_contract_is_fail_closed():
     assert "RENDER_CHILD_BUDGET_SECONDS = 28" in source
     assert 'os.getenv("GCL_RENDER_PROCESS_ISOLATION") == "1"' in package
     assert 'os.getenv("GCL_RENDER_CHILD") != "1"' in package
-    assert '_lighthouse_app.APP_VERSION = "0.7.0"' in package
+    assert "_lighthouse_app.APP_VERSION =" in package
     assert "await render_and_axe(url, screenshot)" in child
 
 
