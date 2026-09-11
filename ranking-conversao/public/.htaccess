@@ -11,6 +11,12 @@ RewriteRule . /ranking-site/index.html [L]
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
   Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://npgheuzpnkwtxopswpqy.supabase.co; img-src 'self' data: https:; font-src 'self' data: https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+
+  <FilesMatch "^gcl-build\.json$">
+    Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
+  </FilesMatch>
 </IfModule>
 
 <IfModule mod_expires.c>
