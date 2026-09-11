@@ -2,10 +2,32 @@ const GCL_REPORT_ENDPOINT='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1
 const gclOriginalFetch=window.fetch.bind(window);
 const gclReportCache=new Map();
 const GCL_REPORT_CACHE_TTL_MS=15000;
-window.__GCL_REPORT_CACHE_STATS={hits:0,misses:0};
+const GCL_REPORT_MAX_ATTEMPTS=3;
+const GCL_REPORT_RETRY_DELAYS_MS=[500,1500];
+window.__GCL_REPORT_CACHE_STATS={hits:0,misses:0,retries:0};
 
 function gclCachedResponse(entry){
   return new Response(entry.text,{status:entry.status,statusText:entry.statusText,headers:entry.headers});
+}
+
+const gclSleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+async function gclReportFetchWithRetry(input,init){
+  let lastError=null;
+  for(let attempt=0;attempt<GCL_REPORT_MAX_ATTEMPTS;attempt++){
+    try{
+      const res=await gclOriginalFetch(input,init);
+      const retryable=res.status>=500&&res.status<=599;
+      if(!retryable||attempt===GCL_REPORT_MAX_ATTEMPTS-1)return res;
+    }catch(error){
+      lastError=error;
+      if(attempt===GCL_REPORT_MAX_ATTEMPTS-1)throw error;
+    }
+    window.__GCL_REPORT_CACHE_STATS.retries++;
+    await gclSleep(GCL_REPORT_RETRY_DELAYS_MS[Math.min(attempt,GCL_REPORT_RETRY_DELAYS_MS.length-1)]||500);
+  }
+  if(lastError)throw lastError;
+  return gclOriginalFetch(input,init);
 }
 
 window.fetch=async function(input,init){
@@ -21,7 +43,7 @@ window.fetch=async function(input,init){
         window.__GCL_REPORT_CACHE_STATS.misses++;
         const cacheEntry={createdAt:now,settledAt:null,promise:null};
         const promise=(async()=>{
-          const res=await gclOriginalFetch(input,init);const text=await res.clone().text();
+          const res=await gclReportFetchWithRetry(input,init);const text=await res.clone().text();
           const headers=new Headers();res.headers.forEach((v,k)=>headers.set(k,v));
           const entry={text,status:res.status,statusText:res.statusText,headers,createdAt:Date.now()};
           let keep=res.ok;try{const parsed=JSON.parse(text);keep=keep&&parsed?.result?.found===true}catch{keep=false}
