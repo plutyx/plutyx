@@ -51,9 +51,9 @@ jobs:
           grep -R -F 'DISTRIBUIÇÃO DE PONTOS DO CANDIDATO' dist/assets/*.js >/dev/null
           grep -R -F 'Perfil de Pontuação' dist/assets/*.js >/dev/null
           grep -R -F 'Dimensão ausente nunca é desenhada como nota zero' dist/assets/*.js >/dev/null
-          grep -F "'lighthouse_full'" supabase/migrations/20260910215400_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
-          grep -F "'scheduled_monitoring'" supabase/migrations/20260910215400_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
-          grep -F "'yield_to_full_paid'" supabase/migrations/20260910215400_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
+          grep -F "'lighthouse_full'" supabase/migrations/20260910215441_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
+          grep -F "'scheduled_monitoring'" supabase/migrations/20260910215441_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
+          grep -F "'yield_to_full_paid'" supabase/migrations/20260910215441_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
           grep -F 'MAX_BODY_BYTES=8192' supabase/functions/gcl-monitoring-api/index.ts >/dev/null
           grep -F "'GCL-RADAR-1.0'" supabase/migrations/20260910222200_gcl_score_distribution_radar_v42.sql >/dev/null
           grep -F "'diagnostic_score_distribution'" supabase/migrations/20260910222200_gcl_score_distribution_radar_v42.sql >/dev/null
