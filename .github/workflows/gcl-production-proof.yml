@@ -23,6 +23,21 @@ jobs:
           cache: npm
           cache-dependency-path: ranking-conversao/package.json
       - run: npm install --no-audit --no-fund
+      - name: Wake autonomous Render release sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://plutyx-hostinger-ranking-site-deployer.onrender.com/health"
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error --max-time 20 "$endpoint" >/tmp/gcl-deployer-health.json; then
+              cat /tmp/gcl-deployer-health.json
+              echo "Render release sync control-plane awake on attempt $attempt"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Render release sync control-plane did not become healthy" >&2
+          exit 1
       - name: Wait for Hostinger to serve this exact source SHA
         shell: bash
         env:
