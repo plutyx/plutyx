@@ -10,6 +10,11 @@ from typing import Any, Awaitable, Callable
 from convrank_worker.render_isolation import _kill_process_group
 
 CHROME_PATH_BUDGET_SECONDS = 8
+LOCAL_LIGHTHOUSE_CATEGORY_FINDINGS = {
+    "SAC-LH-PERF-001": "performance",
+    "SAC-LH-SEO-001": "seo",
+    "SAC-LH-BP-001": "best-practices",
+}
 
 
 def _read_int(path: str) -> int | None:
@@ -80,10 +85,53 @@ async def isolated_chrome_executable() -> str:
         await _kill_process_group(proc)
 
 
+def suppress_uncollected_lighthouse_category_findings(result: dict[str, Any]) -> int:
+    """Remove only local category warnings that were not collected by score-metrics-only.
+
+    The constrained heavy worker intentionally skips Lighthouse category scoring and runs only
+    the five lab audits that can feed GCL score inputs. The legacy base pipeline still creates
+    three category findings from absent values; treating those nulls as warnings would invent
+    negative evidence. PageSpeed and deterministic GCL engines continue to provide the wider
+    SEO/best-practices diagnostics.
+    """
+    lighthouse = result.get("lighthouse") or {}
+    if lighthouse.get("category_profile") != "score_metrics_only":
+        return 0
+
+    categories = lighthouse.get("categories")
+    if not isinstance(categories, dict):
+        categories = {}
+    findings = result.get("findings")
+    if not isinstance(findings, list):
+        return 0
+
+    kept: list[Any] = []
+    removed = 0
+    for item in findings:
+        code = item.get("criterion_code") if isinstance(item, dict) else None
+        category = LOCAL_LIGHTHOUSE_CATEGORY_FINDINGS.get(code)
+        if category and categories.get(category) is None:
+            removed += 1
+            continue
+        kept.append(item)
+
+    if removed:
+        result["findings"] = kept
+        lighthouse["category_findings_suppressed"] = removed
+        lighthouse["category_findings_disclosure"] = (
+            "Local Lighthouse category findings were omitted because the score-metrics-only "
+            "profile did not collect category scores. Missing category evidence is unknown, "
+            "never a warning or failed site check."
+        )
+    return removed
+
+
 def instrument_pipeline(original: Callable[..., Awaitable[dict[str, Any]]]):
     async def wrapped(req, checkpoint):
         before = memory_snapshot()
         result = await original(req, checkpoint)
+        if isinstance(result, dict):
+            suppress_uncollected_lighthouse_category_findings(result)
         gc.collect()
         await asyncio.sleep(0)
         after = memory_snapshot()

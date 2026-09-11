@@ -49,8 +49,50 @@ async def test_chrome_path_lookup_runs_in_disposable_process_group(monkeypatch):
     assert reaped[-1] is proc
 
 
+def test_score_metrics_profile_suppresses_only_uncollected_local_category_warnings():
+    result = {
+        "lighthouse": {
+            "available": True,
+            "category_profile": "score_metrics_only",
+            "categories": {},
+            "metrics": {"largest-contentful-paint": {"numeric_value": 1234}},
+        },
+        "findings": [
+            {"criterion_code": "SAC-LH-PERF-001", "status": "warning", "evidence": {"lab_score": None}},
+            {"criterion_code": "SAC-LH-SEO-001", "status": "warning", "evidence": {"lab_score": None}},
+            {"criterion_code": "SAC-LH-BP-001", "status": "warning", "evidence": {"lab_score": None}},
+            {"criterion_code": "AXE-color-contrast", "status": "warning"},
+        ],
+    }
+
+    removed = telemetry.suppress_uncollected_lighthouse_category_findings(result)
+
+    assert removed == 3
+    assert [x["criterion_code"] for x in result["findings"]] == ["AXE-color-contrast"]
+    assert result["lighthouse"]["category_findings_suppressed"] == 3
+    assert "unknown" in result["lighthouse"]["category_findings_disclosure"].lower()
+
+
+def test_category_finding_is_kept_when_category_score_was_actually_collected():
+    result = {
+        "lighthouse": {
+            "category_profile": "score_metrics_only",
+            "categories": {"performance": 77.0},
+        },
+        "findings": [
+            {"criterion_code": "SAC-LH-PERF-001", "status": "warning", "evidence": {"lab_score": 77.0}},
+            {"criterion_code": "SAC-LH-SEO-001", "status": "warning", "evidence": {"lab_score": None}},
+        ],
+    }
+
+    removed = telemetry.suppress_uncollected_lighthouse_category_findings(result)
+
+    assert removed == 1
+    assert [x["criterion_code"] for x in result["findings"]] == ["SAC-LH-PERF-001"]
+
+
 @pytest.mark.asyncio
-async def test_pipeline_instrumentation_preserves_result_and_adds_memory(monkeypatch):
+async def test_pipeline_instrumentation_preserves_result_adds_memory_and_filters_false_categories(monkeypatch):
     snapshots = [
         {"process_rss_bytes": 10, "cgroup_current_bytes": 20},
         {"process_rss_bytes": 11, "cgroup_current_bytes": 21},
@@ -58,12 +100,18 @@ async def test_pipeline_instrumentation_preserves_result_and_adds_memory(monkeyp
     monkeypatch.setattr(telemetry, "memory_snapshot", lambda: snapshots.pop(0))
 
     async def original(req, checkpoint):
-        return {"engine": {"version": "test"}, "audit": {"ok": True}}
+        return {
+            "engine": {"version": "test"},
+            "audit": {"ok": True},
+            "lighthouse": {"category_profile": "score_metrics_only", "categories": {}},
+            "findings": [{"criterion_code": "SAC-LH-PERF-001", "status": "warning"}],
+        }
 
     wrapped = telemetry.instrument_pipeline(original)
     result = await wrapped(object(), {})
 
     assert result["audit"]["ok"] is True
+    assert result["findings"] == []
     assert result["runtime_memory"]["before"]["process_rss_bytes"] == 10
     assert result["runtime_memory"]["after_pipeline"]["cgroup_current_bytes"] == 21
 

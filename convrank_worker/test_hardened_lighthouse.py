@@ -60,6 +60,6 @@ def test_hardened_source_has_unique_profile_and_score_metrics_only_contract():
         "speed-index",
     }
     assert "_lighthouse_app.run_lighthouse = _hardened_lighthouse" in package
-    assert '_lighthouse_app.APP_VERSION = "0.9.3"' in package
+    assert '_lighthouse_app.APP_VERSION = "0.9.4"' in package
     assert "_lighthouse_app.RENDER_BUDGET_SECONDS = 30" in package
     assert "_lighthouse_app.LIGHTHOUSE_BUDGET_SECONDS = 70" in package
