@@ -28,3 +28,5 @@ jobs:
           node --check hostinger-deployer/ci-run.mjs
       - name: Deployment strategy tests
         run: node --test hostinger-deployer/deployment-strategy.test.mjs
+      - name: Autonomous release sync policy tests
+        run: node --test hostinger-deployer/autosync-policy.test.mjs
