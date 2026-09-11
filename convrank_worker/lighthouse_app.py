@@ -26,12 +26,15 @@ from convrank_worker.app import (
 from convrank_worker.axe_app import archived_findings, detect_access_limit, render_and_axe
 from convrank_worker.fallback_sources import commoncrawl_site_sample
 
-APP_VERSION = "0.5.1"
+APP_VERSION = "0.6.0"
 ROOT = Path(__file__).resolve().parent
 LIGHTHOUSE_BIN = ROOT / "node_modules" / ".bin" / "lighthouse"
 LIGHTHOUSE_BUDGET_SECONDS = 55
 RENDER_BUDGET_SECONDS = 25
 PROCESS_REAP_SECONDS = 5
+REQUEST_BUDGET_SECONDS = 120
+CANCELLATION_GRACE_SECONDS = 8
+_active_audits: set[asyncio.Task] = set()
 app = FastAPI(title="ConvRank GCL Audit Worker + axe-core + Lighthouse", version=APP_VERSION)
 
 
@@ -61,12 +64,13 @@ async def terminate_process_tree(proc: asyncio.subprocess.Process | None) -> Non
     """
     if proc is None:
         return
-    if proc.returncode is None:
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        except Exception:
+    # The CLI can exit before Chrome; its process group may still hold the pipes.
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except Exception:
+        if proc.returncode is None:
             try:
                 proc.kill()
             except ProcessLookupError:
@@ -244,15 +248,89 @@ async def health() -> dict[str, Any]:
             "lighthouse_process_group_cleanup": True,
             "process_reap_budget_seconds": PROCESS_REAP_SECONDS,
             "fail_soft_components": True,
+            "request_budget_seconds": REQUEST_BUDGET_SECONDS,
+            "cancellation_grace_seconds": CANCELLATION_GRACE_SECONDS,
+            "max_active_audits": 1,
+            "partial_evidence_on_deadline": True,
         },
+        "active_audits": len(_active_audits),
     }
 
 
 @app.post("/audit")
 async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(default=None)) -> dict[str, Any]:
     require_token(x_sac_worker_token)
+    # Fail fast: queueing is owned by Postgres, not by this small browser worker.
+    if _active_audits:
+        raise HTTPException(status_code=429, detail="audit_worker_busy", headers={"Retry-After": "10"})
+    checkpoint: dict[str, Any] = {"started": time.perf_counter(), "phase": "dns"}
+    task = asyncio.create_task(audit_pipeline(req, checkpoint))
+    _active_audits.add(task)
+    def release(completed):
+        _active_audits.discard(completed)
+        if not completed.cancelled():
+            completed.exception()  # Consume failures even after a disconnected caller.
+    task.add_done_callback(release)
+    try:
+        done, _ = await asyncio.wait({task}, timeout=REQUEST_BUDGET_SECONDS)
+        if done:
+            return task.result()
+        task.cancel()
+        # wait_for can itself wait indefinitely for cancellation. wait does not.
+        await asyncio.wait({task}, timeout=CANCELLATION_GRACE_SECONDS)
+        return deadline_result(req, checkpoint, cleanup_pending=not task.done())
+    except asyncio.CancelledError:
+        task.cancel()
+        raise
+
+
+def deadline_result(req: AuditRequest, checkpoint: dict[str, Any], cleanup_pending: bool) -> dict[str, Any]:
+    duration_ms = round((time.perf_counter() - checkpoint["started"]) * 1000)
+    phase = checkpoint["phase"]
+    if "static" not in checkpoint:
+        # No HTML was observed: do not materialize an empty successful audit.
+        raise HTTPException(status_code=504, detail={
+            "error": "request_budget_exceeded", "phase": phase, "retryable": True,
+            "duration_ms": duration_ms, "budget_seconds": REQUEST_BUDGET_SECONDS,
+        })
+    rendered = checkpoint.get("rendered") or {"available": False, "axe": {"available": False}}
+    access = checkpoint.get("access") or {"limited": False, "reason": None}
+    usable = not access["limited"]
+    static = checkpoint["static"]
+    return {
+        "engine": {"name": "convrank-gcl-audit", "version": APP_VERSION,
+                   "ranking_eligible": False, "official_sac_score": False,
+                   "budget_profile": "absolute-request-v1"},
+        "audit": {"requested_url": str(req.url), "final_url": checkpoint["final_url"],
+                  "robots_found": checkpoint["robots_found"], "http_status": checkpoint["http_status"],
+                  "duration_ms": duration_ms, "completed_at": now_iso(),
+                  "phases": {**checkpoint.get("phases", {}), "total_ms": duration_ms},
+                  "budget_exhausted": True, "budget_exhausted_phase": phase,
+                  "budget_seconds": REQUEST_BUDGET_SECONDS, "cleanup_pending": cleanup_pending},
+        "access": {**access, "fallback_used": False, "fallback_source": None},
+        "content_source": {"kind": "current_origin", "current": True,
+                           "disclosure": "Only evidence completed before the request deadline is retained."},
+        "origin_static": None, "static": static, "rendered": rendered,
+        "lighthouse": {"available": False, "error": "request_budget_exceeded",
+                       "degraded": True, "mode": "lab", "field_data": False},
+        "fallback": None, "site_sample": None,
+        "findings": findings(static, rendered, checkpoint["headers"]) if usable else [],
+        "coverage": {"site_content": usable, "current_site_content": usable,
+                     "javascript_rendering": usable and bool(rendered.get("available")),
+                     "axe": usable and bool((rendered.get("axe") or {}).get("available")),
+                     "lighthouse": False, "lighthouse_field_data": False, "visual_ai": False,
+                     "official_scoring": False, "archived_site_content": False,
+                     "archived_pages": 0, "current_sitemap": False, "content_source": "current_origin",
+                     "access_limited": access["limited"], "access_reason": access.get("reason"),
+                     "degraded": True, "request_budget_exhausted": True},
+        "disclosure": "Partial diagnostic: the request deadline interrupted collection. Uncollected evidence is unknown, never a failed site check or an official score.",
+    }
+
+
+async def audit_pipeline(req: AuditRequest, checkpoint: dict[str, Any]) -> dict[str, Any]:
     started = time.perf_counter()
     phases: dict[str, Any] = {}
+    checkpoint["phases"] = phases
     root = await validate_public_url(str(req.url))
     fetch_started = time.perf_counter()
     async with httpx.AsyncClient(
@@ -260,9 +338,11 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
         trust_env=False,
         limits=httpx.Limits(max_connections=6, max_keepalive_connections=3),
     ) as client:
+        checkpoint["phase"] = "robots"
         robots_found, allowed = await robots_allows(client, root)
         if not allowed:
             raise HTTPException(status_code=403, detail="Blocked by robots.txt for GCL-AuditBot")
+        checkpoint["phase"] = "static_fetch"
         response, final_url = await safe_get(client, root)
         if "text/html" not in response.headers.get("content-type", "").lower():
             raise HTTPException(status_code=415, detail="Target did not return HTML")
@@ -270,6 +350,8 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
     phases["static_fetch_ms"] = round((time.perf_counter() - fetch_started) * 1000)
 
     access = detect_access_limit(response, origin_static, {"metrics": {}})
+    checkpoint.update(static=origin_static, final_url=final_url, robots_found=robots_found,
+                      http_status=response.status_code, headers=response.headers, access=access)
     site_sample: dict[str, Any] = {"available": False}
     fallback: dict[str, Any] = {"available": False}
 
@@ -280,6 +362,7 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             "axe": {"available": False, "valid_for_target": False},
         }
         fallback_started = time.perf_counter()
+        checkpoint["phase"] = "archive_fallback"
         site_sample = await archived_site_fallback(final_url, req.max_pages)
         phases["archive_fallback_ms"] = round((time.perf_counter() - fallback_started) * 1000)
         primary = primary_archived_page(site_sample)
@@ -302,6 +385,7 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
         static = origin_static
         if req.render_js:
             render_started = time.perf_counter()
+            checkpoint["phase"] = "render_axe"
             try:
                 rendered = await asyncio.wait_for(
                     render_and_axe(final_url, req.include_screenshot),
@@ -321,9 +405,12 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             rendered = {"available": False, "error": "render_disabled_by_request", "axe": {"available": False}}
 
         post_access = detect_access_limit(response, origin_static, rendered)
+        checkpoint["rendered"] = rendered
         if post_access["limited"]:
             access = post_access
+            checkpoint["access"] = access
             fallback_started = time.perf_counter()
+            checkpoint["phase"] = "archive_fallback"
             site_sample = await archived_site_fallback(final_url, req.max_pages)
             phases["archive_fallback_ms"] = round((time.perf_counter() - fallback_started) * 1000)
             primary = primary_archived_page(site_sample)
@@ -345,6 +432,7 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
         else:
             if req.render_js:
                 lighthouse_started = time.perf_counter()
+                checkpoint["phase"] = "lighthouse"
                 lighthouse = await run_lighthouse(final_url)
                 phases["lighthouse_ms"] = round((time.perf_counter() - lighthouse_started) * 1000)
             else:
@@ -400,7 +488,7 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             "version": APP_VERSION,
             "ranking_eligible": False,
             "official_sac_score": False,
-            "budget_profile": "bounded-sequential-v2",
+            "budget_profile": "absolute-request-v1",
         },
         "audit": {
             "requested_url": str(req.url),
@@ -410,6 +498,8 @@ async def audit(req: AuditRequest, x_sac_worker_token: str | None = Header(defau
             "duration_ms": total_ms,
             "completed_at": now_iso(),
             "phases": phases,
+            "budget_seconds": REQUEST_BUDGET_SECONDS,
+            "budget_exhausted": False,
         },
         "access": {**access, "fallback_used": fallback_available, "fallback_source": "common_crawl" if fallback_available else None},
         "content_source": {
