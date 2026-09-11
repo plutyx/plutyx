@@ -28,7 +28,10 @@ jobs:
           node --check hostinger-deployer/ci-run.mjs
           node --check hostinger-deployer/autosync-policy.mjs
           node --check hostinger-deployer/autosync.mjs
+          test ! -f hostinger-deployer/control-plane.mjs || node --check hostinger-deployer/control-plane.mjs
       - name: Deployment strategy tests
         run: node --test hostinger-deployer/deployment-strategy.test.mjs
       - name: Autonomous release sync policy tests
         run: node --test hostinger-deployer/autosync-policy.test.mjs
+      - name: Wake-driven control-plane tests
+        run: node --test hostinger-deployer/control-plane.test.mjs

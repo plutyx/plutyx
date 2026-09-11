@@ -1,5 +1,5 @@
 import { hydrateDeploySecrets } from './secrets.mjs';
-import { startReleaseAutosync, getAutosyncState } from './autosync.mjs';
+import { startReleaseAutosync, getAutosyncState, syncReleaseOnce } from './autosync.mjs';
 
 const deployEnabled = process.env.DEPLOY_ENABLED === '1';
 
@@ -11,6 +11,14 @@ if (deployEnabled) {
     mode: 'validated_release_autosync',
     at: new Date().toISOString(),
   }));
+
+  // Render free instances may pause wall-clock timers while idle. Expose only an
+  // internal in-process callback to the control plane so a health wake can ask
+  // for one idempotent sync cycle. No request input can select a branch/SHA.
+  globalThis.__GCL_RELEASE_CONTROL__ = {
+    syncRelease: syncReleaseOnce,
+    getAutosyncState,
+  };
 }
 
 // The long-lived Render process is control-plane only. It must never deploy its
