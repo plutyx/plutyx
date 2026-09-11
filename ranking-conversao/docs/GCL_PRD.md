@@ -12,8 +12,8 @@
 ## 1. Controle do Documento
 
 **Nome:** GCL / Global Conversion League — Product Requirements Document (PRD)  
-**Versão:** 1.0.1  
-**Data-base:** 10/09/2026  
+**Versão:** 1.0.2  
+**Data-base:** 11/09/2026  
 **Produto:** Global Conversion League (GCL) + SAC / Sites de Alta Conversão  
 **URL de produção:** https://plutyx.com/ranking-site/  
 **Repositório:** GitHub `plutyx/plutyx`  
@@ -409,3 +409,16 @@ Métricas/benchmark são dinâmicos; consultar API/DB antes de apresentação ex
 
 - **1.0.1 — 10/09/2026:** branding canônico GCL Intelligence; benchmark/métricas sincronizados; Market contextual; hardening de intake; separação health operacional/comercial; performance v39; scheduled monitoring corrigido para deep re-audit `lighthouse_full` com prioridade para scans pagos e notificações; P0/P1 reconciliados com produção.
 - **1.0.0 — 09/09/2026:** baseline de produção/handoff com arquitetura GCL, Evidence OS, Community social, Awards, Revenue Architecture, billing sandbox, segurança, benchmark estrito e gates de go-live.
+
+
+## Atualização 1.0.2 — Diagnóstico e prazo de coleta (v44/v45)
+
+- O relatório e o perfil de pontuação distinguem diagnóstico provisório de competição oficial. A colocação pública exige `score_status=official`, `ranking_scope=official_competition` e `official_competition_eligible=true`. Um antigo `eligibility_status=eligible` isolado nunca libera posição.
+- A cobertura principal conta verificações com pass/warning/fail sobre o total de verificações. `collector_metric_coverage` aparece separadamente como sinais coletados. Ausência do novo contrato não transforma cobertura legada em cobertura verificada.
+- Notas provisórias aparecem arredondadas com ≈; valores e cobertura por eixo permanecem no contrato de evidência. Cobertura baixa não sustenta precisão decimal ou classificação definitiva.
+- Revenue Architecture GCL-SALES-1.1 identifica o modelo comercial. Serviços/lead generation apresentam CTAs, formulários e prova; checkout/pagamento são não aplicáveis. Readiness é experimental e não representa conversão ou receita.
+- As quatro migrations v44 foram recuperadas do histórico aplicado no Supabase, preservando versões e SQL. A migration de margem de transporte v43 também foi recuperada.
+- Worker 0.6.0: orçamento único de 120 s desde DNS/robots, com até 8 s adicionais para cancelamento. A evidência já observada é preservada com status parcial; sem HTML, retorna HTTP 504. O transporte continua com margem de 150 s (210 s para o processamento de benchmark).
+- Fila: HTTP 429/502/503/504 e timeout admitem no máximo uma repetição, com intervalo mínimo de 30 s. Tentativa sem resposta após 4 min é repetida uma vez e então encerrada como falha. A prioridade de compras permanece preservada.
+- Validação de publicação: testes de regressão do worker e do contrato visual, CI, proveniência Hostinger e canários reais. O orçamento por requisição não é um SLA da auditoria inteira: espera em fila, novas tentativas e coletores assíncronos têm duração própria.
+- Rollback: reverter o commit do frontend/deploy do worker; restaurar a definição anterior da coleta/fila se necessário. Não reaplicar as migrations já registradas nem apagar auditorias históricas.
