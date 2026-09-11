@@ -1,0 +1,3 @@
+Trigger Render auto-deploy for GCL worker v52 after missed webhook.
+Source branch: convrank-sac-worker-v2
+Baseline merge: 2ff0c7b8b9bd567b1e4b1651cc83688d33ef53a9
