@@ -5,10 +5,11 @@ import { randomInt } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { shouldSyncRelease, validateReleaseProvenance } from './autosync-policy.mjs';
+import { immutableProvenanceUrl, parseRemoteHead } from './release-source.mjs';
 
 const RELEASE_BRANCH = 'convrank-hostinger-dist';
+const RELEASE_REF = `refs/heads/${RELEASE_BRANCH}`;
 const REPOSITORY = 'https://github.com/plutyx/plutyx.git';
-const RELEASE_PROVENANCE_URL = `https://raw.githubusercontent.com/plutyx/plutyx/${RELEASE_BRANCH}/gcl-build.json`;
 const PRODUCTION_PROVENANCE_URL = 'https://plutyx.com/ranking-site/gcl-build.json';
 const CI_RUNNER = fileURLToPath(new URL('./ci-run.mjs', import.meta.url));
 const MIN_INTERVAL_MS = 15_000;
@@ -27,7 +28,11 @@ async function fetchJson(url, timeoutMs = 12_000) {
   const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}_=${Date.now()}`, {
     cache: 'no-store',
     signal: AbortSignal.timeout(timeoutMs),
-    headers: { 'user-agent': 'plutyx-gcl-release-sync/1.0' },
+    headers: {
+      'user-agent': 'plutyx-gcl-release-sync/1.0',
+      'cache-control': 'no-cache, no-store, must-revalidate',
+      pragma: 'no-cache',
+    },
   });
   if (!response.ok) throw new Error(`http_${response.status}:${url}`);
   return response.json();
@@ -65,7 +70,14 @@ function runCommand(command, args, options = {}) {
   });
 }
 
-async function cloneValidatedRelease(expectedSha) {
+async function resolveReleaseSource() {
+  const remote = await runCommand('git', ['ls-remote', '--refs', REPOSITORY, RELEASE_REF], { timeoutMs: 20_000 });
+  const branchHead = parseRemoteHead(remote.stdout, RELEASE_REF);
+  const provenance = await fetchJson(immutableProvenanceUrl(branchHead));
+  return { branchHead, provenance };
+}
+
+async function cloneValidatedRelease(expectedSourceSha, expectedBranchHead) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gcl-release-'));
   try {
     await runCommand('git', [
@@ -73,16 +85,19 @@ async function cloneValidatedRelease(expectedSha) {
       REPOSITORY, tempDir,
     ], { timeoutMs: 60_000 });
 
+    const clonedHead = (await runCommand('git', ['rev-parse', 'HEAD'], { cwd: tempDir, timeoutMs: 10_000 })).stdout.trim().toLowerCase();
+    if (clonedHead !== expectedBranchHead) throw new Error('release_branch_changed_during_sync');
+
     const provenance = JSON.parse(await fs.readFile(path.join(tempDir, 'gcl-build.json'), 'utf8'));
     const validation = validateReleaseProvenance(provenance);
     if (!validation.ok) throw new Error(validation.reason);
-    if (validation.sourceSha !== expectedSha) throw new Error('release_provenance_changed_during_sync');
+    if (validation.sourceSha !== expectedSourceSha) throw new Error('release_provenance_changed_during_sync');
 
     const required = ['index.html', '.htaccess', 'assets', 'gcl-build.json'];
     for (const entry of required) {
       await fs.access(path.join(tempDir, entry));
     }
-    return { tempDir, provenance };
+    return { tempDir, provenance, branchHead: clonedHead };
   } catch (error) {
     await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     throw error;
@@ -114,22 +129,41 @@ export async function syncReleaseOnce() {
   let tempDir = null;
 
   try {
-    const [production, release] = await Promise.all([
+    const [production, releaseSource] = await Promise.all([
       fetchJson(PRODUCTION_PROVENANCE_URL).catch(() => ({})),
-      fetchJson(RELEASE_PROVENANCE_URL),
+      resolveReleaseSource(),
     ]);
-    const decision = shouldSyncRelease(production, release);
+    const decision = shouldSyncRelease(production, releaseSource.provenance);
     if (!decision.sync) {
-      lastResult = { ok: true, phase: 'current', reason: decision.reason, sourceSha: decision.sourceSha || null, at: new Date().toISOString() };
+      lastResult = {
+        ok: true,
+        phase: 'current',
+        reason: decision.reason,
+        sourceSha: decision.sourceSha || null,
+        releaseBranchHead: releaseSource.branchHead,
+        at: new Date().toISOString(),
+      };
       return lastResult;
     }
 
-    lastResult = { ok: true, phase: 'preparing', sourceSha: decision.sourceSha, at: new Date().toISOString() };
-    const cloned = await cloneValidatedRelease(decision.sourceSha);
+    lastResult = {
+      ok: true,
+      phase: 'preparing',
+      sourceSha: decision.sourceSha,
+      releaseBranchHead: releaseSource.branchHead,
+      at: new Date().toISOString(),
+    };
+    const cloned = await cloneValidatedRelease(decision.sourceSha, releaseSource.branchHead);
     tempDir = cloned.tempDir;
 
     const port = randomInt(12_000, 20_000);
-    lastResult = { ok: true, phase: 'deploying', sourceSha: decision.sourceSha, at: new Date().toISOString() };
+    lastResult = {
+      ok: true,
+      phase: 'deploying',
+      sourceSha: decision.sourceSha,
+      releaseBranchHead: releaseSource.branchHead,
+      at: new Date().toISOString(),
+    };
     const child = await runCommand(process.execPath, [CI_RUNNER], {
       timeoutMs: 210_000,
       env: {
@@ -146,10 +180,16 @@ export async function syncReleaseOnce() {
       ok: true,
       phase: 'completed',
       sourceSha: decision.sourceSha,
+      releaseBranchHead: releaseSource.branchHead,
       childTail: child.stdout.slice(-1200),
       at: new Date().toISOString(),
     };
-    console.log(JSON.stringify({ event: 'gcl_release_autosync_completed', sourceSha: decision.sourceSha, at: lastResult.at }));
+    console.log(JSON.stringify({
+      event: 'gcl_release_autosync_completed',
+      sourceSha: decision.sourceSha,
+      releaseBranchHead: releaseSource.branchHead,
+      at: lastResult.at,
+    }));
     return lastResult;
   } catch (error) {
     lastResult = {
