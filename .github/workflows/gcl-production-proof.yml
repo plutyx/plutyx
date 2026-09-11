@@ -55,6 +55,16 @@ jobs:
           set -euo pipefail
           base="https://plutyx.com/ranking-site/gcl-build.json"
           for attempt in $(seq 1 60); do
+            wake_endpoint="https://plutyx-hostinger-ranking-site-deployer.onrender.com/health?proof=${EXPECTED_SHA}&attempt=${attempt}&nonce=$(date +%s%N)"
+            if curl --fail --silent --show-error --max-time 20 --retry 1 --retry-delay 1 \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              -H 'Pragma: no-cache' \
+              "$wake_endpoint" >/tmp/gcl-deployer-rewake.json; then
+              echo "Render release sync re-wake accepted on SHA attempt $attempt"
+            else
+              echo "Render release sync re-wake unavailable on SHA attempt $attempt; continuing proof retry" >&2
+            fi
+
             endpoint="${base}?proof=${EXPECTED_SHA}&attempt=${attempt}&nonce=$(date +%s%N)"
             body="$(curl --silent --show-error --max-time 12 --retry 1 --retry-delay 1 \
               -H 'Cache-Control: no-cache, no-store, must-revalidate' \
