@@ -9,6 +9,12 @@ on:
       - '.github/workflows/gcl-production-proof.yml'
   workflow_dispatch:
 
+# Only the newest release on this branch is meaningful. A superseded proof must
+# not keep polling an older SHA and later surface a false production incident.
+concurrency:
+  group: gcl-production-proof-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   public-proof:
     runs-on: ubuntu-latest
@@ -29,7 +35,10 @@ jobs:
           set -euo pipefail
           endpoint="https://plutyx-hostinger-ranking-site-deployer.onrender.com/health"
           for attempt in $(seq 1 12); do
-            if curl --fail --silent --show-error --max-time 20 "$endpoint" >/tmp/gcl-deployer-health.json; then
+            if curl --fail --silent --show-error --max-time 20 \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              -H 'Pragma: no-cache' \
+              "${endpoint}?proof=${GITHUB_SHA}&attempt=${attempt}&nonce=$(date +%s%N)" >/tmp/gcl-deployer-health.json; then
               cat /tmp/gcl-deployer-health.json
               echo "Render release sync control-plane awake on attempt $attempt"
               exit 0
@@ -44,9 +53,13 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          endpoint="https://plutyx.com/ranking-site/gcl-build.json?proof=${EXPECTED_SHA}"
+          base="https://plutyx.com/ranking-site/gcl-build.json"
           for attempt in $(seq 1 60); do
-            body="$(curl --silent --show-error --max-time 12 --retry 1 --retry-delay 1 "$endpoint" || true)"
+            endpoint="${base}?proof=${EXPECTED_SHA}&attempt=${attempt}&nonce=$(date +%s%N)"
+            body="$(curl --silent --show-error --max-time 12 --retry 1 --retry-delay 1 \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              -H 'Pragma: no-cache' \
+              "$endpoint" || true)"
             served="$(printf '%s' "$body" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).source_sha||'')}catch{console.log('')}})" )"
             if [[ "$served" == "$EXPECTED_SHA" ]]; then
               echo "Hostinger provenance matched $EXPECTED_SHA on attempt $attempt"
