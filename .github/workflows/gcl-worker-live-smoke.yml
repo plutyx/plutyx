@@ -25,12 +25,12 @@ jobs:
               --connect-timeout 10 --max-time 30 \
               'https://convrank-sac-audit-v4.onrender.com/health' -o "$tmp"; then
               cat "$tmp"
-              if jq -e '.ok == true and .service == "convrank-gcl-audit" and .version == "0.9.1" and .capabilities.javascript_rendering == true and .capabilities.axe_core == true and .capabilities.lighthouse == true and .capabilities.lighthouse_process_group_cleanup == true and .capabilities.process_reap_budget_seconds == 5 and .capabilities.bounded_lighthouse_budget_seconds == 70 and .capabilities.max_active_audits == 1 and .capabilities.fail_soft_components == true' "$tmp" >/dev/null; then
+              if jq -e '.ok == true and .service == "convrank-gcl-audit" and .version == "0.9.2" and .capabilities.javascript_rendering == true and .capabilities.axe_core == true and .capabilities.lighthouse == true and .capabilities.lighthouse_process_group_cleanup == true and .capabilities.process_reap_budget_seconds == 5 and .capabilities.bounded_lighthouse_budget_seconds == 70 and .capabilities.max_active_audits == 1 and .capabilities.fail_soft_components == true' "$tmp" >/dev/null; then
                 ok=1
                 break
               fi
             fi
-            echo "Worker v0.9.1 not live yet (attempt $attempt/30); waiting for Render rollout..."
+            echo "Worker v0.9.2 not live yet (attempt $attempt/30); waiting for Render rollout..."
             sleep 10
           done
           test "$ok" -eq 1
