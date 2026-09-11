@@ -59,10 +59,13 @@ async def test_deadline_covers_initial_phases_without_inventing_a_report(monkeyp
 
 @pytest.mark.asyncio
 async def test_sequential_steps_share_one_budget(monkeypatch):
+    # Leave room for TLS-client construction on a cold CI runner while keeping
+    # the sum of the three waits strictly above the one shared deadline.
+    monkeypatch.setattr(worker, "REQUEST_BUDGET_SECONDS", 0.5)
     for name in ("validate_public_url", "robots_allows", "safe_get"):
         original = getattr(worker, name)
         async def delayed(*args, fn=original):
-            await asyncio.sleep(0.035)
+            await asyncio.sleep(0.2)
             return await fn(*args)
         monkeypatch.setattr(worker, name, delayed)
     with pytest.raises(HTTPException) as caught:
