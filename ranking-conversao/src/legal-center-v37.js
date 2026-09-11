@@ -1,5 +1,4 @@
 const BASE='/ranking-site';
-const current=location.pathname.replace(/^\/ranking-site\/?/,'').replace(/\/$/,'');
 const routes=new Set(['legal','terms','privacy','cookies','refunds','awards-rules']);
 
 const sections={
@@ -77,15 +76,18 @@ body.gcl-legal37-open{margin:0;background:#070605;color:#f5f2ed;font-family:Inte
 
 function injectFooterLinks(){document.querySelectorAll('.gcl-footer').forEach(f=>{if(f.querySelector('[data-gcl-legal37]'))return;const x=document.createElement('div');x.dataset.gclLegal37='1';x.style.cssText='display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:12px';x.innerHTML=`<a href="${BASE}/legal/">Trust Center</a><a href="${BASE}/terms/">Termos</a><a href="${BASE}/privacy/">Privacidade</a><a href="${BASE}/refunds/">Cancelamento</a>`;f.appendChild(x)})}
 
-if(routes.has(current)){
+// The router calls this before creating a React root. A policy page owns its
+// container for the entire document lifetime; it must never race a 404 commit.
+export function renderLegalRoute(route){
+  if(!routes.has(route))return false;
+  const root=document.getElementById('root');
+  if(!root)return false;
   css();
   document.body.classList.add('gcl-legal37-open');
-  const renderStandalone=()=>{
-    const root=document.getElementById('root');
-    if(!root)return;
-    root.innerHTML=current==='legal'?hub():page(current);
-  };
-  requestAnimationFrame(()=>requestAnimationFrame(renderStandalone));
-}else{
+  root.innerHTML=route==='legal'?hub():page(route);
+  return true;
+}
+
+export function enhanceLegalFooter(){
   const obs=new MutationObserver(injectFooterLinks);obs.observe(document.documentElement,{subtree:true,childList:true});injectFooterLinks();setTimeout(()=>obs.disconnect(),15000);
 }

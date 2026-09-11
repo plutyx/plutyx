@@ -4,6 +4,7 @@ import{Activity,ArrowRight,Award,Bell,BookOpen,Briefcase,Building2,Check,CircleA
 import'./ranking-site-v2.css';
 import'./ranking-site-v4.css';
 import'./platform-v5.css';
+import{renderLegalRoute,enhanceLegalFooter}from'./legal-center-v37.js';
 
 const PUBLIC='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac-ranking-site-api';
 const AUTH='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/gcl-auth';
@@ -48,4 +49,8 @@ function NotFound(){return <Shell eyebrow="404" title="Esta área ainda não exi
 function Platform(){if(route==='ranking')return <RankingPage/>;if(route==='awards')return <AwardsPage/>;if(route==='community')return <CommunityPage/>;if(route==='services'||route==='market')return <ServicesPage/>;if(route==='blog'||route==='research')return <BlogPage/>;if(route==='about'||route==='labs')return <AboutPage/>;if(route==='account'||route==='dashboard')return <AccountPage/>;return <NotFound/>}
 function enhanceHome(){let tries=0;const tick=()=>{tries++;const h=document.querySelector('.s3-header');const nav=h?.querySelector('nav');if(h&&nav){const brand=h.querySelector('.s3-brand b');const small=h.querySelector('.s3-brand small');if(brand)brand.textContent='GCL';if(small)small.textContent='GLOBAL CONVERSION LEAGUE';const wanted=[['Ranking','/ranking-site/ranking/'],['Awards','/ranking-site/awards/'],['Community','/ranking-site/community/'],['Market','/ranking-site/services/'],['Research','/ranking-site/blog/'],['GCL Labs','/ranking-site/about/'],['Minha área','/ranking-site/account/']];nav.innerHTML='';wanted.forEach(([t,u])=>{const a=document.createElement('a');a.textContent=t;a.href=u;nav.appendChild(a)});return}if(tries<30)setTimeout(tick,100)};tick()}
 
-if(route==='home'||route==='analyze'){import('./ranking-site-v4.jsx').then(()=>enhanceHome())}else createRoot(document.getElementById('root')).render(<React.StrictMode><Platform/></React.StrictMode>);
+if(!renderLegalRoute(route)){
+  if(route==='home'||route==='analyze'){import('./ranking-site-v4.jsx').then(()=>enhanceHome())}
+  else createRoot(document.getElementById('root')).render(<React.StrictMode><Platform/></React.StrictMode>);
+  enhanceLegalFooter();
+}

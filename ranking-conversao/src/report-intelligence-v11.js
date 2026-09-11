@@ -36,14 +36,15 @@ function gclPageStats(pages=[],issues=[]){
     .sort((a,b)=>b.fail-a.fail||b.warning-a.warning||String(a.normalized_url||'').localeCompare(String(b.normalized_url||'')));
 }
 
-function gclTrendSvg(history=[],current){
-  const rows=[...(history||[])].filter(x=>Number.isFinite(Number(x.score_100))).slice(-9);
-  if(Number.isFinite(Number(current?.score_100))){const last=rows.at(-1);if(!last||Number(last.score_100)!==Number(current.score_100))rows.push({score_100:Number(current.score_100),recorded_at:current.calculated_at})}
+function gclTrendSvg(history=[],current,provisional=true){
+  const hasScore=row=>['number','string'].includes(typeof row?.score_100)&&String(row.score_100).trim()!==''&&Number.isFinite(Number(row.score_100))&&row.score_status!=='forming';
+  const rows=[...(history||[])].filter(hasScore).slice(-9);
+  if(hasScore(current)){const last=rows.at(-1);if(!last||Number(last.score_100)!==Number(current.score_100))rows.push({score_100:Number(current.score_100),recorded_at:current.calculated_at})}
   if(rows.length<2)return '<div class="gcl-v11-emptyline">Histórico será exibido após novas auditorias.</div>';
   const vals=rows.map(x=>Number(x.score_100));const min=Math.min(...vals),max=Math.max(...vals),span=Math.max(8,max-min);const w=520,h=120,pad=12;
   const pts=vals.map((v,i)=>{const x=pad+(i*(w-pad*2)/Math.max(1,vals.length-1));const y=h-pad-((v-(min-span*.18))/(span*1.36))*(h-pad*2);return [x,Math.max(pad,Math.min(h-pad,y))]});
   const poly=pts.map(p=>p.join(',')).join(' ');const delta=vals.at(-1)-vals[0];
-  return `<div class="gcl-v11-trend"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Histórico do score"><defs><linearGradient id="gclV11Line" x1="0" x2="1"><stop offset="0" stop-color="#78f5ad"/><stop offset="1" stop-color="#f5d67c"/></linearGradient></defs><polyline points="${poly}" fill="none" stroke="url(#gclV11Line)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>${pts.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="4" fill="#0a0d0b" stroke="#9cf8c3" stroke-width="2"/>`).join('')}</svg><div><span>${rows.length} medições</span><strong>${delta>0?'+':''}${gclNum(delta,1)} pts</strong></div></div>`;
+  return `<div class="gcl-v11-trend"><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Histórico do score"><defs><linearGradient id="gclV11Line" x1="0" x2="1"><stop offset="0" stop-color="#78f5ad"/><stop offset="1" stop-color="#f5d67c"/></linearGradient></defs><polyline points="${poly}" fill="none" stroke="url(#gclV11Line)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>${pts.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="4" fill="#0a0d0b" stroke="#9cf8c3" stroke-width="2"/>`).join('')}</svg><div><span>${rows.length} registros de score</span><strong>${provisional?'≈ ':''}${delta>0?'+':''}${gclNum(delta,provisional?0:1)} pts</strong></div></div>`;
 }
 
 function gclImpactLabel(points){if(points>=12)return 'Alto impacto no score';if(points>=6)return 'Impacto relevante';return 'Impacto localizado'}
@@ -64,7 +65,7 @@ function gclExecutiveSection(d,token){
       <article class="risk"><span>Prioridades</span><strong>${fail+warning}</strong><small>${fail} críticas · ${warning} em atenção</small></article>
     </div>
     <div class="gcl-v11-main">
-      <article class="gcl-v11-panel trend"><div class="gcl-v11-panel-title"><div><span>EVOLUÇÃO</span><h3>Histórico do score</h3></div><a href="/ranking-site/account/">Acompanhar site →</a></div>${gclTrendSvg(d?.rank_history,rank)}</article>
+      <article class="gcl-v11-panel trend"><div class="gcl-v11-panel-title"><div><span>EVOLUÇÃO</span><h3>Histórico do score</h3></div><a href="/ranking-site/account/">Acompanhar site →</a></div>${gclTrendSvg(d?.rank_history,rank,!truth.official)}</article>
       <article class="gcl-v11-panel evidence"><div class="gcl-v11-panel-title"><div><span>COBERTURA</span><h3>Fontes analisadas</h3></div></div><div class="gcl-v11-evidence">${Object.entries(evidence).map(([k,v])=>{const reg=Number(v?.registered||0),obs=Number(v?.observed||0),p=reg?obs/reg:0;const label={lab:'Laboratório',url_http:'URL & HTTP',browser_render:'Browser',public_dataset:'Dados públicos'}[k]||k;return `<div><span>${gclEsc(label)} <b>${obs}/${reg}</b></span><div><i style="width:${Math.round(p*100)}%"></i></div></div>`}).join('')||'<p>Fontes adicionais aparecem conforme a auditoria avança.</p>'}</div></article>
     </div>
     <div class="gcl-v11-grid">
