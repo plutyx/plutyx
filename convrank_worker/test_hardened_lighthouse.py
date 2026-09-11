@@ -40,7 +40,7 @@ async def test_sweep_never_uses_broad_process_kill(monkeypatch):
     assert result["scope"] == "exact_lighthouse_user_data_dir"
 
 
-def test_hardened_source_has_unique_user_data_dir_and_no_pkill():
+def test_hardened_source_has_unique_profile_and_score_metrics_only_contract():
     source = Path(__file__).with_name("hardened_lighthouse.py").read_text(encoding="utf-8")
     package = Path(__file__).with_name("__init__.py").read_text(encoding="utf-8")
     assert 'tempfile.mkdtemp(prefix="gcl-lh-")' in source
@@ -48,10 +48,18 @@ def test_hardened_source_has_unique_user_data_dir_and_no_pkill():
     assert "os.kill(int(item[\"pid\"]), signal.SIGKILL)" in source
     assert "pkill" not in source.lower()
     assert "killall" not in source.lower()
-    assert 'LIGHTHOUSE_CATEGORY_PROFILE = "performance_only"' in source
-    assert '"--only-categories=performance"' in source
-    assert 'performance,seo,best-practices' not in source
+    assert 'LIGHTHOUSE_CATEGORY_PROFILE = "score_metrics_only"' in source
+    assert '"--only-categories=performance"' not in source
+    assert '"--disable-full-page-screenshot"' in source
+    assert '*[f"--only-audits={audit_id}" for audit_id in LIGHTHOUSE_SCORE_AUDITS]' in source
+    assert set(hl.LIGHTHOUSE_SCORE_AUDITS) == {
+        "first-contentful-paint",
+        "largest-contentful-paint",
+        "cumulative-layout-shift",
+        "total-blocking-time",
+        "speed-index",
+    }
     assert "_lighthouse_app.run_lighthouse = _hardened_lighthouse" in package
-    assert '_lighthouse_app.APP_VERSION = "0.9.2"' in package
+    assert '_lighthouse_app.APP_VERSION = "0.9.3"' in package
     assert "_lighthouse_app.RENDER_BUDGET_SECONDS = 30" in package
     assert "_lighthouse_app.LIGHTHOUSE_BUDGET_SECONDS = 70" in package
