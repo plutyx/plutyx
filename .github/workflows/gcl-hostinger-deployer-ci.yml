@@ -35,6 +35,8 @@ jobs:
         run: node --test hostinger-deployer/deployment-strategy.test.mjs
       - name: Autonomous release sync policy tests
         run: node --test hostinger-deployer/autosync-policy.test.mjs
+      - name: Immutable release source tests
+        run: node --test hostinger-deployer/release-source.test.mjs
       - name: Wake-driven control-plane tests
         run: node --test hostinger-deployer/control-plane.test.mjs
       - name: Production proof re-wake policy tests
