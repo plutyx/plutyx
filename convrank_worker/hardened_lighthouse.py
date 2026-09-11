@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 PROFILE_REAP_SECONDS = 2.0
+LIGHTHOUSE_CATEGORY_PROFILE = "performance_only"
 
 
 def _rss_bytes(pid_dir: Path) -> int | None:
@@ -79,11 +80,16 @@ async def sweep_profile_processes(profile_path: str) -> dict[str, Any]:
 
 
 async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
-    """Run Lighthouse with a unique Chrome profile and exact-token descendant cleanup."""
+    """Run mobile Lighthouse performance evidence with a unique Chrome profile and exact-token cleanup.
+
+    SEO and best-practices diagnostics are intentionally collected by the separate static/rendered and
+    PageSpeed/Lighthouse-atomic engines. The local constrained worker is reserved for the lab performance
+    metrics that can contribute score inputs (FCP, LCP, CLS, TBT and Speed Index).
+    """
     from convrank_worker import lighthouse_app as base
 
     if not base.LIGHTHOUSE_BIN.exists():
-        return {"available": False, "error": "lighthouse_binary_missing"}
+        return {"available": False, "error": "lighthouse_binary_missing", "category_profile": LIGHTHOUSE_CATEGORY_PROFILE}
 
     proc: asyncio.subprocess.Process | None = None
     started = time.perf_counter()
@@ -101,7 +107,7 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
         ])
         cmd = [
             str(base.LIGHTHOUSE_BIN), url, "--output=json", "--quiet",
-            "--only-categories=performance,seo,best-practices", "--form-factor=mobile",
+            "--only-categories=performance", "--form-factor=mobile",
             "--max-wait-for-fcp=12000", "--max-wait-for-load=25000", "--no-enable-error-reporting",
             f"--chrome-flags={chrome_flags}",
         ]
@@ -124,6 +130,7 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
                 "duration_ms": round((time.perf_counter() - started) * 1000),
                 "mode": "lab",
                 "field_data": False,
+                "category_profile": LIGHTHOUSE_CATEGORY_PROFILE,
                 "process_tree_reaped": True,
                 "profile_cleanup": cleanup,
             }
@@ -138,6 +145,7 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
                 "duration_ms": round((time.perf_counter() - started) * 1000),
                 "mode": "lab",
                 "field_data": False,
+                "category_profile": LIGHTHOUSE_CATEGORY_PROFILE,
                 "profile_cleanup": cleanup,
             }
 
@@ -160,17 +168,18 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
             "categories": {
                 key: round(float(value.get("score")) * 100, 1) if value.get("score") is not None else None
                 for key, value in categories.items()
-                if key in {"performance", "seo", "best-practices"}
+                if key == "performance"
             },
             "metrics": {key: base.compact_audit(audits.get(key)) for key in metric_keys if audits.get(key)},
             "run_warnings": raw.get("runWarnings") or [],
             "mode": "lab",
             "field_data": False,
+            "category_profile": LIGHTHOUSE_CATEGORY_PROFILE,
             "budget_seconds": base.LIGHTHOUSE_BUDGET_SECONDS,
             "max_wait_for_fcp_ms": 12000,
             "max_wait_for_load_ms": 25000,
             "profile_cleanup": cleanup,
-            "disclosure": "Lighthouse metrics are laboratory measurements for this run, not CrUX field data.",
+            "disclosure": "Local Lighthouse is a mobile performance-only lab run. SEO and best-practices diagnostics come from separate GCL engines; these metrics are not CrUX field data.",
         }
     except asyncio.CancelledError:
         await base.terminate_process_tree(proc)
@@ -186,6 +195,7 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
             "duration_ms": round((time.perf_counter() - started) * 1000),
             "mode": "lab",
             "field_data": False,
+            "category_profile": LIGHTHOUSE_CATEGORY_PROFILE,
             "profile_cleanup": cleanup,
         }
     finally:
