@@ -53,7 +53,7 @@ test('paid report renders evidence-aware six-axis candidate distribution',async(
   await page.evaluate(()=>{const host=document.createElement('section');host.id='gcl-report-intelligence-v11';host.innerHTML='<h2>Executive Overview</h2>';document.body.appendChild(host)});
   const card=page.locator('#gcl-score-profile');await expect(card).toBeVisible({timeout:10000});
   await expect(card).toContainText('DISTRIBUIÇÃO DE PONTOS DO CANDIDATO');
-  await expect(card).toContainText('85,4 / 100');
+  await expect(card).toContainText('≈ 85 / 100');
   for(const label of ['Design & Craft','UX & Usabilidade','Conversão','Performance','SEO & Semântica','Acessibilidade'])await expect(card.getByText(label,{exact:true}).first()).toBeVisible();
   await expect(card).toContainText('Maior força');await expect(card).toContainText('Maior oportunidade');
   await expect(card.locator('svg[role="img"]')).toHaveAttribute('aria-label',/Performance: 96,7 de 100/);
@@ -79,7 +79,7 @@ test('member cockpit exposes score profile beside the full-analysis history',asy
   await page.goto(`${BASE}/account/`,{waitUntil:'domcontentloaded'});
   const card=page.locator('#gcl-score-profile');await expect(card).toBeVisible({timeout:12000});
   await expect(page.getByText('Perfil de Pontuação',{exact:true})).toBeVisible();
-  await expect(card).toContainText('example.com');await expect(card).toContainText('85,4 / 100');
+  await expect(card).toContainText('example.com');await expect(card).toContainText('≈ 85 / 100');
   await expect(card.getByRole('link',{name:'Abrir análise completa'})).toHaveAttribute('href',`/ranking-site/?scan=${TOKEN}`);
   const analysisPanel=page.locator('.ma25-panel').filter({has:page.locator('.ma25-section-title>span',{hasText:'ANÁLISES'})});
   const cardBox=await card.boundingBox();const panelBox=await analysisPanel.boundingBox();expect(cardBox&&panelBox&&cardBox.y).toBeLessThan(panelBox.y);

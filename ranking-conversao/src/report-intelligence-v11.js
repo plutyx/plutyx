@@ -1,3 +1,4 @@
+import { diagnosticContext, diagnosticScore, diagnosticPercent } from './diagnostic-semantics.js';
 const GCL_REPORT_API='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac-ranking-site-api';
 
 const gclEsc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -51,13 +52,13 @@ function gclStatusLabel(s){return s==='fail'?'Crítico':'Atenção'}
 function gclExecutiveSection(d,token){
   const rank=d?.ranking||{};const audit=d?.audit||{};const issues=d?.issues||[];const pages=d?.pages||[];const agg=gclIssueAgg(issues);const pageStats=gclPageStats(pages,issues);const cov=Number(rank.metric_coverage||0);const conf=Number(rank.evidence_confidence||0);const score=Number.isFinite(Number(rank.score_100))?Number(rank.score_100):null;const evidence=d?.evidence_dashboard?.metric_coverage?.by_evidence_class||{};const fail=issues.filter(x=>x.status==='fail').length;const warning=issues.filter(x=>x.status==='warning').length;const observed=Number(rank.observed_metrics||d?.evidence_dashboard?.metric_coverage?.observed_distinct||0);const active=Number(rank.active_metrics||d?.evidence_dashboard?.metric_capabilities?.active_public_metrics||0);
   const s=document.createElement('section');s.id='gcl-report-intelligence-v11';s.className='gcl-v11';
-  const rankText=rank.overall_rank?`#${rank.overall_rank}`:(rank.eligibility_status==='eligible'?'Elegível':'Em evolução');
-  const delta=rank.previous_rank&&rank.overall_rank?rank.previous_rank-rank.overall_rank:null;
+  const truth=diagnosticContext(d);const rankText=truth.position?`#${truth.position}`:'Sem posição oficial';
+  const delta=truth.position&&rank.previous_rank?rank.previous_rank-truth.position:null;
   s.innerHTML=`
-    <header class="gcl-v11-head"><div><span>GCL EXECUTIVE OVERVIEW</span><h2>${gclEsc(d?.domain?.normalized_domain||'Seu site')}</h2><p>Uma leitura executiva do diagnóstico atual, com prioridades, páginas afetadas e evolução do score.</p></div><div class="gcl-v11-score"><small>GCL SCORE</small><strong>${score!=null?gclNum(score,1):'—'}</strong><em>/100</em></div></header>
+    <header class="gcl-v11-head"><div><span>GCL EXECUTIVE OVERVIEW</span><h2>${gclEsc(d?.domain?.normalized_domain||'Seu site')}</h2><p>Uma leitura executiva do diagnóstico atual, com prioridades, páginas afetadas e evolução do score.</p></div><div class="gcl-v11-score"><small>${truth.label.toUpperCase()}</small><strong>${diagnosticScore(rank.score_100,truth.provisional)}</strong><em>/100</em></div></header>
     <div class="gcl-v11-kpis">
-      <article><span>Posição</span><strong>${gclEsc(rankText)}</strong><small>${delta?`${delta>0?'↑':'↓'} ${Math.abs(delta)} desde a medição anterior`:rank.category_rank?`#${rank.category_rank} na categoria`:'Founding Season 2026'}</small></article>
-      <article><span>Cobertura</span><strong>${gclPct(cov)}</strong><div class="gcl-v11-bar"><i style="width:${Math.min(100,cov*100)}%"></i></div><small>${observed} de ${active||'—'} métricas observadas</small></article>
+      <article><span>Competição oficial</span><strong>${gclEsc(rankText)}</strong><small>${delta?`${delta>0?'↑':'↓'} ${Math.abs(delta)} desde a medição anterior`:truth.official?'Founding Season 2026':'Diagnóstico autônomo provisório'}</small></article>
+      <article><span>Verificações com evidência</span><strong>${diagnosticPercent(truth.coverage)}</strong><div class="gcl-v11-bar"><i style="width:${(truth.coverage??0)*100}%"></i></div><small>${truth.observed??'—'} de ${truth.total??'—'} verificações</small></article>
       <article><span>Confiança</span><strong>${gclPct(conf)}</strong><div class="gcl-v11-bar cyan"><i style="width:${Math.min(100,conf*100)}%"></i></div><small>consistência da evidência atual</small></article>
       <article><span>Páginas</span><strong>${audit.pages_analyzed??pages.length}</strong><small>${audit.pages_discovered??pages.length} descobertas</small></article>
       <article class="risk"><span>Prioridades</span><strong>${fail+warning}</strong><small>${fail} críticas · ${warning} em atenção</small></article>
