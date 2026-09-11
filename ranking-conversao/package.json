@@ -16,6 +16,7 @@
     "test:ai-analyst": "playwright test e2e/ai-analyst-v63.spec.js --reporter=line",
     "test:queue-experience": "playwright test e2e/queue-experience-v65.spec.js --reporter=line",
     "test:community-social": "playwright test e2e/community-social-v66.spec.js --reporter=line",
+    "test:community-bridge": "playwright test e2e/community-action-bridge-v67.spec.js --reporter=line",
     "test:production-public": "playwright test e2e/production-public.spec.js --reporter=line"
   },
   "dependencies": {
