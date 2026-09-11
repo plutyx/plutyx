@@ -11,7 +11,14 @@ from pathlib import Path
 from typing import Any
 
 PROFILE_REAP_SECONDS = 2.0
-LIGHTHOUSE_CATEGORY_PROFILE = "performance_only"
+LIGHTHOUSE_CATEGORY_PROFILE = "score_metrics_only"
+LIGHTHOUSE_SCORE_AUDITS = (
+    "first-contentful-paint",
+    "largest-contentful-paint",
+    "cumulative-layout-shift",
+    "total-blocking-time",
+    "speed-index",
+)
 
 
 def _rss_bytes(pid_dir: Path) -> int | None:
@@ -80,16 +87,21 @@ async def sweep_profile_processes(profile_path: str) -> dict[str, Any]:
 
 
 async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
-    """Run mobile Lighthouse performance evidence with a unique Chrome profile and exact-token cleanup.
+    """Run only the mobile Lighthouse lab metrics that can contribute GCL score inputs.
 
-    SEO and best-practices diagnostics are intentionally collected by the separate static/rendered and
-    PageSpeed/Lighthouse-atomic engines. The local constrained worker is reserved for the lab performance
-    metrics that can contribute score inputs (FCP, LCP, CLS, TBT and Speed Index).
+    Static/rendered probes and the PageSpeed/Lighthouse-atomic pipeline already provide the wider
+    SEO/best-practices diagnostics. Keeping this constrained worker focused on FCP, LCP, CLS, TBT
+    and Speed Index avoids spending scarce CPU on duplicate evidence while preserving score inputs.
     """
     from convrank_worker import lighthouse_app as base
 
     if not base.LIGHTHOUSE_BIN.exists():
-        return {"available": False, "error": "lighthouse_binary_missing", "category_profile": LIGHTHOUSE_CATEGORY_PROFILE}
+        return {
+            "available": False,
+            "error": "lighthouse_binary_missing",
+            "category_profile": LIGHTHOUSE_CATEGORY_PROFILE,
+            "score_metric_ids": list(LIGHTHOUSE_SCORE_AUDITS),
+        }
 
     proc: asyncio.subprocess.Process | None = None
     started = time.perf_counter()
@@ -107,7 +119,8 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
         ])
         cmd = [
             str(base.LIGHTHOUSE_BIN), url, "--output=json", "--quiet",
-            "--only-categories=performance", "--form-factor=mobile",
+            *[f"--only-audits={audit_id}" for audit_id in LIGHTHOUSE_SCORE_AUDITS],
+            "--form-factor=mobile", "--disable-full-page-screenshot",
             "--max-wait-for-fcp=12000", "--max-wait-for-load=25000", "--no-enable-error-reporting",
             f"--chrome-flags={chrome_flags}",
         ]
@@ -131,6 +144,7 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
                 "mode": "lab",
                 "field_data": False,
                 "category_profile": LIGHTHOUSE_CATEGORY_PROFILE,
+                "score_metric_ids": list(LIGHTHOUSE_SCORE_AUDITS),
                 "process_tree_reaped": True,
                 "profile_cleanup": cleanup,
             }
@@ -146,16 +160,13 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
                 "mode": "lab",
                 "field_data": False,
                 "category_profile": LIGHTHOUSE_CATEGORY_PROFILE,
+                "score_metric_ids": list(LIGHTHOUSE_SCORE_AUDITS),
                 "profile_cleanup": cleanup,
             }
 
         raw = json.loads(stdout.decode("utf-8", errors="strict"))
-        categories = raw.get("categories") or {}
         audits = raw.get("audits") or {}
-        metric_keys = [
-            "first-contentful-paint", "largest-contentful-paint", "speed-index",
-            "total-blocking-time", "cumulative-layout-shift", "server-response-time", "interactive",
-        ]
+        metrics = {key: base.compact_audit(audits.get(key)) for key in LIGHTHOUSE_SCORE_AUDITS if audits.get(key)}
         cleanup = await sweep_profile_processes(profile_path)
         return {
             "available": True,
@@ -165,12 +176,10 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
             "final_url": raw.get("finalDisplayedUrl") or raw.get("finalUrl"),
             "user_agent": raw.get("userAgent"),
             "duration_ms": round((time.perf_counter() - started) * 1000),
-            "categories": {
-                key: round(float(value.get("score")) * 100, 1) if value.get("score") is not None else None
-                for key, value in categories.items()
-                if key == "performance"
-            },
-            "metrics": {key: base.compact_audit(audits.get(key)) for key in metric_keys if audits.get(key)},
+            "categories": {},
+            "metrics": metrics,
+            "score_metric_ids": list(LIGHTHOUSE_SCORE_AUDITS),
+            "score_metrics_observed": sorted(metrics.keys()),
             "run_warnings": raw.get("runWarnings") or [],
             "mode": "lab",
             "field_data": False,
@@ -179,7 +188,7 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
             "max_wait_for_fcp_ms": 12000,
             "max_wait_for_load_ms": 25000,
             "profile_cleanup": cleanup,
-            "disclosure": "Local Lighthouse is a mobile performance-only lab run. SEO and best-practices diagnostics come from separate GCL engines; these metrics are not CrUX field data.",
+            "disclosure": "Local Lighthouse runs only the five mobile lab metrics that can feed GCL score inputs. Wider Lighthouse/SEO/best-practices diagnostics come from separate GCL PageSpeed and deterministic engines; these values are not CrUX field data.",
         }
     except asyncio.CancelledError:
         await base.terminate_process_tree(proc)
@@ -196,6 +205,7 @@ async def hardened_run_lighthouse(url: str) -> dict[str, Any]:
             "mode": "lab",
             "field_data": False,
             "category_profile": LIGHTHOUSE_CATEGORY_PROFILE,
+            "score_metric_ids": list(LIGHTHOUSE_SCORE_AUDITS),
             "profile_cleanup": cleanup,
         }
     finally:
