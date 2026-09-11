@@ -54,9 +54,8 @@ jobs:
         run: |
           set -euo pipefail
           base="https://plutyx.com/ranking-site/gcl-build.json"
-          control_plane="https://plutyx-hostinger-ranking-site-deployer.onrender.com/health"
           for attempt in $(seq 1 60); do
-            wake_endpoint="${control_plane}?proof=${EXPECTED_SHA}&attempt=${attempt}&nonce=$(date +%s%N)"
+            wake_endpoint="https://plutyx-hostinger-ranking-site-deployer.onrender.com/health?proof=${EXPECTED_SHA}&attempt=${attempt}&nonce=$(date +%s%N)"
             if curl --fail --silent --show-error --max-time 20 --retry 1 --retry-delay 1 \
               -H 'Cache-Control: no-cache, no-store, must-revalidate' \
               -H 'Pragma: no-cache' \
