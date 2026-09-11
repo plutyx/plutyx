@@ -6,6 +6,9 @@ import sys
 
 from convrank_worker.axe_app import render_and_axe
 
+# This entrypoint must stay tiny: the parent worker owns validation, queueing and
+# scoring; this disposable child owns only Playwright/Chromium + axe evidence.
+
 
 async def _main() -> int:
     try:
