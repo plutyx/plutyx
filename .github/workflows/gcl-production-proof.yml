@@ -1,0 +1,61 @@
+name: gcl-production-proof
+
+on:
+  push:
+    branches: [convrank-hostinger-front]
+    paths:
+      - 'ranking-conversao/**'
+      - 'hostinger-deployer/**'
+      - '.github/workflows/gcl-production-proof.yml'
+  workflow_dispatch:
+
+jobs:
+  public-proof:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ranking-conversao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ranking-conversao/package.json
+      - run: npm install --no-audit --no-fund
+      - name: Wait for Hostinger to serve this exact source SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          endpoint="https://plutyx.com/ranking-site/gcl-build.json?proof=${EXPECTED_SHA}"
+          for attempt in $(seq 1 60); do
+            body="$(curl --silent --show-error --max-time 12 --retry 1 --retry-delay 1 "$endpoint" || true)"
+            served="$(printf '%s' "$body" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).source_sha||'')}catch{console.log('')}})" )"
+            if [[ "$served" == "$EXPECTED_SHA" ]]; then
+              echo "Hostinger provenance matched $EXPECTED_SHA on attempt $attempt"
+              exit 0
+            fi
+            echo "attempt=$attempt expected=$EXPECTED_SHA served=${served:-unavailable}"
+            sleep 5
+          done
+          echo "Hostinger never served expected SHA $EXPECTED_SHA" >&2
+          exit 1
+      - name: Install Chromium for public browser proof
+        run: npx playwright install --with-deps chromium
+      - name: Prove public routes + real GCL AI Analyst canary
+        env:
+          GCL_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
+          GCL_AI_CANARY_SCAN: d2b3535b-6969-4f81-8b64-3eb294e9c77d
+        run: npm run test:production-public
+      - name: Upload public proof diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcl-production-proof-${{ github.sha }}
+          path: |
+            ranking-conversao/test-results
+            ranking-conversao/playwright-report
+          if-no-files-found: warn
+          retention-days: 7
