@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm run test:report-fast-path && npm run test:report-read-path && npm run test:authenticated-write-guards && npm run test:rpc-rate-guards && npm run test:external-controls",
+    "prebuild": "npm run test:report-fast-path && npm run test:report-read-path && npm run test:authenticated-write-guards && npm run test:rpc-rate-guards && npm run test:external-controls && npm run test:acquisition-attribution",
     "build": "vite build && node scripts/write-provenance.mjs && node scripts/sanitize-build.mjs",
     "preview": "vite preview",
     "test:report-fast-path": "node --test tests/report-fast-path-v75.test.mjs",
@@ -13,6 +13,7 @@
     "test:authenticated-write-guards": "node --test tests/authenticated-write-guards-v78.test.mjs",
     "test:rpc-rate-guards": "node --test tests/rpc-rate-guards-v79.test.mjs",
     "test:external-controls": "node --test tests/external-controls-v80.test.mjs",
+    "test:acquisition-attribution": "node --test tests/acquisition-attribution-v81.test.mjs",
     "test:member-area": "playwright test e2e/member-area.spec.js --reporter=line",
     "test:public-surfaces": "playwright test e2e/public-surfaces.spec.js --reporter=line",
     "test:moderation": "playwright test e2e/moderation.spec.js --reporter=line",
