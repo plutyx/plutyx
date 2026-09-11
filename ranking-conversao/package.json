@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run test:report-fast-path",
     "build": "vite build && node scripts/write-provenance.mjs && node scripts/sanitize-build.mjs",
     "preview": "vite preview",
+    "test:report-fast-path": "node --test tests/report-fast-path-v75.test.mjs",
     "test:member-area": "playwright test e2e/member-area.spec.js --reporter=line",
     "test:public-surfaces": "playwright test e2e/public-surfaces.spec.js --reporter=line",
     "test:moderation": "playwright test e2e/moderation.spec.js --reporter=line",
