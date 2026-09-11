@@ -22,7 +22,7 @@ if os.getenv("GCL_RENDER_PROCESS_ISOLATION") == "1" and os.getenv("GCL_RENDER_CH
     _lighthouse_app.chrome_executable = _isolated_chrome_executable
     _lighthouse_app.run_lighthouse = _hardened_lighthouse
     _lighthouse_app.audit_pipeline = _instrument_pipeline(_original_audit_pipeline)
-    _lighthouse_app.APP_VERSION = "0.9.3"
+    _lighthouse_app.APP_VERSION = "0.9.4"
     _lighthouse_app.RENDER_BUDGET_SECONDS = 30
     _lighthouse_app.LIGHTHOUSE_BUDGET_SECONDS = 70
-    _lighthouse_app.app.version = "0.9.3"
+    _lighthouse_app.app.version = "0.9.4"
