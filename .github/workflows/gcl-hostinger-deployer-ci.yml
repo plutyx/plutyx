@@ -24,5 +24,7 @@ jobs:
           node --check hostinger-deployer/start.mjs
           node --check hostinger-deployer/deploy.mjs
           node --check hostinger-deployer/secrets.mjs
+          node --check hostinger-deployer/deployment-strategy.mjs
+          node --check hostinger-deployer/ci-run.mjs
       - name: Deployment strategy tests
         run: node --test hostinger-deployer/deployment-strategy.test.mjs
