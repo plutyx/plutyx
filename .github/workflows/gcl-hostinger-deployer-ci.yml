@@ -5,11 +5,13 @@ on:
     paths:
       - 'hostinger-deployer/**'
       - '.github/workflows/gcl-hostinger-deployer-ci.yml'
+      - '.github/workflows/gcl-production-proof.yml'
   push:
     branches: [convrank-hostinger-front]
     paths:
       - 'hostinger-deployer/**'
       - '.github/workflows/gcl-hostinger-deployer-ci.yml'
+      - '.github/workflows/gcl-production-proof.yml'
 
 jobs:
   deployer-contract:
@@ -35,3 +37,5 @@ jobs:
         run: node --test hostinger-deployer/autosync-policy.test.mjs
       - name: Wake-driven control-plane tests
         run: node --test hostinger-deployer/control-plane.test.mjs
+      - name: Production proof re-wake policy tests
+        run: node --test hostinger-deployer/proof-rewake-policy.test.mjs
