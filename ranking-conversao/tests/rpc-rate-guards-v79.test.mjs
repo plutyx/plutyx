@@ -41,9 +41,21 @@ test('v79 rate-limits only the selected sensitive RPCs and preserves their exist
     'dynamic patch lookup must be restricted to the public schema');
 
   for (const [fn, key] of expected) {
-    assert.match(sql, new RegExp(`['\"]${fn}['\"]`, 'i'), `${fn} must be included in the patch set`);
-    assert.match(sql, new RegExp(`gcl_authenticated_rpc_rate_limit\\('gcl:${key}'`, 'i'), `${fn} must receive its dedicated bucket`);
+    assert.match(
+      sql,
+      new RegExp(`\\(['\"]${fn}['\"]\\s*,\\s*['\"]gcl:${key}['\"]\\s*,`, 'i'),
+      `${fn} must be paired with its dedicated bucket`,
+    );
   }
+
+  assert.match(
+    sql,
+    /perform sac\.gcl_authenticated_rpc_rate_limit\(%L,\s*%s,\s*%s\)/i,
+    'every selected RPC must receive the generic helper call using its tuple values',
+  );
+  assert.match(sql, /rec\.rate_key/i);
+  assert.match(sql, /rec\.rate_limit/i);
+  assert.match(sql, /rec\.window_seconds/i);
 
   assert.doesNotMatch(sql, /revoke execute on function public\.gcl_(update_profile|submit_awards_entry|begin_domain_claim|record_domain_claim_attempt|link_pending_purchases|prepare_member_checkout|moderate_report|jury_score_entry)[^;]+from authenticated/i,
     'v79 must not break legitimate authenticated RPC access');
