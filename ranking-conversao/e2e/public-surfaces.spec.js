@@ -32,7 +32,7 @@ const home={
   }
 };
 
-async function mockPublicApi(page){
+async function mockPublicApi(page,hooks={}){
   await page.route('**/functions/v1/sac-ranking-site-api',async route=>{
     let body={};
     try{body=JSON.parse(route.request().postData()||'{}')}catch{}
@@ -43,8 +43,12 @@ async function mockPublicApi(page){
     else if(action==='nominees')result=[];
     else if(action==='blog_index')result=[article];
     else if(action==='blog_post')result=article;
-    else result={};
-    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,result})});
+    else if(action==='qualify')result={intent_token:'11111111-1111-4111-8111-111111111111',domain:'example.com',url:'https://example.com/',expires_at:'2026-09-12T00:00:00Z',offer:{name:'GCL Conversion Audit · Análise Completa',price:97,currency:'BRL'},benchmark:{http_successful_audits:11668},checkout:{checkout_ready:false,provider_environment:'test',url:null}};
+    else if(action==='capture_interest'){
+      hooks.onCapture?.(body);
+      result={saved:true,stage:body.stage||'checkout_blocked',domain:'example.com',lead_id:'22222222-2222-4222-8222-222222222222',intent_token:body.intent_token,payment_required:true};
+    }
+    await route.fulfill({status:action==='capture_interest'?201:200,contentType:'application/json',body:JSON.stringify({ok:true,result})});
   });
 }
 
@@ -63,6 +67,30 @@ for(const [path,needle] of [
    expect(errs).toEqual([]);
  });
 }
+
+test('lead gate preserves the qualified URL and exposes purpose/privacy before capture',async({page})=>{
+ const errs=errors(page);let captured=null;
+ await mockPublicApi(page,{onCapture:body=>{captured=body}});
+ await page.goto(`${BASE}/`,{waitUntil:'domcontentloaded'});
+ const entry=page.locator('form.s3-search,form.input-shell').first();
+ await expect(entry).toBeVisible({timeout:15000});
+ await entry.locator('input').first().fill('example.com');
+ await entry.locator('button').first().click();
+ await expect(page.locator('.gcl-paywall15')).toBeVisible({timeout:10000});
+ await expect(page.locator('.gcl-paywall15-purpose')).toContainText('Usaremos seus dados de contato para responder a este pedido');
+ await expect(page.locator('.gcl-paywall15-purpose a[href="/ranking-site/privacy/"]')).toBeVisible();
+ await expect(page.locator('.gcl-paywall15-purpose a[href="/ranking-site/terms/"]')).toBeVisible();
+ const leadForm=page.locator('.gcl-paywall15-form');
+ await leadForm.locator('input[name="email"]').fill('lead@example.com');
+ await leadForm.locator('input[name="company_name"]').fill('Example Co');
+ await leadForm.locator('button[type="submit"]').click();
+ await expect(page.locator('.gcl-paywall15-success')).toContainText('Análise reservada.');
+ expect(captured?.email).toBe('lead@example.com');
+ expect(captured?.company_name).toBe('Example Co');
+ expect(captured?.stage).toBe('checkout_blocked');
+ expect(captured?.marketing_consent).toBe(false);
+ expect(errs).toEqual([]);
+});
 
 test('Community guest sees a real editorial stadium lobby without fake engagement',async({page})=>{
  const errs=errors(page);await mockPublicApi(page);await page.goto(`${BASE}/community/`,{waitUntil:'domcontentloaded'});
