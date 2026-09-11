@@ -1,8 +1,3 @@
--- GCL v49 — browser snapshot dependency admission must be exact and fail-closed.
--- Production incident: fullscan materialization could roll back with
--- current_snapshot_missing because browser jobs were admitted from a URL-only
--- snapshot match before current probe had created the exact audit/page snapshot.
-
 create or replace function sac.enqueue_snapshot_browser_jobs(p_audit_id uuid, p_limit integer default 8)
 returns integer
 language plpgsql
