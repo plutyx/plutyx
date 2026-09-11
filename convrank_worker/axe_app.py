@@ -23,8 +23,27 @@ from convrank_worker.app import (
 )
 from convrank_worker.fallback_sources import commoncrawl_snapshot
 
-APP_VERSION = "0.3.4"
+APP_VERSION = "0.3.5"
+PLAYWRIGHT_CLEANUP_SECONDS = 2.0
 app = FastAPI(title="ConvRank SAC Audit Worker + axe-core", version=APP_VERSION)
+
+
+async def bounded_playwright_cleanup(awaitable, timeout: float = PLAYWRIGHT_CLEANUP_SECONDS) -> bool:
+    """Bound Playwright teardown so cancellation cannot pin the worker indefinitely."""
+    task = asyncio.create_task(awaitable)
+    try:
+        done, _ = await asyncio.wait({task}, timeout=timeout)
+        if not done:
+            task.cancel()
+            return False
+        try:
+            task.result()
+        except BaseException:
+            return False
+        return True
+    except BaseException:
+        task.cancel()
+        return False
 
 
 def detect_access_limit(response: httpx.Response, static: dict[str, Any], rendered: dict[str, Any]) -> dict[str, Any]:
@@ -89,135 +108,147 @@ def archived_findings(static: dict[str, Any], fallback: dict[str, Any]) -> list[
 
 
 async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
+    playwright = None
     browser = None
     page = None
     navigation_warning = None
     started = time.perf_counter()
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-            page = await browser.new_page(viewport={"width": 390, "height": 844}, device_scale_factor=1)
+        playwright = await async_playwright().start()
+        browser = await playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-background-networking",
+                "--disable-extensions",
+                "--disable-sync",
+                "--no-first-run",
+                "--no-default-browser-check",
+            ],
+        )
+        page = await browser.new_page(viewport={"width": 390, "height": 844}, device_scale_factor=1)
 
-            async def route_handler(route):
-                resource_type = route.request.resource_type
-                blocked = {"font", "media"}
-                if not screenshot:
-                    blocked.add("image")
-                if resource_type in blocked:
-                    await route.abort()
-                else:
-                    await route.continue_()
+        async def route_handler(route):
+            resource_type = route.request.resource_type
+            blocked = {"font", "media"}
+            if not screenshot:
+                blocked.add("image")
+            if resource_type in blocked:
+                await route.abort()
+            else:
+                await route.continue_()
 
-            await page.route("**/*", route_handler)
-            console_errors: list[str] = []
-            page.on(
-                "console",
-                lambda msg: console_errors.append(msg.text[:500])
-                if msg.type == "error" and len(console_errors) < 20
-                else None,
-            )
+        await page.route("**/*", route_handler)
+        console_errors: list[str] = []
+        page.on(
+            "console",
+            lambda msg: console_errors.append(msg.text[:500])
+            if msg.type == "error" and len(console_errors) < 20
+            else None,
+        )
 
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=14000)
+        except Exception as exc:
+            navigation_warning = str(exc)[:500]
             try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=14000)
-            except Exception as exc:
-                navigation_warning = str(exc)[:500]
-                try:
-                    html = await page.content()
-                except Exception:
-                    html = ""
-                if len(html) < 200:
-                    return {
-                        "available": False,
-                        "error": "render_navigation_failed",
-                        "navigation_warning": navigation_warning,
-                        "axe": {"available": False},
-                        "duration_ms": round((time.perf_counter() - started) * 1000),
-                    }
-
-            await page.wait_for_timeout(700)
-            metrics = await page.evaluate(
-                """
-                () => {
-                  const nav = performance.getEntriesByType('navigation')[0];
-                  const controls = [...document.querySelectorAll('input:not([type=hidden]),select,textarea')];
-                  const missingLabels = controls.filter(el => {
-                    if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return false;
-                    if (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) return false;
-                    return !el.closest('label');
-                  }).length;
-                  const unnamedButtons = [...document.querySelectorAll('button,[role=button]')].filter(
-                    el => !((el.innerText || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || '').trim())
-                  ).length;
-                  return {
-                    title: document.title || null,
-                    h1_count: document.querySelectorAll('h1').length,
-                    images: document.images.length,
-                    images_missing_alt: [...document.images].filter(i => !i.hasAttribute('alt')).length,
-                    form_controls: controls.length,
-                    form_controls_missing_label: missingLabels,
-                    unnamed_buttons: unnamedButtons,
-                    horizontal_overflow_px: Math.max(0, document.documentElement.scrollWidth - innerWidth),
-                    timing: nav ? {
-                      ttfb_ms: Math.round(nav.responseStart),
-                      dom_content_loaded_ms: Math.round(nav.domContentLoadedEventEnd),
-                      load_ms: Math.round(nav.loadEventEnd || 0)
-                    } : null,
-                    resource_count: performance.getEntriesByType('resource').length
-                  };
+                html = await page.content()
+            except Exception:
+                html = ""
+            if len(html) < 200:
+                return {
+                    "available": False,
+                    "error": "render_navigation_failed",
+                    "navigation_warning": navigation_warning,
+                    "axe": {"available": False},
+                    "duration_ms": round((time.perf_counter() - started) * 1000),
                 }
-                """
-            )
 
-            try:
-                axe_result = await asyncio.wait_for(Axe().run(page=page), timeout=7.0)
-                raw = axe_result.response
-                violations = []
-                for item in raw.get("violations", []):
-                    violations.append(
-                        {
-                            "id": item.get("id"),
-                            "impact": item.get("impact"),
-                            "description": item.get("description"),
-                            "help": item.get("help"),
-                            "help_url": item.get("helpUrl"),
-                            "tags": item.get("tags", []),
-                            "nodes_count": len(item.get("nodes", [])),
-                            "targets": [node.get("target", []) for node in item.get("nodes", [])[:5]],
-                        }
-                    )
-                axe_engine: dict[str, Any] = {
-                    "available": True,
-                    "version": (raw.get("testEngine") or {}).get("version"),
-                    "violations_count": len(raw.get("violations", [])),
-                    "passes_count": len(raw.get("passes", [])),
-                    "incomplete_count": len(raw.get("incomplete", [])),
-                    "inapplicable_count": len(raw.get("inapplicable", [])),
-                    "violations": violations,
-                    "disclosure": "Automated axe-core findings do not replace manual WCAG evaluation.",
-                }
-            except asyncio.TimeoutError:
-                axe_engine = {"available": False, "error": "axe_budget_exceeded_7s", "degraded": True}
-            except Exception as exc:
-                axe_engine = {"available": False, "error": str(exc)[:1000]}
-
-            shot_b64 = None
-            shot_hash = None
-            if screenshot:
-                raw_shot = await page.screenshot(type="jpeg", quality=55, full_page=False)
-                shot_hash = hashlib.sha256(raw_shot).hexdigest()
-                shot_b64 = base64.b64encode(raw_shot).decode("ascii")
-
-            return {
-                "available": True,
-                "metrics": metrics,
-                "console_errors": console_errors,
-                "axe": axe_engine,
-                "navigation_warning": navigation_warning,
-                "screenshot_sha256": shot_hash,
-                "screenshot_base64_jpeg": shot_b64,
-                "duration_ms": round((time.perf_counter() - started) * 1000),
-                "preview_budget": "fast-path",
+        await page.wait_for_timeout(700)
+        metrics = await page.evaluate(
+            """
+            () => {
+              const nav = performance.getEntriesByType('navigation')[0];
+              const controls = [...document.querySelectorAll('input:not([type=hidden]),select,textarea')];
+              const missingLabels = controls.filter(el => {
+                if (el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')) return false;
+                if (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) return false;
+                return !el.closest('label');
+              }).length;
+              const unnamedButtons = [...document.querySelectorAll('button,[role=button]')].filter(
+                el => !((el.innerText || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || '').trim())
+              ).length;
+              return {
+                title: document.title || null,
+                h1_count: document.querySelectorAll('h1').length,
+                images: document.images.length,
+                images_missing_alt: [...document.images].filter(i => !i.hasAttribute('alt')).length,
+                form_controls: controls.length,
+                form_controls_missing_label: missingLabels,
+                unnamed_buttons: unnamedButtons,
+                horizontal_overflow_px: Math.max(0, document.documentElement.scrollWidth - innerWidth),
+                timing: nav ? {
+                  ttfb_ms: Math.round(nav.responseStart),
+                  dom_content_loaded_ms: Math.round(nav.domContentLoadedEventEnd),
+                  load_ms: Math.round(nav.loadEventEnd || 0)
+                } : null,
+                resource_count: performance.getEntriesByType('resource').length
+              };
             }
+            """
+        )
+
+        try:
+            axe_result = await asyncio.wait_for(Axe().run(page=page), timeout=7.0)
+            raw = axe_result.response
+            violations = []
+            for item in raw.get("violations", []):
+                violations.append(
+                    {
+                        "id": item.get("id"),
+                        "impact": item.get("impact"),
+                        "description": item.get("description"),
+                        "help": item.get("help"),
+                        "help_url": item.get("helpUrl"),
+                        "tags": item.get("tags", []),
+                        "nodes_count": len(item.get("nodes", [])),
+                        "targets": [node.get("target", []) for node in item.get("nodes", [])[:5]],
+                    }
+                )
+            axe_engine: dict[str, Any] = {
+                "available": True,
+                "version": (raw.get("testEngine") or {}).get("version"),
+                "violations_count": len(raw.get("violations", [])),
+                "passes_count": len(raw.get("passes", [])),
+                "incomplete_count": len(raw.get("incomplete", [])),
+                "inapplicable_count": len(raw.get("inapplicable", [])),
+                "violations": violations,
+                "disclosure": "Automated axe-core findings do not replace manual WCAG evaluation.",
+            }
+        except asyncio.TimeoutError:
+            axe_engine = {"available": False, "error": "axe_budget_exceeded_7s", "degraded": True}
+        except Exception as exc:
+            axe_engine = {"available": False, "error": str(exc)[:1000]}
+
+        shot_b64 = None
+        shot_hash = None
+        if screenshot:
+            raw_shot = await page.screenshot(type="jpeg", quality=55, full_page=False)
+            shot_hash = hashlib.sha256(raw_shot).hexdigest()
+            shot_b64 = base64.b64encode(raw_shot).decode("ascii")
+
+        return {
+            "available": True,
+            "metrics": metrics,
+            "console_errors": console_errors,
+            "axe": axe_engine,
+            "navigation_warning": navigation_warning,
+            "screenshot_sha256": shot_hash,
+            "screenshot_base64_jpeg": shot_b64,
+            "duration_ms": round((time.perf_counter() - started) * 1000),
+            "preview_budget": "fast-path",
+        }
     except Exception as exc:
         return {
             "available": False,
@@ -226,16 +257,13 @@ async def render_and_axe(url: str, screenshot: bool) -> dict[str, Any]:
             "duration_ms": round((time.perf_counter() - started) * 1000),
         }
     finally:
-        if page is not None:
-            try:
-                await page.unroute_all(behavior="ignoreErrors")
-            except Exception:
-                pass
+        # A timed-out render used to block here indefinitely while Playwright tried to
+        # unwind its context. Keep teardown strictly bounded so the outer request
+        # deadline can recover and the worker does not retain a Chromium tree forever.
         if browser is not None:
-            try:
-                await browser.close()
-            except Exception:
-                pass
+            await bounded_playwright_cleanup(browser.close())
+        if playwright is not None:
+            await bounded_playwright_cleanup(playwright.stop())
 
 
 async def fallback_for_protected(final_url: str) -> dict[str, Any]:
@@ -267,6 +295,7 @@ async def health() -> dict[str, Any]:
             "graceful_preview_degradation": True,
             "anti_bot_challenge_detection": True,
             "common_crawl_fallback": True,
+            "bounded_playwright_cleanup_seconds": PLAYWRIGHT_CLEANUP_SECONDS,
         },
     }
 
