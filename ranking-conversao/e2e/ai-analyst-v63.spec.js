@@ -59,7 +59,8 @@ const safeAi = {
   },
 };
 
-async function fixture(page, ai = safeAi) {
+async function fixture(page, ai = safeAi, options = {}) {
+  const reportCalls = { count: 0 };
   await page.route('**/functions/v1/sac-ranking-site-api', async route => {
     const { action } = route.request().postDataJSON() || {};
     const report = {
@@ -99,6 +100,10 @@ async function fixture(page, ai = safeAi) {
       evidence_dashboard: {},
       ai_analyst: ai,
     };
+    if (action === 'report') {
+      reportCalls.count += 1;
+      if (options.reportDelayMs) await new Promise(resolve => setTimeout(resolve, options.reportDelayMs));
+    }
     const result = action === 'status'
       ? { status: 'completed' }
       : action === 'report'
@@ -109,6 +114,7 @@ async function fixture(page, ai = safeAi) {
   });
 
   await page.goto(`${BASE}/?scan=${TOKEN}`, { waitUntil: 'domcontentloaded' });
+  return { reportCalls };
 }
 
 test('AI Analyst renders only as diagnostic evidence and never changes the visible GCL score', async ({ page }) => {
@@ -141,4 +147,12 @@ test('AI-generated text is escaped before entering the DOM', async ({ page }) =>
 test('AI Analyst stays absent when the backend marks it unavailable', async ({ page }) => {
   await fixture(page, { available: false, diagnostic_only: true, public_evidence_only: true, score_effect: 'none' });
   await expect(page.locator('#gcl-ai-analyst')).toHaveCount(0);
+});
+
+test('AI Analyst reuses one slow in-flight deep report instead of issuing a second report after cache expiry', async ({ page }) => {
+  test.setTimeout(26000);
+  const { reportCalls } = await fixture(page, safeAi, { reportDelayMs: 16200 });
+  const card = page.getByRole('region', { name: 'GCL AI Analyst' });
+  await expect(card).toBeVisible({ timeout: 22000 });
+  expect(reportCalls.count).toBe(1);
 });
