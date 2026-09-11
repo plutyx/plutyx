@@ -6,10 +6,11 @@ const AI_CANARY_SCAN=process.env.GCL_AI_CANARY_SCAN||'';
 test.describe.configure({retries:2});
 
 function pageErrors(page){const errors=[];page.on('pageerror',e=>errors.push(String(e?.message||e)));return errors}
+function proofUrl(){return `${BASE}/gcl-build.json?proof=${encodeURIComponent(EXPECTED_SHA)}&nonce=${Date.now()}-${Math.random().toString(36).slice(2)}`}
 
 test('production provenance matches the promoted source SHA',async({request})=>{
   test.skip(!EXPECTED_SHA,'GCL_EXPECTED_PRODUCTION_SHA is required only in the release proof workflow');
-  const response=await request.get(`${BASE}/gcl-build.json?proof=${encodeURIComponent(EXPECTED_SHA)}`,{timeout:30000});
+  const response=await request.get(proofUrl(),{timeout:30000,headers:{'cache-control':'no-cache, no-store, must-revalidate','pragma':'no-cache'}});
   expect(response.ok()).toBeTruthy();
   const body=await response.json();
   expect(body.application).toBe('Global Conversion League');
