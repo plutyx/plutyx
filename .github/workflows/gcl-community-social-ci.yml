@@ -1,0 +1,48 @@
+name: gcl-community-social-ci
+
+on:
+  pull_request:
+    paths:
+      - 'ranking-conversao/**'
+      - '.github/workflows/gcl-community-social-ci.yml'
+  push:
+    branches: [convrank-hostinger-front]
+    paths:
+      - 'ranking-conversao/**'
+      - '.github/workflows/gcl-community-social-ci.yml'
+
+jobs:
+  community-browser-contract:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ranking-conversao
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ranking-conversao/package.json
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+        env:
+          VITE_BASE_PATH: /ranking-site/
+      - name: Verify member API source is versioned
+        run: |
+          test -f supabase/functions/gcl-member-api/index.ts
+          grep -F "gcl-member-api" supabase/functions/gcl-member-api/index.ts >/dev/null
+          grep -F "gcl_toggle_post_reaction" supabase/functions/gcl-member-api/index.ts >/dev/null
+          grep -F "gcl_add_comment" supabase/functions/gcl-member-api/index.ts >/dev/null
+          grep -F "gcl_toggle_follow_member" supabase/functions/gcl-member-api/index.ts >/dev/null
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Community social browser contract
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview-community-social.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/community/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/community/ >/dev/null || { cat /tmp/gcl-preview-community-social.log; exit 1; }
+          npm run test:community-social
