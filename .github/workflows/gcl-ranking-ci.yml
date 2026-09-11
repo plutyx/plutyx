@@ -51,6 +51,8 @@ jobs:
           grep -R -F 'DISTRIBUIÇÃO DE PONTOS DO CANDIDATO' dist/assets/*.js >/dev/null
           grep -R -F 'Perfil de Pontuação' dist/assets/*.js >/dev/null
           grep -R -F 'Dimensão ausente nunca é desenhada como nota zero' dist/assets/*.js >/dev/null
+          grep -R -F 'GCL AI ANALYST' dist/assets/*.js >/dev/null
+          grep -R -F 'NÃO ALTERA O GCL SCORE' dist/assets/*.js >/dev/null
           grep -F "'lighthouse_full'" supabase/migrations/20260910215441_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
           grep -F "'scheduled_monitoring'" supabase/migrations/20260910215441_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
           grep -F "'yield_to_full_paid'" supabase/migrations/20260910215441_gcl_monitoring_deep_reaudit_v40.sql >/dev/null
@@ -100,6 +102,15 @@ jobs:
           for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
           curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-preview-radar.log; exit 1; }
           npm run test:score-radar
+      - name: Browser gate — grounded AI Analyst
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/gcl-preview-ai-analyst.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null && break; sleep 1; done
+          curl --fail --silent http://127.0.0.1:4173/ranking-site/ >/dev/null || { cat /tmp/gcl-preview-ai-analyst.log; exit 1; }
+          npm run test:ai-analyst
       - name: Browser gate — WCAG A/AA accessibility
         shell: bash
         run: |
