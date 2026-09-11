@@ -1,6 +1,6 @@
 const AI63_REPORT_API='https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac-ranking-site-api';
 
-const ai63Esc=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const ai63Esc=(v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ai63Arr=v=>Array.isArray(v)?v:[];
 const ai63Num=(v,d=0)=>Number.isFinite(Number(v))?new Intl.NumberFormat('pt-BR',{maximumFractionDigits:d}).format(Number(v)):'—';
 const ai63Confidence=v=>Number.isFinite(Number(v))?`${ai63Num(Number(v)*100,0)}% confiança`:'confiança não estimada';
