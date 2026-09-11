@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const migrationUrl = new URL('../supabase/migrations/20260911203500_gcl_report_read_path_v77.sql', import.meta.url);
+const migrationUrl = new URL('../supabase/migrations/20260911203517_gcl_report_read_path_v77.sql', import.meta.url);
 
 test('deep report read path does not refresh the global autonomous ranking', () => {
   assert.equal(fs.existsSync(migrationUrl), true, 'v77 migration must exist');
