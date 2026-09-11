@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -69,4 +69,55 @@ test('v81 bootstrap loads before the app, enriches save-lead only, and adds no t
   assert.doesNotMatch(helper, /fbq\s*\(/);
   assert.doesNotMatch(helper, /gtag\s*\(/);
   assert.doesNotMatch(helper, /connect\.facebook\.net|googletagmanager\.com/i);
+});
+
+test('v81 runtime sends UTMs without click ids before tracking consent and releases click ids after consent', async () => {
+  const store = new Map();
+  const calls = [];
+  const originalWindow = globalThis.window;
+  const originalDocument = globalThis.document;
+  const originalSessionStorage = globalThis.sessionStorage;
+
+  globalThis.sessionStorage = {
+    getItem(key) { return store.has(key) ? store.get(key) : null; },
+    setItem(key, value) { store.set(key, String(value)); },
+    removeItem(key) { store.delete(key); },
+  };
+  globalThis.document = { referrer: 'https://www.google.com/search?q=customer-secret' };
+  globalThis.window = {
+    location: {
+      href: 'https://plutyx.com/ranking-site/?utm_source=google&utm_medium=cpc&utm_campaign=gcl_launch&gclid=CLICK-123&fbclid=FB-456',
+      search: '?utm_source=google&utm_medium=cpc&utm_campaign=gcl_launch&gclid=CLICK-123&fbclid=FB-456',
+    },
+    fetch: async (input, init) => {
+      calls.push({ input, init, body: JSON.parse(init.body) });
+      return { ok: true, json: async () => ({ saved: true }) };
+    },
+  };
+
+  try {
+    const helperUrl = pathToFileURL(path.join(root, 'src', 'acquisition-attribution-v81.js')).href + `?runtime=${Date.now()}`;
+    const mod = await import(helperUrl);
+    const endpoint = 'https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac-public-api';
+
+    await window.fetch(endpoint, { method: 'POST', body: JSON.stringify({ action: 'save-lead', preview_token: 'x' }) });
+    assert.equal(calls[0].body.attribution.utm_source, 'google');
+    assert.equal(calls[0].body.attribution.utm_medium, 'cpc');
+    assert.equal(calls[0].body.attribution.utm_campaign, 'gcl_launch');
+    assert.equal(calls[0].body.attribution.tracking_consent, false);
+    assert.equal(calls[0].body.attribution.gclid, undefined);
+    assert.equal(calls[0].body.attribution.fbclid, undefined);
+    assert.doesNotMatch(calls[0].body.attribution.referrer, /customer-secret/);
+    assert.doesNotMatch(calls[0].body.attribution.landing_path, /gclid|fbclid/);
+
+    mod.setTrackingConsent(true);
+    await window.fetch(endpoint, { method: 'POST', body: JSON.stringify({ action: 'save-lead', preview_token: 'x' }) });
+    assert.equal(calls[1].body.attribution.tracking_consent, true);
+    assert.equal(calls[1].body.attribution.gclid, 'CLICK-123');
+    assert.equal(calls[1].body.attribution.fbclid, 'FB-456');
+  } finally {
+    if (originalWindow === undefined) delete globalThis.window; else globalThis.window = originalWindow;
+    if (originalDocument === undefined) delete globalThis.document; else globalThis.document = originalDocument;
+    if (originalSessionStorage === undefined) delete globalThis.sessionStorage; else globalThis.sessionStorage = originalSessionStorage;
+  }
 });
