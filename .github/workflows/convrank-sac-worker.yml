@@ -32,5 +32,5 @@ jobs:
       - run: pip install -r convrank_worker/requirements.txt pytest pytest-asyncio
       - run: npm install --prefix convrank_worker --no-audit --no-fund
       - run: convrank_worker/node_modules/.bin/lighthouse --version
-      - run: python -m py_compile convrank_worker/app.py convrank_worker/fallback_sources.py convrank_worker/axe_app.py convrank_worker/lighthouse_app.py
-      - run: pytest -q convrank_worker/test_app.py convrank_worker/test_fallback_sources.py convrank_worker/test_axe_app.py convrank_worker/test_lighthouse_cleanup.py convrank_worker/test_lighthouse_deadline.py convrank_worker/test_axe_cleanup.py
+      - run: python -m py_compile convrank_worker/app.py convrank_worker/fallback_sources.py convrank_worker/axe_app.py convrank_worker/lighthouse_app.py convrank_worker/render_isolation.py convrank_worker/render_subprocess.py
+      - run: pytest -q convrank_worker/test_app.py convrank_worker/test_fallback_sources.py convrank_worker/test_axe_app.py convrank_worker/test_lighthouse_cleanup.py convrank_worker/test_lighthouse_deadline.py convrank_worker/test_axe_cleanup.py convrank_worker/test_render_isolation.py
