@@ -48,7 +48,10 @@ def test_hardened_source_has_unique_user_data_dir_and_no_pkill():
     assert "os.kill(int(item[\"pid\"]), signal.SIGKILL)" in source
     assert "pkill" not in source.lower()
     assert "killall" not in source.lower()
+    assert 'LIGHTHOUSE_CATEGORY_PROFILE = "performance_only"' in source
+    assert '"--only-categories=performance"' in source
+    assert 'performance,seo,best-practices' not in source
     assert "_lighthouse_app.run_lighthouse = _hardened_lighthouse" in package
-    assert '_lighthouse_app.APP_VERSION = "0.9.1"' in package
+    assert '_lighthouse_app.APP_VERSION = "0.9.2"' in package
     assert "_lighthouse_app.RENDER_BUDGET_SECONDS = 30" in package
     assert "_lighthouse_app.LIGHTHOUSE_BUDGET_SECONDS = 70" in package
