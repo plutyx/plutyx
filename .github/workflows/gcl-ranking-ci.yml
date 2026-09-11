@@ -9,6 +9,7 @@ on:
   pull_request:
     paths:
       - 'ranking-conversao/**'
+      - '.github/workflows/gcl-ranking-ci.yml'
 
 jobs:
   build:
@@ -63,6 +64,8 @@ jobs:
           grep -F 'score_distribution' supabase/migrations/20260910222200_gcl_score_distribution_radar_v42.sql >/dev/null
           grep -q '/ranking-site/' dist/index.html
           grep -q 'RewriteBase /ranking-site/' dist/.htaccess
+          grep -F 'FilesMatch "^gcl-build\.json$"' dist/.htaccess >/dev/null
+          grep -F 'Cache-Control "no-store, no-cache, must-revalidate, max-age=0"' dist/.htaccess >/dev/null
           if grep -R -q 'SUPABASE_SERVICE_ROLE_KEY' dist; then echo 'service role leaked into bundle'; exit 1; fi
       - name: Install browser gates
         run: npx playwright install --with-deps chromium
