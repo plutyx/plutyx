@@ -13,6 +13,7 @@
     "test:experience": "playwright test e2e/experience.spec.js --reporter=line",
     "test:a11y": "playwright test e2e/accessibility.spec.js --reporter=line",
     "test:score-radar": "playwright test e2e/score-radar.spec.js e2e/diagnostic-contract.spec.js --reporter=line",
+    "test:ai-analyst": "playwright test e2e/ai-analyst-v63.spec.js --reporter=line",
     "test:production-public": "playwright test e2e/production-public.spec.js --reporter=line"
   },
   "dependencies": {
