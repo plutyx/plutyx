@@ -37,8 +37,11 @@ test('v79 rate-limits only the selected sensitive RPCs and preserves their exist
     ['gcl_jury_score_entry', 'jury_score'],
   ];
 
+  assert.match(sql, /n\.nspname\s*=\s*'public'/i,
+    'dynamic patch lookup must be restricted to the public schema');
+
   for (const [fn, key] of expected) {
-    assert.match(sql, new RegExp(`public\\.${fn}`, 'i'), `${fn} must be patched`);
+    assert.match(sql, new RegExp(`['\"]${fn}['\"]`, 'i'), `${fn} must be included in the patch set`);
     assert.match(sql, new RegExp(`gcl_authenticated_rpc_rate_limit\\('gcl:${key}'`, 'i'), `${fn} must receive its dedicated bucket`);
   }
 
