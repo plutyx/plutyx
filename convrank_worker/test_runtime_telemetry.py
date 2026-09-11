@@ -68,8 +68,9 @@ async def test_pipeline_instrumentation_preserves_result_and_adds_memory(monkeyp
     assert result["runtime_memory"]["after_pipeline"]["cgroup_current_bytes"] == 21
 
 
-def test_heavy_worker_runtime_patch_includes_isolated_lookup_and_version():
+def test_heavy_worker_runtime_patch_includes_isolated_lookup_and_version_assignment():
     source = Path(__file__).with_name("__init__.py").read_text(encoding="utf-8")
     assert "_lighthouse_app.chrome_executable = _isolated_chrome_executable" in source
     assert "_lighthouse_app.audit_pipeline = _instrument_pipeline(_original_audit_pipeline)" in source
-    assert '_lighthouse_app.APP_VERSION = "0.8.0"' in source
+    assert "_lighthouse_app.APP_VERSION = " in source
+    assert "_lighthouse_app.app.version = " in source

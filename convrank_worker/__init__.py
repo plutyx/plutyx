@@ -12,6 +12,7 @@ if os.getenv("GCL_RENDER_PROCESS_ISOLATION") == "1" and os.getenv("GCL_RENDER_CH
         instrument_pipeline as _instrument_pipeline,
         isolated_chrome_executable as _isolated_chrome_executable,
     )
+    from convrank_worker.hardened_lighthouse import hardened_run_lighthouse as _hardened_lighthouse
 
     _axe_app.render_and_axe = _isolated_render
 
@@ -19,7 +20,8 @@ if os.getenv("GCL_RENDER_PROCESS_ISOLATION") == "1" and os.getenv("GCL_RENDER_CH
 
     _original_audit_pipeline = _lighthouse_app.audit_pipeline
     _lighthouse_app.chrome_executable = _isolated_chrome_executable
+    _lighthouse_app.run_lighthouse = _hardened_lighthouse
     _lighthouse_app.audit_pipeline = _instrument_pipeline(_original_audit_pipeline)
-    _lighthouse_app.APP_VERSION = "0.8.0"
+    _lighthouse_app.APP_VERSION = "0.9.0"
     _lighthouse_app.RENDER_BUDGET_SECONDS = 30
-    _lighthouse_app.app.version = "0.8.0"
+    _lighthouse_app.app.version = "0.9.0"
