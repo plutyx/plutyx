@@ -77,3 +77,28 @@ test('official position requires the explicit competition contract', async ({ pa
   await expect(page.locator('.s3-report-score')).toContainText('88,8');
   await expect(page.locator('.s3-report-score')).not.toContainText('≈');
 });
+
+
+test('unscored historical rows never create a zero baseline or a false improvement', async ({ page }) => {
+  await fixture(page, { rank_history: [{ score_100: null }, { score_100: '' }, { score_100: ' ' }] });
+  const trend = page.locator('#gcl-report-intelligence-v11 .trend');
+  await expect(trend).toContainText('Histórico será exibido após novas auditorias.');
+  await expect(trend.locator('svg')).toHaveCount(0);
+  await expect(trend).not.toContainText('+88,8');
+});
+
+test('a measured zero remains valid and provisional historical deltas stay approximate', async ({ page }) => {
+  await fixture(page, { rank_history: [{ score_100: 0 }] });
+  const trend = page.locator('#gcl-report-intelligence-v11 .trend');
+  await expect(trend).toContainText('2 registros de score');
+  await expect(trend).toContainText('≈ +89 pts');
+  await expect(trend.locator('circle')).toHaveCount(2);
+});
+
+test('an unscored current report does not append a synthetic zero to valid history', async ({ page }) => {
+  await fixture(page, { ranking: { ...ranking, score_100: null }, rank_history: [{ score_100: 83 }, { score_100: 84 }] });
+  const trend = page.locator('#gcl-report-intelligence-v11 .trend');
+  await expect(trend).toContainText('2 registros de score');
+  await expect(trend).toContainText('≈ +1 pts');
+  await expect(trend.locator('circle')).toHaveCount(2);
+});

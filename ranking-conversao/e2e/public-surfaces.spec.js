@@ -130,6 +130,18 @@ test('Trust Center exposes production policy surfaces and Awards governance',asy
  expect(errs).toEqual([]);
 });
 
+test('policy navigation stays within the Trust Center and returns to the league',async({page})=>{
+ const errs=errors(page);await mockPublicApi(page);
+ await page.goto(`${BASE}/privacy/`,{waitUntil:'domcontentloaded'});
+ const policies=page.getByRole('navigation',{name:'Políticas'});
+ await policies.getByRole('link',{name:'Awards',exact:true}).click();
+ await expect(page.getByRole('heading',{level:1})).toHaveText('Prestígio precisa ser conquistado — e verificável.');
+ await expect(page.getByText('Rota não encontrada',{exact:true})).toHaveCount(0);
+ await page.getByRole('link',{name:'Voltar para a liga',exact:true}).click();
+ await expect(page.locator('form.s3-search,form.input-shell').first()).toBeVisible();
+ expect(errs).toEqual([]);
+});
+
 test('public bundle keeps the Plutyx GCL surface free of external preview branding',async({page})=>{
  await page.goto(`${BASE}/`,{waitUntil:'domcontentloaded'});
  const html=(await page.locator('body').innerText()).toLowerCase();

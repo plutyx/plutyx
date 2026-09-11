@@ -13,6 +13,17 @@ on:
       - 'ranking-conversao/playwright.cross.config.js'
       - '.github/workflows/gcl-cross-browser.yml'
 
+  pull_request:
+    branches: [convrank-hostinger-front]
+    paths:
+      - 'ranking-conversao/src/**'
+      - 'ranking-conversao/public/**'
+      - 'ranking-conversao/index.html'
+      - 'ranking-conversao/e2e/public-surfaces.spec.js'
+      - 'ranking-conversao/e2e/experience.spec.js'
+      - 'ranking-conversao/playwright.cross.config.js'
+      - '.github/workflows/gcl-cross-browser.yml'
+
 jobs:
   browser-matrix:
     runs-on: ubuntu-latest

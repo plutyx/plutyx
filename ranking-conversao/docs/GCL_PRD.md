@@ -12,7 +12,7 @@
 ## 1. Controle do Documento
 
 **Nome:** GCL / Global Conversion League — Product Requirements Document (PRD)  
-**Versão:** 1.0.2  
+**Versão:** 1.0.3
 **Data-base:** 11/09/2026  
 **Produto:** Global Conversion League (GCL) + SAC / Sites de Alta Conversão  
 **URL de produção:** https://plutyx.com/ranking-site/  
@@ -422,3 +422,13 @@ Métricas/benchmark são dinâmicos; consultar API/DB antes de apresentação ex
 - Fila: HTTP 429/502/503/504 e timeout admitem no máximo uma repetição, com intervalo mínimo de 30 s. Tentativa sem resposta após 4 min é repetida uma vez e então encerrada como falha. A prioridade de compras permanece preservada.
 - Validação de publicação: testes de regressão do worker e do contrato visual, CI, proveniência Hostinger e canários reais. O orçamento por requisição não é um SLA da auditoria inteira: espera em fila, novas tentativas e coletores assíncronos têm duração própria.
 - Rollback: reverter o commit do frontend/deploy do worker; restaurar a definição anterior da coleta/fila se necessário. Não reaplicar as migrations já registradas nem apagar auditorias históricas.
+
+
+## Atualização 1.0.3 — Validação de produção e correções de interface (v58)
+
+- O roteador decide a renderização das seis páginas do Trust Center antes de criar qualquer raiz React. Removida a disputa entre a página de política injetada após dois frames e o commit assíncrono da rota 404, observada no Firefox no run 34560525486 (79 testes passaram, um falhou).
+- A matriz Chromium/Firefox/WebKit, incluindo perfis Android/iOS, passa a executar também em pull requests para o frontend. A regressão cobre acesso direto às políticas, navegação Privacidade → Awards e retorno à liga.
+- Histórico: um score ausente, vazio ou em formação não vira zero. O registro nulo inicial do HawkSEM estava produzindo uma melhoria fictícia de +88,8 pontos. Zero medido continua válido; variações de diagnósticos provisórios são aproximadas e os pontos são descritos como registros, sem alegar auditorias independentes.
+- Checkpoint recuperado em 11/09/2026: frontend v57 (`29fe0d5`), worker 0.9.2 (`6bc40f3`), fila operacional sem jobs pendentes. Os cinco canários antes problemáticos concluíram com evidência parcial: WebFX 93,7 s, Disruptive Advertising 120,1 s, Conversion Sciences 93,2 s, Speero 93,4 s e Seth Godin 105,3 s (última coleta, worker 0.9.2). Tempos correspondem à coleta interna, não à espera total em fila.
+- Lighthouse local continua sujeito ao orçamento e à CPU disponível. `completed` não afirma cobertura completa: indisponibilidade de laboratório e degradação permanecem explícitas. O snapshot de health distingue captação de leads operacional de pagamentos reais ainda bloqueados por Stripe livemode.
+- Rollback desta interface: reverter o commit v58 e republicar o bundle pelo deployer Hostinger existente. Nenhuma migration adicional é necessária para essas correções visuais.
