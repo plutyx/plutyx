@@ -22,6 +22,7 @@ const ranking = {
 
 const safeAi = {
   available: true,
+  version: 'GCL-AI-2.1',
   diagnostic_only: true,
   public_evidence_only: true,
   score_effect: 'none',
@@ -86,7 +87,7 @@ test('AI Analyst renders only as diagnostic evidence and never changes the visib
   await expect(card).toContainText('DIAGNÓSTICO · EVIDÊNCIAS PÚBLICAS');
   await expect(card).toContainText('NÃO ALTERA O GCL SCORE');
   await expect(card).toContainText('Somente evidências públicas observadas foram usadas.');
-  await expect(card).toContainText('GCL-AI-2.0');
+  await expect(card).toContainText('GCL-AI-2.1');
   await expect(page.locator('.s3-report-score')).toContainText('≈ 89');
   await expect(page.locator('.s3-rankbox')).toContainText('Sem posição');
 });

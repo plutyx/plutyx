@@ -12,8 +12,8 @@
 ## 1. Controle do Documento
 
 **Nome:** GCL / Global Conversion League — Product Requirements Document (PRD)  
-**Versão:** 1.0.3
-**Data-base:** 11/09/2026  
+**Versão:** 1.0.4
+**Data-base:** 12/09/2026
 **Produto:** Global Conversion League (GCL) + SAC / Sites de Alta Conversão  
 **URL de produção:** https://plutyx.com/ranking-site/  
 **Repositório:** GitHub `plutyx/plutyx`  
@@ -407,6 +407,7 @@ Métricas/benchmark são dinâmicos; consultar API/DB antes de apresentação ex
 
 ## Changelog
 
+- **1.0.4 — 12/09/2026:** GCL AI Analyst 2.1 versionado no repositório; refinamento OpenRouter continua gratuito e passa a usar Nemotron Ultra com fallback Nemotron Lightning, evidência compactada, telemetria de rota e cabeçalho oficial de atribuição. Contrato 2.0 permanece imutável para auditoria histórica.
 - **1.0.1 — 10/09/2026:** branding canônico GCL Intelligence; benchmark/métricas sincronizados; Market contextual; hardening de intake; separação health operacional/comercial; performance v39; scheduled monitoring corrigido para deep re-audit `lighthouse_full` com prioridade para scans pagos e notificações; P0/P1 reconciliados com produção.
 - **1.0.0 — 09/09/2026:** baseline de produção/handoff com arquitetura GCL, Evidence OS, Community social, Awards, Revenue Architecture, billing sandbox, segurança, benchmark estrito e gates de go-live.
 
