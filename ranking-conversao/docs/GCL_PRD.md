@@ -407,6 +407,9 @@ Métricas/benchmark são dinâmicos; consultar API/DB antes de apresentação ex
 
 ## Changelog
 
+- **1.0.6 — 12/09/2026:** GCL AI Analyst 2.3 reduz o envelope do refinador aos sinais CRO essenciais e corrige a telemetria quando todas as rotas gratuitas falham, preservando contagem de tentativas e erros primário/fallback. A mudança responde ao canário 2.2, no qual o brief base concluiu, mas os dois refinadores excederam o orçamento com um prompt excessivo.
+  - Canário real: refinamento concluído pelo Nemotron Lightning na primeira tentativa; envelope de 2.017 caracteres, 44,6 s de tempo total, duas chamadas e custo OpenRouter registrado em zero — redução aproximada de 44,5% contra o canário 2.1.
+- **1.0.5 — 12/09/2026:** GCL AI Analyst 2.2 torna Nemotron Lightning o refinador primário gratuito após o canário 2.1 comprovar conclusão no fallback, preserva Nemotron Ultra como recuperação e mantém telemetria explícita de rota, tentativas e erro primário. O objetivo é remover o timeout recorrente do caminho normal sem reduzir o truth gate ou a rastreabilidade das versões anteriores.
 - **1.0.4 — 12/09/2026:** GCL AI Analyst 2.1 versionado no repositório; refinamento OpenRouter continua gratuito e passa a usar Nemotron Ultra com fallback Nemotron Lightning, evidência compactada, telemetria de rota e cabeçalho oficial de atribuição. Contrato 2.0 permanece imutável para auditoria histórica.
   - Canário real: base Nex Mini + fallback Lightning concluído em 80,4 s após timeout controlado do Ultra; três chamadas, custo OpenRouter registrado em zero e `refinement_status=completed`.
 - **1.0.1 — 10/09/2026:** branding canônico GCL Intelligence; benchmark/métricas sincronizados; Market contextual; hardening de intake; separação health operacional/comercial; performance v39; scheduled monitoring corrigido para deep re-audit `lighthouse_full` com prioridade para scans pagos e notificações; P0/P1 reconciliados com produção.

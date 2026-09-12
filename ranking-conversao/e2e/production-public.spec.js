@@ -56,7 +56,7 @@ test('real AI canary publishes a grounded analyst without score authority',async
   await expect(card).toBeVisible({timeout:30000});
   await expect(card).toContainText('DIAGNÓSTICO · EVIDÊNCIAS PÚBLICAS');
   await expect(card).toContainText('NÃO ALTERA O GCL SCORE');
-  await expect(card).toContainText('GCL-AI-2.1');
+  await expect(card).toContainText('GCL-AI-2.3');
   await expect(page.locator('.s3-report-score')).toBeVisible({timeout:20000});
   expect(errors).toEqual([]);
 });
