@@ -48,7 +48,7 @@ test('v82 consent center defaults non-essential categories to denied and persist
   assert.doesNotMatch(src, /connect\.facebook\.net|googletagmanager\.com|fbq\s*\(|gtag\s*\(/i);
 });
 
-test('v82 first-party event client is consent-aware and never loads ad-vendor code', () => {
+test('v82 first-party event client is consent-aware and uses an enabled legacy anon JWT for verify_jwt Edge calls', () => {
   const src = read('src/acquisition-events-v82.js');
   assert.match(src, /sessionStorage/);
   assert.match(src, /crypto\.randomUUID/);
@@ -58,6 +58,8 @@ test('v82 first-party event client is consent-aware and never loads ad-vendor co
   assert.match(src, /acquisition-event/);
   assert.match(src, /analytics/);
   assert.match(src, /ads/);
+  assert.match(src, /eyJpc3MiOiJzdXBhYmFzZS/, 'Edge verify_jwt requires the currently enabled anon JWT issuer');
+  assert.doesNotMatch(src, /eyJpc3MiOiJIUzI1NiI/, 'malformed legacy JWT issuer must never ship');
   assert.doesNotMatch(src, /connect\.facebook\.net|googletagmanager\.com|fbq\s*\(|gtag\s*\(/i);
 });
 
