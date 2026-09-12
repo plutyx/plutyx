@@ -2,7 +2,7 @@ import { getConsentDecision, CONSENT_EVENT } from './consent-center-v82.js';
 import { getAcquisitionAttribution } from './acquisition-attribution-v81.js';
 
 const FUNCTION_URL = 'https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac-public-api';
-const PUBLIC_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wZ2hldXpwbmt3dHhvcHN3cHF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNDk5NDYsImV4cCI6MjEwMzkyNTk0Nn0.MpohChGR95Ymi6sbMED_sWBot9jNLm_kW-Rz_PJ6mMA';
+const PUBLIC_KEY = 'sb_publishable_9XFsYS96Qe7eG4nTlQT07A_HsOz1qFF';
 const SESSION_KEY = 'gcl_acquisition_session_v82';
 const LANDING_SENT_KEY = 'gcl_landing_view_sent_v82';
 
@@ -42,6 +42,14 @@ function eventPayload(eventName, extra = {}) {
   };
 }
 
+function withPublicKey(init = {}, body) {
+  const headers = Object.fromEntries(new Headers(init.headers || {}).entries());
+  headers.apikey = PUBLIC_KEY;
+  const next = { ...init, headers };
+  if (body !== undefined) next.body = body;
+  return next;
+}
+
 async function sendEventWith(fetchImpl, eventName, extra = {}) {
   const consent = getConsentDecision();
   if (['landing_view', 'diagnostic_started'].includes(eventName) && consent.analytics !== true) return { recorded: false, reason: 'analytics_consent_required' };
@@ -51,7 +59,6 @@ async function sendEventWith(fetchImpl, eventName, extra = {}) {
       headers: {
         'content-type': 'application/json',
         apikey: PUBLIC_KEY,
-        Authorization: `Bearer ${PUBLIC_KEY}`,
       },
       body: JSON.stringify(eventPayload(eventName, extra)),
     });
@@ -91,7 +98,7 @@ export function installAcquisitionEventsV82() {
   window.fetch = async (input, init = {}) => {
     if (!isPublicApiRequest(input, init)) return originalFetch(input, init);
     let payload;
-    try { payload = JSON.parse(init.body); } catch { return originalFetch(input, init); }
+    try { payload = JSON.parse(init.body); } catch { return originalFetch(input, withPublicKey(init)); }
 
     if (payload?.action === 'save-lead') {
       const consent = getConsentDecision();
@@ -100,11 +107,11 @@ export function installAcquisitionEventsV82() {
         acquisition_session_id: getAcquisitionSessionId(),
         consent: { analytics: consent.analytics === true, ads: consent.ads === true },
       };
-      return originalFetch(input, { ...init, body: JSON.stringify(enriched) });
+      return originalFetch(input, withPublicKey(init, JSON.stringify(enriched)));
     }
 
     if (payload?.action === 'request-preview') {
-      const response = await originalFetch(input, init);
+      const response = await originalFetch(input, withPublicKey(init));
       if (response.ok && getConsentDecision().analytics === true) {
         let previewToken = null;
         try {
@@ -117,7 +124,7 @@ export function installAcquisitionEventsV82() {
       return response;
     }
 
-    return originalFetch(input, init);
+    return originalFetch(input, withPublicKey(init));
   };
 
   void recordLandingOnce(originalFetch);
