@@ -15,6 +15,7 @@
     "test:external-controls": "node --test tests/external-controls-v80.test.mjs",
     "test:acquisition-attribution": "node --test tests/acquisition-attribution-v81.test.mjs",
     "test:consent-conversion-events": "node --test tests/consent-conversion-events-v82.test.mjs",
+    "test:consent-browser": "playwright test e2e/consent-v82.spec.js --reporter=line",
     "test:member-area": "playwright test e2e/member-area.spec.js --reporter=line",
     "test:public-surfaces": "playwright test e2e/public-surfaces.spec.js --reporter=line",
     "test:moderation": "playwright test e2e/moderation.spec.js --reporter=line",
