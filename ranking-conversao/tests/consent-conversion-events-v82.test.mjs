@@ -42,6 +42,8 @@ test('v82 consent center defaults non-essential categories to denied and persist
   assert.match(src, /Aceitar medição|Aceitar/i);
   assert.match(src, /\/privacy\//);
   assert.match(src, /\/cookies\//);
+  assert.match(src, /\.gcl-consent82-card\{[^}]*pointer-events:none/i, 'consent card background must not block necessary product interactions');
+  assert.match(src, /\.gcl-consent82-card a,[\s\S]*pointer-events:auto/i, 'only consent controls should capture pointer input');
   assert.doesNotMatch(src, /gclid|fbclid|msclkid|ttclid/i, 'consent storage must not contain acquisition identifiers');
   assert.doesNotMatch(src, /connect\.facebook\.net|googletagmanager\.com|fbq\s*\(|gtag\s*\(/i);
 });
@@ -69,16 +71,17 @@ test('v82 Edge accepts only sanitized acquisition events and records lead_saved 
   assert.match(src, /sanitize/i);
 });
 
-test('v82 acquisition first-touch is captured before URL hygiene and consent/events boot before the app', () => {
+test('v82 first-touch and paid lead interception boot before the app while URL hygiene runs after attribution capture', () => {
   const html = read('index.html');
   const attribution = html.indexOf('/src/acquisition-attribution-v81.js');
   const hygiene = html.indexOf('/src/url-hygiene-v1.js');
   const consent = html.indexOf('/src/consent-center-v82.js');
   const events = html.indexOf('/src/acquisition-events-v82.js');
+  const paidGate = html.indexOf('/src/paid-analysis-gate-v15.js');
   const router = html.indexOf('/src/platform-router.jsx');
-  assert.ok(attribution > -1 && hygiene > -1 && consent > -1 && events > -1 && router > -1);
+  assert.ok(attribution > -1 && hygiene > -1 && consent > -1 && events > -1 && paidGate > -1 && router > -1);
   assert.ok(attribution < hygiene, 'first-touch attribution must capture campaign params before URL hygiene removes UTMs');
-  assert.ok(hygiene < consent && consent < events && events < router, 'hygiene, consent and events must finish before app router');
+  assert.ok(hygiene < consent && consent < events && events < paidGate && paidGate < router, 'consent, event and lead-interception gates must be installed before the app router renders interactive forms');
   const legal = read('src/legal-center-v37.js');
   assert.match(legal, /privacy/);
   assert.match(legal, /cookies/);
