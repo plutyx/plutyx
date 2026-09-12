@@ -2,7 +2,7 @@ import { getConsentDecision, CONSENT_EVENT } from './consent-center-v82.js';
 import { getAcquisitionAttribution } from './acquisition-attribution-v81.js';
 
 const FUNCTION_URL = 'https://npgheuzpnkwtxopswpqy.supabase.co/functions/v1/sac-public-api';
-const PUBLIC_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Im5wZ2hldXpwbmt3dHhvcHN3cHF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNDk5NDYsImV4cCI6MjEwMzkyNTk0Nn0.MpohChGR95Ymi6sbMED_sWBot9jNLm_kW-Rz_PJ6mMA';
+const PUBLIC_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wZ2hldXpwbmt3dHhvcHN3cHF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzNDk5NDYsImV4cCI6MjEwMzkyNTk0Nn0.MpohChGR95Ymi6sbMED_sWBot9jNLm_kW-Rz_PJ6mMA';
 const SESSION_KEY = 'gcl_acquisition_session_v82';
 const LANDING_SENT_KEY = 'gcl_landing_view_sent_v82';
 
