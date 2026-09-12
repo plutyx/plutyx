@@ -48,7 +48,7 @@ test('v82 consent center defaults non-essential categories to denied and persist
   assert.doesNotMatch(src, /connect\.facebook\.net|googletagmanager\.com|fbq\s*\(|gtag\s*\(/i);
 });
 
-test('v82 first-party event client is consent-aware and uses an enabled legacy anon JWT for verify_jwt Edge calls', () => {
+test('v82 first-party event client uses a publishable API key and ships no legacy JWT', () => {
   const src = read('src/acquisition-events-v82.js');
   assert.match(src, /sessionStorage/);
   assert.match(src, /crypto\.randomUUID/);
@@ -58,13 +58,18 @@ test('v82 first-party event client is consent-aware and uses an enabled legacy a
   assert.match(src, /acquisition-event/);
   assert.match(src, /analytics/);
   assert.match(src, /ads/);
-  assert.match(src, /eyJpc3MiOiJzdXBhYmFzZS/, 'Edge verify_jwt requires the currently enabled anon JWT issuer');
-  assert.doesNotMatch(src, /eyJpc3MiOiJIUzI1NiI/, 'malformed legacy JWT issuer must never ship');
+  assert.match(src, /sb_publishable_[A-Za-z0-9_-]+/, 'public browser calls must use the rotatable publishable key');
+  assert.doesNotMatch(src, /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/, 'legacy JWTs must never ship in the browser bundle');
+  assert.doesNotMatch(src, /Authorization\s*:/, 'anonymous public API calls must not duplicate the publishable key into Authorization');
   assert.doesNotMatch(src, /connect\.facebook\.net|googletagmanager\.com|fbq\s*\(|gtag\s*\(/i);
 });
 
-test('v82 Edge accepts only sanitized acquisition events and records lead_saved server-side', () => {
+test('v82 Edge validates public apikey itself and accepts only sanitized acquisition events', () => {
   const src = read('supabase/functions/sac-public-api/index.ts');
+  assert.match(src, /SUPABASE_PUBLISHABLE_KEYS/);
+  assert.match(src, /SUPABASE_ANON_KEY/);
+  assert.match(src, /req\.headers\.get\(["']apikey["']\)/);
+  assert.match(src, /invalid_apikey|unauthorized_apikey/i);
   assert.match(src, /gcl_record_acquisition_event/);
   assert.match(src, /acquisition-event/);
   assert.match(src, /lead_saved/);
