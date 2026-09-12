@@ -69,13 +69,16 @@ test('v82 Edge accepts only sanitized acquisition events and records lead_saved 
   assert.match(src, /sanitize/i);
 });
 
-test('v82 consent and events boot before the application without changing legal routes', () => {
+test('v82 acquisition first-touch is captured before URL hygiene and consent/events boot before the app', () => {
   const html = read('index.html');
+  const attribution = html.indexOf('/src/acquisition-attribution-v81.js');
+  const hygiene = html.indexOf('/src/url-hygiene-v1.js');
   const consent = html.indexOf('/src/consent-center-v82.js');
   const events = html.indexOf('/src/acquisition-events-v82.js');
   const router = html.indexOf('/src/platform-router.jsx');
-  assert.ok(consent > -1 && events > -1 && router > -1);
-  assert.ok(consent < events && events < router, 'consent and event boot must precede app router');
+  assert.ok(attribution > -1 && hygiene > -1 && consent > -1 && events > -1 && router > -1);
+  assert.ok(attribution < hygiene, 'first-touch attribution must capture campaign params before URL hygiene removes UTMs');
+  assert.ok(hygiene < consent && consent < events && events < router, 'hygiene, consent and events must finish before app router');
   const legal = read('src/legal-center-v37.js');
   assert.match(legal, /privacy/);
   assert.match(legal, /cookies/);
