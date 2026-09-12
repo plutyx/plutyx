@@ -1,9 +1,19 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-// GCL sac-public-api v82 / Edge release target v8.
+// GCL sac-public-api v82 / Edge release target v9.
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const LEGACY_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
+const PUBLISHABLE_KEYS = (() => {
+  try {
+    const parsed = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") || "{}");
+    return Object.values(parsed).filter((value): value is string => typeof value === "string" && value.length > 0);
+  } catch {
+    return [] as string[];
+  }
+})();
+const PUBLIC_API_KEYS = new Set([...PUBLISHABLE_KEYS, LEGACY_ANON_KEY].filter(Boolean));
 const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BROWSER_ACQUISITION_EVENTS = new Set(["landing_view","diagnostic_started","consent_updated"]);
@@ -13,6 +23,7 @@ const allowedOrigins = new Set([
 ]);
 function cors(origin:string|null){const allowed=origin&&allowedOrigins.has(origin)?origin:"https://plutyx.com";return{"Access-Control-Allow-Origin":allowed,"Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Vary":"Origin","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};}
 function reply(origin:string|null,body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:cors(origin)});}
+function hasValidPublicApiKey(req:Request){const key=req.headers.get("apikey")||"";return key.length>0&&PUBLIC_API_KEYS.has(key);}
 async function sha256(value:string){const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");}
 function normalizeUrl(raw:unknown){if(typeof raw!=="string"||raw.trim().length<4||raw.length>2048)throw new Error("invalid_url");const url=new URL(raw.trim());if(!["http:","https:"].includes(url.protocol))throw new Error("invalid_url");url.hash="";url.username="";url.password="";url.hostname=url.hostname.toLowerCase();return url.toString();}
 function sanitizedText(raw:unknown,max:number){if(typeof raw!=="string")return null;const v=raw.trim();return v?v.slice(0,max):null;}
@@ -45,7 +56,7 @@ async function commonCrawlFallback(url:string){
   return{...body,cache_hit:false};
 }
 
-Deno.serve(async(req:Request)=>{const origin=req.headers.get("origin");if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors(origin)});if(req.method!=="POST")return reply(origin,{error:"method_not_allowed"},405);if(origin&&!allowedOrigins.has(origin))return reply(origin,{error:"origin_not_allowed"},403);
+Deno.serve(async(req:Request)=>{const origin=req.headers.get("origin");if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors(origin)});if(req.method!=="POST")return reply(origin,{error:"method_not_allowed"},405);if(origin&&!allowedOrigins.has(origin))return reply(origin,{error:"origin_not_allowed"},403);if(!hasValidPublicApiKey(req))return reply(origin,{error:"invalid_apikey"},401);
  try{const payload=await req.json(),action=payload?.action;
   if(action==="snapshot"){const{data,error}=await db.rpc("sac_api_snapshot");if(error)throw error;return reply(origin,data);}
   if(action==="request-preview"){const url=normalizeUrl(payload?.url);const{ip,ua}=requestIdentity(req),bucket=await sha256(`${ip}|${ua}|sac-preview-v1`);const{data,error}=await db.rpc("sac_api_request_preview",{p_url:url,p_bucket_key:bucket});if(error){const m=String(error.message||"");if(m.includes("daily_preview_limit"))return reply(origin,{error:"daily_preview_limit"},429);if(m.includes("scanner_busy"))return reply(origin,{error:"scanner_busy"},503);if(m.includes("invalid_url"))return reply(origin,{error:"invalid_url"},400);throw error;}return reply(origin,data,202);}
