@@ -408,6 +408,7 @@ Métricas/benchmark são dinâmicos; consultar API/DB antes de apresentação ex
 ## Changelog
 
 - **1.0.4 — 12/09/2026:** GCL AI Analyst 2.1 versionado no repositório; refinamento OpenRouter continua gratuito e passa a usar Nemotron Ultra com fallback Nemotron Lightning, evidência compactada, telemetria de rota e cabeçalho oficial de atribuição. Contrato 2.0 permanece imutável para auditoria histórica.
+  - Canário real: base Nex Mini + fallback Lightning concluído em 80,4 s após timeout controlado do Ultra; três chamadas, custo OpenRouter registrado em zero e `refinement_status=completed`.
 - **1.0.1 — 10/09/2026:** branding canônico GCL Intelligence; benchmark/métricas sincronizados; Market contextual; hardening de intake; separação health operacional/comercial; performance v39; scheduled monitoring corrigido para deep re-audit `lighthouse_full` com prioridade para scans pagos e notificações; P0/P1 reconciliados com produção.
 - **1.0.0 — 09/09/2026:** baseline de produção/handoff com arquitetura GCL, Evidence OS, Community social, Awards, Revenue Architecture, billing sandbox, segurança, benchmark estrito e gates de go-live.
 
