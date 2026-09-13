@@ -37,6 +37,6 @@ test('ordinary members never receive or render the sales cockpit',async({page})=
     return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,result:[]})});
   });
   await page.goto(`${BASE}/account/`,{waitUntil:'domcontentloaded'});
-  await expect(page.getByText('Seu cockpit GCL')).toBeVisible({timeout:15000});
+  await expect(page.locator('#root[data-member-area="25"] .ma25-dashboard-hero')).toBeVisible({timeout:15000});
   await expect(page.locator('#gcl-sales87')).toHaveCount(0);
 });
