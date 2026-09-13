@@ -61,9 +61,9 @@ jobs:
               -H 'Pragma: no-cache' \
               "$wake_endpoint" >/tmp/gcl-deployer-rewake.json; then
               echo "Render release sync re-wake accepted on SHA attempt $attempt"
-              autosync_phase="$(node -e "const fs=require('fs');try{const j=JSON.parse(fs.readFileSync('/tmp/gcl-deployer-rewake.json','utf8'));process.stdout.write(String(j.autosync?.phase||''))}catch{}" || true)"
-              autosync_ok="$(node -e "const fs=require('fs');try{const j=JSON.parse(fs.readFileSync('/tmp/gcl-deployer-rewake.json','utf8'));process.stdout.write(String(j.autosync?.ok??''))}catch{}" || true)"
-              autosync_error="$(node -e "const fs=require('fs');try{const j=JSON.parse(fs.readFileSync('/tmp/gcl-deployer-rewake.json','utf8'));process.stdout.write(String(j.autosync?.error||'').replace(/[\r\n]+/g,' ').slice(0,600))}catch{}" || true)"
+              autosync_phase="$(node -e "const fs=require('fs');try{const j=JSON.parse(fs.readFileSync('/tmp/gcl-deployer-rewake.json','utf8'));process.stdout.write(String(j.autosync&&j.autosync.phase||''))}catch{}" || true)"
+              autosync_ok="$(node -e "const fs=require('fs');try{const j=JSON.parse(fs.readFileSync('/tmp/gcl-deployer-rewake.json','utf8'));process.stdout.write(String(j.autosync&&j.autosync.ok!==undefined?j.autosync.ok:''))}catch{}" || true)"
+              autosync_error="$(node -e "const fs=require('fs');try{const j=JSON.parse(fs.readFileSync('/tmp/gcl-deployer-rewake.json','utf8'));process.stdout.write(String(j.autosync&&j.autosync.error||'').replace(/[\r\n]+/g,' ').slice(0,600))}catch{}" || true)"
               if [[ "$autosync_ok" == "false" || "$autosync_phase" == "failed" ]]; then
                 echo "AUTOSYNC_FAILED phase=${autosync_phase:-unknown} error=${autosync_error:-unavailable}" >&2
               elif [[ -n "$autosync_phase" ]]; then
