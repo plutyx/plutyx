@@ -1,6 +1,7 @@
 const RX33_PREFIX='gcl_research_v33:';
 const RX33_ROUTE=()=>/^\/ranking-site\/blog\/?$/.test(location.pathname);
 let rx33Scheduled=false;
+let rx33Desired={key:null,mode:null};
 function rx33Make(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
 function rx33SafeGet(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch{return null}}
 function rx33SafeSet(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
@@ -11,18 +12,21 @@ function rx33Parse(block){
  const n=m[1],text=m[2].trim();const sentence=text.match(/^(.+?\.)(?:\s+([\s\S]*))?$/);
  return {n,title:(sentence?.[1]||text).trim(),detail:(sentence?.[2]||'').trim()};
 }
+function rx33LiveRoot(fallback){return document.querySelector('.gcl-article .markdown[data-gcl-research="33"]')||document.querySelector('.gcl-article .markdown')||fallback||null}
 function rx33SetMode(root,mode){
- root.dataset.rxMode=mode;document.querySelectorAll('.gcl-rx33-toolbar [data-rx-mode]').forEach(b=>{const active=b.dataset.rxMode===mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
- const state=rx33SafeGet(rx33Key())||{};state.mode=mode;state.updatedAt=Date.now();rx33SafeSet(rx33Key(),state);
+ if(!['quick','guided','complete'].includes(mode))return;
+ const key=rx33Key();rx33Desired={key,mode};const live=rx33LiveRoot(root);if(live)live.dataset.rxMode=mode;
+ document.querySelectorAll('.gcl-rx33-toolbar [data-rx-mode]').forEach(b=>{const active=b.dataset.rxMode===mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active))});
+ const state=rx33SafeGet(key)||{};state.mode=mode;state.updatedAt=Date.now();rx33SafeSet(key,state);
 }
-function rx33ToggleFocus(root){const on=!document.body.classList.contains('gcl-rx-focus33');document.body.classList.toggle('gcl-rx-focus33',on);const b=document.querySelector('.gcl-rx33-toolbar [data-rx-focus]');if(b){b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));b.textContent=on?'Sair do foco':'Modo foco'}if(on)root.scrollIntoView({behavior:rx33Reduced()?'auto':'smooth',block:'start'})}
+function rx33ToggleFocus(root){const live=rx33LiveRoot(root);const on=!document.body.classList.contains('gcl-rx-focus33');document.body.classList.toggle('gcl-rx-focus33',on);const b=document.querySelector('.gcl-rx33-toolbar [data-rx-focus]');if(b){b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));b.textContent=on?'Sair do foco':'Modo foco'}if(on&&live?.isConnected)live.scrollIntoView({behavior:rx33Reduced()?'auto':'smooth',block:'start'})}
 function rx33Enhance(){
  rx33Scheduled=false;if(!RX33_ROUTE())return;
  const box=document.querySelector('.gcl-article .markdown');if(!box||box.dataset.gclResearch==='33')return;
  const raw=(box.textContent||'').trim();if(!raw)return;
  box.dataset.gclResearch='33';
  const words=raw.split(/\s+/).filter(Boolean).length,mins=Math.max(1,Math.ceil(words/220));
- const key=rx33Key(),saved=rx33SafeGet(key)||{},mode=['quick','guided','complete'].includes(saved.mode)?saved.mode:'guided';
+ const key=rx33Key(),saved=rx33SafeGet(key)||{},desired=rx33Desired.key===key?rx33Desired.mode:null,mode=['quick','guided','complete'].includes(desired)?desired:['quick','guided','complete'].includes(saved.mode)?saved.mode:'guided';
  const meta=rx33Make('div','gcl-rx33-meta');
  meta.innerHTML=`<div class="gcl-rx33-meta-main"><span>${mins} min de leitura</span><span>GCL Intelligence</span><span>Aplicação prática</span></div><div class="gcl-rx33-completion" aria-live="polite"><b>0%</b><small>concluído</small></div>`;
  box.before(meta);
@@ -45,12 +49,12 @@ function rx33Enhance(){
  if(navSteps.length>1){nav.innerHTML=`<span>MAPA DA LEITURA</span><div>${navSteps.map((s,i)=>`<a href="#${s.id}"><b>${String(i+1).padStart(2,'0')}</b><span>${(s.querySelector('strong')?.textContent||'Etapa').replace(/</g,'&lt;')}</span></a>`).join('')}</div>`;progress.after(nav)}
  const resume=rx33Make('aside','gcl-rx33-resume');resume.hidden=true;resume.innerHTML='<div><span>CONTINUE DE ONDE PAROU</span><b>Sua leitura ficou salva neste navegador.</b></div><button type="button">Retomar leitura →</button>';if(Number(saved.ratio||0)>.08&&Number(saved.ratio||0)<.92){resume.hidden=false;nav.after(resume);resume.querySelector('button').onclick=()=>{const target=Math.max(0,(document.documentElement.scrollHeight-innerHeight)*Number(saved.ratio||0));scrollTo({top:target,behavior:rx33Reduced()?'auto':'smooth'});resume.hidden=true}}
  const cta=rx33Make('section','gcl-rx33-cta');cta.innerHTML='<span>PRÓXIMA JOGADA</span><h3>Transforme leitura em uma melhoria verificável.</h3><p>Faça a auditoria, escolha um gap, implemente e volte para medir a próxima versão do seu site.</p><div><a href="/ranking-site/">Descobrir meu GCL Score →</a><a class="secondary" href="/ranking-site/community/">Entrar na Community</a></div>';box.after(cta);
- rx33SetMode(box,mode);toolbar.querySelectorAll('[data-rx-mode]').forEach(b=>b.onclick=()=>rx33SetMode(box,b.dataset.rxMode));toolbar.querySelector('[data-rx-focus]').onclick=()=>rx33ToggleFocus(box);toolbar.querySelector('[data-rx-top]').onclick=()=>scrollTo({top:0,behavior:rx33Reduced()?'auto':'smooth'});
+ rx33SetMode(box,mode);toolbar.querySelectorAll('[data-rx-mode]').forEach(b=>b.onclick=()=>rx33SetMode(null,b.dataset.rxMode));toolbar.querySelector('[data-rx-focus]').onclick=()=>rx33ToggleFocus(null);toolbar.querySelector('[data-rx-top]').onclick=()=>scrollTo({top:0,behavior:rx33Reduced()?'auto':'smooth'});
  const seen=new Set(Array.isArray(saved.seen)?saved.seen:[]);const measurable=[...box.querySelectorAll('[data-rx-block]')];
  const updateCompletion=()=>{const pct=measurable.length?Math.round(seen.size/measurable.length*100):0;meta.querySelector('.gcl-rx33-completion b').textContent=`${pct}%`;const st=rx33SafeGet(key)||{};st.seen=[...seen];st.completed=pct>=90;st.updatedAt=Date.now();rx33SafeSet(key,st)};
  if('IntersectionObserver'in window){const io=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting&&entry.intersectionRatio>.35)seen.add(entry.target.dataset.rxBlock);updateCompletion()},{threshold:[.35,.65]});measurable.forEach(x=>io.observe(x))}
  updateCompletion();
- let raf=0;const onScroll=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;const r=box.getBoundingClientRect(),start=scrollY+r.top-innerHeight*.22,end=start+box.offsetHeight-innerHeight*.56;const ratio=Math.max(0,Math.min(1,(scrollY-start)/Math.max(1,end-start)));progress.style.setProperty('--rx33',`${(ratio*100).toFixed(2)}%`);const st=rx33SafeGet(key)||{};st.ratio=ratio;st.updatedAt=Date.now();rx33SafeSet(key,st)})};addEventListener('scroll',onScroll,{passive:true});onScroll();
+ let raf=0;const onScroll=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;if(!box.isConnected)return;const r=box.getBoundingClientRect(),start=scrollY+r.top-innerHeight*.22,end=start+box.offsetHeight-innerHeight*.56;const ratio=Math.max(0,Math.min(1,(scrollY-start)/Math.max(1,end-start)));progress.style.setProperty('--rx33',`${(ratio*100).toFixed(2)}%`);const st=rx33SafeGet(key)||{};st.ratio=ratio;st.updatedAt=Date.now();rx33SafeSet(key,st)})};addEventListener('scroll',onScroll,{passive:true});onScroll();
 }
 function rx33Schedule(){if(rx33Scheduled)return;rx33Scheduled=true;requestAnimationFrame(rx33Enhance)}
 function rx33Styles(){if(document.getElementById('gcl-rx33-style'))return;const s=document.createElement('style');s.id='gcl-rx33-style';s.textContent=`
