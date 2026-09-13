@@ -16,7 +16,8 @@ test('v99 stores private, bounded live billing-canary evidence for both commerci
   assert.match(body, /valid_until/i);
   assert.match(body, /enable row level security/i);
   assert.match(body, /revoke all on table sac\.gcl_billing_canary_attestations from public, anon, authenticated/i);
-  assert.match(body, /grant select, insert on table sac\.gcl_billing_canary_attestations to service_role/i);
+  assert.match(body, /grant select on table sac\.gcl_billing_canary_attestations to service_role/i);
+  assert.doesNotMatch(body, /grant[^;]*insert[^;]*gcl_billing_canary_attestations[^;]*service_role/i);
 });
 
 test('v99 verified attestations must be grounded in processed live Stripe ledger events and business state', async () => {
@@ -46,8 +47,11 @@ test('v99 readiness is fresh, requires one-time plus subscription, and commercia
   assert.match(body, /billing_canaries_not_verified/i);
 });
 
-test('v99 never opens release or seeds fabricated verified evidence', async () => {
+test('v99 migration itself never opens release or seeds fabricated verified evidence', async () => {
   const body = await sql();
+  const writerMarker = body.search(/create or replace function public\.gcl_attest_billing_canary/i);
+  assert.ok(writerMarker > 0, 'validated writer must exist');
+  const migrationSetup = body.slice(0, writerMarker);
   assert.doesNotMatch(body, /update\s+sac\.commercial_release_control[\s\S]{0,300}state\s*=\s*'open'/i);
-  assert.doesNotMatch(body, /insert\s+into\s+sac\.gcl_billing_canary_attestations[\s\S]{0,500}'verified'/i);
+  assert.doesNotMatch(migrationSetup, /insert\s+into\s+sac\.gcl_billing_canary_attestations/i);
 });
