@@ -9,7 +9,7 @@ create table if not exists sac.gcl_billing_canary_attestations (
   flow_type text not null check (flow_type in ('one_time','subscription')),
   provider text not null default 'stripe' check (provider='stripe'),
   provider_environment text not null default 'live' check (provider_environment='live'),
-  status text not null default 'verified' check (status in ('verified','blocked')),
+  status text not null check (status in ('verified','blocked')),
   provider_event_ids text[] not null check (cardinality(provider_event_ids) > 0),
   purchase_id uuid references sac.purchases(id) on delete restrict,
   membership_id uuid references sac.memberships(id) on delete restrict,
@@ -31,11 +31,11 @@ create index if not exists gcl_billing_canary_attestations_flow_fresh_idx
   on sac.gcl_billing_canary_attestations(flow_type,status,valid_until desc,observed_at desc);
 
 alter table sac.gcl_billing_canary_attestations enable row level security;
-revoke all on table sac.gcl_billing_canary_attestations from public, anon, authenticated;
-grant select, insert on table sac.gcl_billing_canary_attestations to service_role;
+revoke all on table sac.gcl_billing_canary_attestations from public, anon, authenticated, service_role;
+grant select on table sac.gcl_billing_canary_attestations to service_role;
 
 comment on table sac.gcl_billing_canary_attestations is
-'Append-only, short-lived evidence that a real Stripe live billing lifecycle completed and mutated the expected GCL business state. No canary is auto-created.';
+'Append-only, short-lived evidence that a real Stripe live billing lifecycle completed and mutated the expected GCL business state. Writes are accepted only through gcl_attest_billing_canary after ledger validation.';
 
 create or replace function public.gcl_attest_billing_canary(
   p_flow_type text,
@@ -82,7 +82,6 @@ begin
     raise exception 'billing_canary_evidence_invalid';
   end if;
 
-  -- Keep evidence intentionally short-lived. This is a release canary, not a permanent compliance attestation.
   if p_valid_minutes is null or p_valid_minutes < 5 or p_valid_minutes > 120 then
     raise exception 'invalid_billing_canary_validity';
   end if;
@@ -149,7 +148,6 @@ begin
 
     v_subscription_id:=v_membership.provider_subscription_id;
 
-    -- Checkout must be a processed live Stripe event tied to the same subscription.
     select count(*)::int into v_checkout_count
     from sac.payment_provider_events e
     where e.provider='stripe'
@@ -161,7 +159,6 @@ begin
       and e.processed_at >= now() - interval '24 hours'
       and e.payload->'data'->'object'->>'subscription'=v_subscription_id;
 
-    -- Paid invoice must be processed live and point to the same subscription.
     select count(*)::int into v_invoice_paid_count
     from sac.payment_provider_events e
     where e.provider='stripe'
@@ -176,7 +173,6 @@ begin
         e.payload->'data'->'object'->'parent'->'subscription_details'->>'subscription'
       )=v_subscription_id;
 
-    -- Cancellation must be observed by the webhook and reflected in memberships.status='cancelled'.
     select count(*)::int into v_deleted_count
     from sac.payment_provider_events e
     where e.provider='stripe'
@@ -261,7 +257,6 @@ $function$;
 revoke all on function sac.gcl_billing_canary_readiness() from public, anon, authenticated;
 grant execute on function sac.gcl_billing_canary_readiness() to service_role;
 
--- Patch v89 release setter without weakening any existing gate.
 create or replace function public.gcl_set_commercial_release_state(p_state text,p_note text default null)
 returns jsonb
 language plpgsql
