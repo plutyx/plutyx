@@ -139,3 +139,79 @@ A plataforma **não** está autorizada a cobrar clientes reais apenas porque o c
 ## 10. Segurança de credenciais
 
 Secrets nunca entram no GitHub, PRD, README, frontend ou evidências. Credenciais compartilhadas em arquivos/chat devem ser tratadas como material sensível e rotacionadas quando houver risco de exposição.
+
+## 11. UX comercial — v90
+
+A camada de comércio não deve mais comunicar que “Stripe live precisa ser conectado”, porque a infraestrutura live já está registrada e o bloqueio atual é deliberado.
+
+Estado aprovado:
+
+- interface informa que a infraestrutura Stripe live está preparada;
+- CTA indisponível é descrito como **checkout em abertura controlada**;
+- nenhum usuário é instruído a “conectar Stripe live”;
+- sandbox validado permanece oculto de leads reais;
+- ausência de checkout significa `release comercial fechado`, não falha de integração.
+
+Regression gate: `ranking-conversao/tests/commercial-state-copy-v90.test.mjs`.
+
+## 12. Prova de release e cross-browser — hardening de 13/09/2026
+
+A experiência Research tinha uma condição de corrida de remount em Firefox: o handler de mudança de profundidade podia reter referência a um `.markdown` substituído pelo React. A correção passou a resolver o nó atual e preservar o modo desejado durante remounts.
+
+Evidência posterior:
+
+- matrix Chromium + Firefox + WebKit + perfis mobile: **85 expected, 0 unexpected, 0 flaky, 0 skipped**;
+- isso permanece evidência de engine/emulação e **não** satisfaz `real_device_e2e`.
+
+O pipeline de produção também foi endurecido em dois pontos:
+
+1. o `gcl-production-proof` passou a interpretar `autosync.phase`, `autosync.ok` e erro sanitizado, em vez de tratar HTTP 200 do control-plane como prova de deploy;
+2. `Ranking Site Hostinger Build` e `gcl-production-proof` foram acoplados para disparar com o mesmo source SHA quando qualquer um dos workflows muda, impedindo proofs de um SHA para o qual nenhum bundle foi gerado.
+
+Última prova completa anterior a esta atualização documental: source SHA `b40695fb0b53f55b0861409f99c61abec2cfb385`, com provenance Hostinger, rotas públicas e canário real do GCL AI Analyst verdes.
+
+## 13. Superfície SECURITY DEFINER — v92 e v93
+
+O Security Advisor identificou helpers administrativos/operacionais `SECURITY DEFINER` executáveis diretamente por clientes autenticados. A revisão distinguiu funções de produto intencionais de helpers internos.
+
+### v92
+
+Execução direta por `anon`/`authenticated` foi revogada para:
+
+- `public.gcl_commercial_release_status()`;
+- `public.gcl_external_control_readiness()`.
+
+Somente `service_role` mantém `EXECUTE` direto. Superfícies agregadas/trusted continuam consumindo os helpers internamente.
+
+Migration versionada:
+
+`ranking-conversao/supabase/migrations/20260913153400_gcl_security_definer_surface_v92.sql`
+
+### v93
+
+Execução direta por `anon`/`authenticated` também foi revogada para:
+
+- `public.gcl_scan_queue_health()`;
+- `public.gcl_worker_capacity_health()`.
+
+Dependências verificadas antes da mudança mostram que esses helpers são consumidos por funções `SECURITY DEFINER` trusted/service-role ou pelo health agregado. Após o hardening, `public.gcl_public_health()` continuou saudável para sua superfície autorizada.
+
+Migration versionada:
+
+`ranking-conversao/supabase/migrations/20260913153600_gcl_internal_health_surface_v93.sql`
+
+O warning do Advisor caiu de 53 para 51 funções autenticadas. Os 51 casos restantes **não devem ser revogados em massa**: revisão estrutural mostrou `search_path` fixado em 51/51, e as funções mutantes identificadas possuem guard aparente de identidade/acesso. Funções como moderação, vendas e júri usam autorização interna específica e dependem do role `authenticated` para usuários legítimos.
+
+## 14. Guard financeiro pós-hardening
+
+Após v92/v93 foi executada auditoria read-only do ledger/provider events:
+
+- `commercial_release_open=false`;
+- 0 eventos Stripe live registrados;
+- 0 eventos Stripe live nas últimas 24h;
+- 0 falhas de processamento live;
+- 1 evento Stripe test registrado.
+
+Portanto, o hardening de segurança não abriu cobrança nem fulfillment live por efeito colateral.
+
+A próxima evolução desejada para billing continua sendo um **gate técnico de canário live** com evidência separada de one-time e subscription, validade temporal e exigência explícita antes de `commercial_release=open`. Essa evolução não está implementada enquanto o ambiente permanecer fail-closed.
