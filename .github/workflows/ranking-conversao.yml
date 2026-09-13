@@ -8,6 +8,7 @@ on:
       - 'ranking-conversao/**'
       - 'hostinger-deployer/**'
       - '.github/workflows/ranking-conversao.yml'
+      - '.github/workflows/gcl-production-proof.yml'
   workflow_dispatch:
 
 permissions:
