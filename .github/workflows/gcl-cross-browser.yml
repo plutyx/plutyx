@@ -11,6 +11,8 @@ on:
       - 'ranking-conversao/e2e/public-surfaces.spec.js'
       - 'ranking-conversao/e2e/experience.spec.js'
       - 'ranking-conversao/playwright.cross.config.js'
+      - 'ranking-conversao/package.json'
+      - 'ranking-conversao/package-lock.json'
       - '.github/workflows/gcl-cross-browser.yml'
 
   pull_request:
@@ -22,6 +24,8 @@ on:
       - 'ranking-conversao/e2e/public-surfaces.spec.js'
       - 'ranking-conversao/e2e/experience.spec.js'
       - 'ranking-conversao/playwright.cross.config.js'
+      - 'ranking-conversao/package.json'
+      - 'ranking-conversao/package-lock.json'
       - '.github/workflows/gcl-cross-browser.yml'
 
 jobs:
@@ -37,8 +41,8 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: ranking-conversao/package.json
-      - run: npm install --no-audit --no-fund
+          cache-dependency-path: ranking-conversao/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build
         env:
           VITE_BASE_PATH: /ranking-site/

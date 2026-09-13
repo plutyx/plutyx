@@ -30,10 +30,10 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: ranking-conversao/package.json
+          cache-dependency-path: ranking-conversao/package-lock.json
       - name: Install
         working-directory: ranking-conversao
-        run: npm install --no-audit --no-fund
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Validate Hostinger deployer runtime syntax
         shell: bash
         run: |
