@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const workflow=fs.readFileSync(new URL('../.github/workflows/gcl-production-proof.yml',import.meta.url),'utf8');
+const buildWorkflow=fs.readFileSync(new URL('../.github/workflows/ranking-conversao.yml',import.meta.url),'utf8');
 
 test('exact-SHA polling re-wakes the Render control-plane after artifact publication races',()=>{
   const waitStep=workflow.match(/- name: Wait for Hostinger to serve this exact source SHA[\s\S]*?- name: Install Chromium for public browser proof/)?.[0]||'';
@@ -20,4 +21,9 @@ test('exact-SHA polling surfaces autonomous deploy failures instead of treating 
   assert.ok(waitStep.includes('autosync.ok'),'proof must inspect whether the last autosync cycle failed');
   assert.ok(waitStep.includes('autosync.error'),'proof must surface a sanitized autosync error when deployment fails');
   assert.ok(waitStep.includes('AUTOSYNC_FAILED'),'proof logs need a stable marker for autonomous deployment failures');
+});
+
+test('build and public proof workflows cannot target different source SHAs after workflow-only changes',()=>{
+  assert.ok(buildWorkflow.includes("- '.github/workflows/gcl-production-proof.yml'"),'Hostinger artifact build must run when the production proof workflow changes');
+  assert.ok(workflow.includes("- '.github/workflows/ranking-conversao.yml'"),'production proof must run when the Hostinger artifact build workflow changes');
 });
