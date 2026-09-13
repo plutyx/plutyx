@@ -7,6 +7,7 @@ on:
       - 'ranking-conversao/**'
       - 'hostinger-deployer/**'
       - '.github/workflows/gcl-production-proof.yml'
+      - '.github/workflows/ranking-conversao.yml'
   workflow_dispatch:
 
 # Only the newest release on this branch is meaningful. A superseded proof must
