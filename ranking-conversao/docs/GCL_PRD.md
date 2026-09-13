@@ -12,7 +12,7 @@
 ## 1. Controle do Documento
 
 **Nome:** GCL / Global Conversion League — Product Requirements Document (PRD)  
-**Versão:** 1.0.7
+**Versão:** 1.0.8
 **Data-base:** 12/09/2026
 **Produto:** Global Conversion League (GCL) + SAC / Sites de Alta Conversão  
 **URL de produção:** https://plutyx.com/ranking-site/  
@@ -407,6 +407,7 @@ Métricas/benchmark são dinâmicos; consultar API/DB antes de apresentação ex
 
 ## Changelog
 
+- **1.0.8 — 13/09/2026:** Revenue Operations v87 adiciona um pipeline autenticado de leads na área do membro para `owner/admin`, com busca, prioridade de follow-up, contato direto, estados contactado/qualificado/convertido/perdido e trilha append-only de mudanças. PII permanece no schema privado `sac`; RPCs `SECURITY DEFINER` exigem autorização interna e negam `anon`. Nenhuma conta recebe privilégio automaticamente: a atribuição inicial de owner continua uma decisão operacional explícita.
 - **1.0.7 — 12/09/2026:** cadeia de dependências do frontend GCL endurecida com lockfile versionado, versões corrigidas e fixas de Playwright 1.63.0 e Vite 7.3.6, instalação reprodutível via `npm ci --ignore-scripts` nos oito workflows do produto e teste de contrato v86. O audit nativo registra zero vulnerabilidades conhecidas. O Leaked Password Protection continua como bloqueio externo real: exige habilitação autenticada no painel Supabase em plano compatível e não foi falsamente atestado como concluído.
 - **1.0.6 — 12/09/2026:** GCL AI Analyst 2.3 reduz o envelope do refinador aos sinais CRO essenciais e corrige a telemetria quando todas as rotas gratuitas falham, preservando contagem de tentativas e erros primário/fallback. A mudança responde ao canário 2.2, no qual o brief base concluiu, mas os dois refinadores excederam o orçamento com um prompt excessivo.
   - Canário real: refinamento concluído pelo Nemotron Lightning na primeira tentativa; envelope de 2.017 caracteres, 44,6 s de tempo total, duas chamadas e custo OpenRouter registrado em zero — redução aproximada de 44,5% contra o canário 2.1.
