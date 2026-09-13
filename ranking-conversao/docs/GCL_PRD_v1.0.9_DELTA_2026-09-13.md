@@ -62,17 +62,41 @@ Regression gate:
 
 O teste foi incorporado ao `prebuild`, portanto falha de regressão bloqueia build/promotion.
 
-## 4. CI / prova de release
+## 4. Release financeiro global — v89
 
-Após a correção da migração v88:
+O teste RED seguinte mostrou que `live + active + URL` em um produto canônico ainda seria suficiente, sozinho, para abrir checkout. A v89 adiciona um kill switch global separado dos produtos e do Stripe:
 
-- `gcl-ranking-ci`: green;
-- `gcl-production-proof`: green;
-- build inclui o regression gate de Stripe live staging/fail-closed.
+- `sac.commercial_release_control` possui uma única chave `gcl_public_checkout`;
+- estado inicial e atual: `closed`;
+- clientes públicos/autenticados não têm escrita nessa tabela;
+- `sac.gcl_commercial_release_is_open()` é incorporado aos contratos de checkout;
+- live checkout exige simultaneamente: release global aberto + produto live + produto active + URL;
+- `public.gcl_set_commercial_release_state()` só aceita mudança via `service_role`;
+- tentativa de abrir exige **todos os controles externos verificados**, 6/6 produtos canônicos live/active/URL e 6/6 registros do provider live/active/URL;
+- com qualquer requisito ausente, `open` falha com erro e o estado permanece `closed`;
+- fechar o release continua sendo operação fail-safe.
+
+Regression gate:
+
+`ranking-conversao/tests/commercial-release-gate-v89.test.mjs`
+
+O gate foi incorporado ao `prebuild`.
+
+Prova de produção após migração:
+
+- `public.gcl_commercial_release_status().state = closed`;
+- `public_checkout_open = false`;
+- `gcl_public_health().status = healthy`;
+- `commercial_release_open = false`;
+- tentativa de `open` com controles externos pendentes foi recusada por `external_controls_not_verified`.
+
+## 5. CI / prova de release
+
+Após a correção da migração v88, `gcl-ranking-ci` e `gcl-production-proof` ficaram green. A v89 adicionou um novo regression gate ao mesmo `prebuild`; seu commit é validado pelos workflows automáticos antes de promoção.
 
 Cross-browser CI continua sendo evidência complementar, não substituto de teste físico iOS/Android.
 
-## 5. Incident ownership
+## 6. Incident ownership
 
 O controle externo `incident_ownership` foi formalmente verificado com validade limitada.
 
@@ -84,7 +108,7 @@ O runbook define Incident Commander, SEV-1/2/3, checkout kill switch, cadeia de 
 
 A existência do runbook não atesta os demais controles externos.
 
-## 6. Readiness externo atual
+## 7. Readiness externo atual
 
 `incident_ownership` deixou de ser blocker. Permanecem cinco controles externos não verificados:
 
@@ -96,13 +120,13 @@ A existência do runbook não atesta os demais controles externos.
 
 Nenhum desses controles deve ser marcado `verified` sem evidência independente e fresca.
 
-## 7. Atualização do P0 de billing
+## 8. Atualização do P0 de billing
 
 Substituir a leitura antiga “replicar tudo em livemode” por:
 
-**PARCIALMENTE CONCLUÍDO / CHECKOUT AINDA BLOQUEADO:** produtos/preços live e webhook live assinado já existem; registry live está staged/paused e protegido por gates fail-closed. Ainda faltam a ativação comercial intencional, checkout live, canário real de baixo valor e validação de refund/cancel/subscription lifecycle antes de tráfego pago.
+**PARCIALMENTE CONCLUÍDO / CHECKOUT AINDA BLOQUEADO:** produtos/preços live e webhook live assinado já existem; registry live está staged/paused; v88 impede sandbox/links indevidos; v89 exige um release financeiro global explícito, atualmente `closed`. Ainda faltam checkout live/canário real de baixo valor e validação de refund/cancel/subscription lifecycle antes de tráfego pago.
 
-## 8. Regra de go-live
+## 9. Regra de go-live
 
 A plataforma **não** está autorizada a cobrar clientes reais apenas porque o catálogo live existe. Antes de abrir checkout público:
 
@@ -110,8 +134,8 @@ A plataforma **não** está autorizada a cobrar clientes reais apenas porque o c
 - `commercial_ready` deve refletir controles internos + externos frescos;
 - release de billing deve ser explícito e auditável;
 - executar compra real controlada de baixo valor, conferir webhook/ledger/entitlement/scan, depois refund; para recorrência, conferir create/update/payment failure/cancel lifecycle em canário apropriado;
-- somente após o canário verde promover links/sessões live para o frontend.
+- somente após o canário verde promover links/sessões live para o frontend e executar o ato explícito de release.
 
-## 9. Segurança de credenciais
+## 10. Segurança de credenciais
 
 Secrets nunca entram no GitHub, PRD, README, frontend ou evidências. Credenciais compartilhadas em arquivos/chat devem ser tratadas como material sensível e rotacionadas quando houver risco de exposição.
