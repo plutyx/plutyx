@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#06100d"/>
+      <stop offset="100%" stop-color="#081713"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="12%" cy="0" r="35%">
+      <stop offset="0%" stop-color="#68eac8" stop-opacity=".14"/>
+      <stop offset="100%" stop-color="#68eac8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="88%" cy="12%" r="30%">
+      <stop offset="0%" stop-color="#b7ff6a" stop-opacity=".09"/>
+      <stop offset="100%" stop-color="#b7ff6a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#b7ff6a"/>
+      <stop offset="100%" stop-color="#78eea8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow1)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+  <!-- Border -->
+  <rect x="24" y="24" width="1152" height="582" rx="28" fill="none" stroke="#68eac8" stroke-opacity=".12" stroke-width="1"/>
+  <!-- Trophy icon area -->
+  <rect x="80" y="160" width="64" height="64" rx="16" fill="url(#accent)"/>
+  <text x="112" y="203" text-anchor="middle" font-family="system-ui,sans-serif" font-size="32" font-weight="900" fill="#06100d">🏆</text>
+  <!-- Brand -->
+  <text x="160" y="190" font-family="system-ui,sans-serif" font-size="18" font-weight="900" letter-spacing=".2em" fill="#b7ff6a">GCL</text>
+  <text x="160" y="212" font-family="system-ui,sans-serif" font-size="11" letter-spacing=".12em" fill="#6e8880">GLOBAL CONVERSION LEAGUE</text>
+  <!-- Headline -->
+  <text x="80" y="310" font-family="system-ui,sans-serif" font-size="52" font-weight="800" letter-spacing="-.04em" fill="#f4fbf8">Até onde o seu site</text>
+  <text x="80" y="375" font-family="system-ui,sans-serif" font-size="52" font-weight="800" letter-spacing="-.04em" fill="#68eac8">consegue chegar?</text>
+  <!-- Subtitle -->
+  <text x="80" y="430" font-family="system-ui,sans-serif" font-size="18" fill="#8ca69d">Ranking global de sites de alta conversão.</text>
+  <text x="80" y="458" font-family="system-ui,sans-serif" font-size="18" fill="#8ca69d">Dispute posições por evidência técnica real.</text>
+  <!-- Stats bar -->
+  <rect x="80" y="500" width="200" height="44" rx="10" fill="#fff" fill-opacity=".04" stroke="#fff" stroke-opacity=".06"/>
+  <text x="180" y="527" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="800" letter-spacing=".08em" fill="#b7ff6a">796 MÉTRICAS</text>
+  <rect x="300" y="500" width="200" height="44" rx="10" fill="#fff" fill-opacity=".04" stroke="#fff" stroke-opacity=".06"/>
+  <text x="400" y="527" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="800" letter-spacing=".08em" fill="#68eac8">685 CHECKS</text>
+  <rect x="520" y="500" width="260" height="44" rx="10" fill="#fff" fill-opacity=".04" stroke="#fff" stroke-opacity=".06"/>
+  <text x="650" y="527" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="800" letter-spacing=".08em" fill="#f5d77d">15.950 BENCHMARK</text>
+  <!-- URL -->
+  <text x="1120" y="580" text-anchor="end" font-family="system-ui,sans-serif" font-size="14" font-weight="700" letter-spacing=".06em" fill="#4a5e57">plutyx.com/ranking-site</text>
+  <!-- Season badge -->
+  <rect x="920" y="160" width="200" height="36" rx="18" fill="#fff" fill-opacity=".04" stroke="#f5d77d" stroke-opacity=".2"/>
+  <text x="1020" y="183" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="900" letter-spacing=".16em" fill="#f5d77d">FOUNDING SEASON 2026</text>
+</svg>

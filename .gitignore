@@ -3,6 +3,10 @@ frontend/dist/
 frontend/tsconfig.tsbuildinfo
 frontend/.env
 frontend/.env.local
+ranking-conversao/node_modules/
+ranking-conversao/dist/
+ranking-conversao/.env
+ranking-conversao/.env.local
 backend/.venv/
 backend/__pycache__/
 backend/.pytest_cache/

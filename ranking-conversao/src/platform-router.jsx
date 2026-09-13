@@ -51,6 +51,6 @@ function enhanceHome(){let tries=0;const tick=()=>{tries++;const h=document.quer
 
 if(!renderLegalRoute(route)){
   if(route==='home'||route==='analyze'){import('./ranking-site-v4.jsx').then(()=>enhanceHome())}
-  else createRoot(document.getElementById('root')).render(<React.StrictMode><Platform/></React.StrictMode>);
+  else{const{ErrorBoundary}=await import('./error-boundary.jsx');createRoot(document.getElementById('root')).render(<React.StrictMode><ErrorBoundary><Platform/></ErrorBoundary></React.StrictMode>);}
   enhanceLegalFooter();
 }
