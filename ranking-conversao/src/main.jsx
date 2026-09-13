@@ -69,7 +69,7 @@ function serviceForFinding(finding) {
 
 function Metric({ label, value, suffix = '', hint }) {
   return <div className="rounded-2xl border border-white/8 bg-black/15 p-4">
-    <div className="text-[10px] uppercase tracking-[.18em] text-white/36">{label}</div>
+    <div className="text-[11px] uppercase tracking-[.18em] text-white/36">{label}</div>
     <div className="mt-2 text-xl font-semibold text-white">{value ?? '—'}{value != null && suffix}</div>
     {hint && <div className="mt-1 text-[11px] text-white/28">{hint}</div>}
   </div>;
@@ -94,7 +94,7 @@ function LogoMark() {
     <div className="relative grid size-10 place-items-center rounded-[14px] border border-emerald-300/20 bg-emerald-300/[.08] text-emerald-300">
       <Gauge size={19}/><span className="absolute -right-1 -top-1 size-2 rounded-full bg-lime-300 shadow-[0_0_12px_rgba(190,242,100,.8)]" />
     </div>
-    <div><div className="text-xs font-semibold tracking-[.2em] text-white">SITES DE ALTA CONVERSÃO</div><div className="mt-0.5 text-[9px] uppercase tracking-[.22em] text-white/30">by Plutyx · índice em calibração</div></div>
+    <div><div className="text-xs font-semibold tracking-[.2em] text-white">SITES DE ALTA CONVERSÃO</div><div className="mt-0.5 text-[11px] uppercase tracking-[.22em] text-white/30">by Plutyx · índice em calibração</div></div>
   </div>;
 }
 
@@ -102,7 +102,7 @@ function BenchmarkProof({ snapshot }) {
   const b = snapshot?.benchmark || {};
   const processed = Number(b.audited_count || 0);
   const valid = Number(b.successful_count || 0);
-  const target = Number(b.target_count || 10000);
+  const target = Number(b.target_count || 15950);
   return <div className="proof-card relative overflow-hidden rounded-[34px] border border-white/9 p-6 md:p-7">
     <div className="absolute -right-16 -top-20 size-56 rounded-full bg-emerald-300/8 blur-3xl"/>
     <div className="relative">
@@ -166,12 +166,12 @@ function DashboardPreview({ snapshot }) {
   return <div className="dashboard-mock overflow-hidden rounded-[34px] border border-white/10">
     <div className="flex items-center justify-between border-b border-white/7 bg-black/18 px-5 py-4">
       <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-red-400/70"/><span className="size-2 rounded-full bg-amber-300/70"/><span className="size-2 rounded-full bg-emerald-300/70"/></div>
-      <div className="text-[10px] uppercase tracking-[.2em] text-white/28">Dashboard · visual do produto</div>
+      <div className="text-[11px] uppercase tracking-[.2em] text-white/28">Dashboard · visual do produto</div>
       <div className="w-10"/>
     </div>
     <div className="grid gap-4 p-5 md:p-6 lg:grid-cols-[.9fr_1.1fr]">
       <div className="rounded-[28px] border border-white/8 bg-black/18 p-5">
-        <div className="text-[10px] uppercase tracking-[.2em] text-white/34">SAC Score</div>
+        <div className="text-[11px] uppercase tracking-[.2em] text-white/34">SAC Score</div>
         <div className="mt-5 flex items-end gap-3"><div className="text-7xl font-semibold tracking-[-.07em]">—</div><div className="pb-2 text-sm text-white/32">/ 1.000</div></div>
         <div className="mt-4 flex items-center gap-2 text-xs text-amber-100/62"><LockKeyhole size={14}/>{official ? 'Score oficial ativo' : 'Score oficial em calibração'}</div>
         <div className="mt-7 grid grid-cols-2 gap-3"><Metric label="Ranking Brasil" value={ranking ? 'ativo' : '—'}/><Metric label="Liga" value="—"/></div>
@@ -183,7 +183,7 @@ function DashboardPreview({ snapshot }) {
           ['Conversão', 'copy + oferta + CTA', 66],
           ['Tracking', 'mensuração detectável', 54],
         ].map(([name, desc, width]) => <div key={name} className="rounded-[24px] border border-white/7 bg-white/[.025] p-4">
-          <div className="flex items-center justify-between"><span className="text-sm font-medium text-white/72">{name}</span><span className="text-[10px] uppercase tracking-wider text-white/25">atributo</span></div>
+          <div className="flex items-center justify-between"><span className="text-sm font-medium text-white/72">{name}</span><span className="text-[11px] uppercase tracking-wider text-white/25">atributo</span></div>
           <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/6"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400/85 to-lime-300/85" style={{width:`${width}%`}}/></div>
           <div className="mt-3 text-xs leading-5 text-white/35">{desc}</div>
         </div>)}
@@ -204,9 +204,9 @@ function AwardPreview() {
     {awards.map(([code, Icon, label], index) => <div key={code} className={`award-card award-${index} relative overflow-hidden rounded-[26px] border border-white/9 p-5 text-center`}>
       <div className="award-shine absolute inset-0"/>
       <div className="relative mx-auto grid size-12 place-items-center rounded-full border border-white/15 bg-black/16"><Icon size={21}/></div>
-      <div className="relative mt-5 text-[10px] font-semibold tracking-[.24em] text-white/48">{code}</div>
+      <div className="relative mt-5 text-[11px] font-semibold tracking-[.24em] text-white/48">{code}</div>
       <div className="relative mt-2 text-sm font-semibold text-white/82">{label}</div>
-      <div className="relative mt-3 text-[10px] uppercase tracking-[.16em] text-white/28">verificável</div>
+      <div className="relative mt-3 text-[11px] uppercase tracking-[.16em] text-white/28">verificável</div>
     </div>)}
   </div>;
 }
@@ -245,7 +245,7 @@ function Hero({ snapshot, url, setUrl, onStart, error }) {
         <div className="absolute -inset-10 rounded-full bg-emerald-400/7 blur-3xl"/>
         <div className="machine-card relative overflow-hidden rounded-[36px] border border-white/10 p-5 md:p-6">
           <div className="flex items-center justify-between gap-4">
-            <div><div className="text-[10px] uppercase tracking-[.22em] text-white/32">Website intelligence engine</div><div className="mt-2 text-xl font-semibold">Uma URL entra. O site inteiro vira sinais.</div></div>
+            <div><div className="text-[11px] uppercase tracking-[.22em] text-white/32">Website intelligence engine</div><div className="mt-2 text-xl font-semibold">Uma URL entra. O site inteiro vira sinais.</div></div>
             <div className="grid size-11 place-items-center rounded-2xl bg-emerald-300/10 text-emerald-300"><BrainCircuit size={21}/></div>
           </div>
           <div className="relative mt-7 rounded-[28px] border border-white/8 bg-[#07110e]/78 p-5">
@@ -285,7 +285,7 @@ function Home({ snapshot, url, setUrl, onStart, error }) {
       <div className="max-w-3xl"><div className="eyebrow">A máquina por dentro</div><h2 className="section-title mt-4">Não olhamos apenas código.<br/><span className="text-white/38">Nós desmontamos a experiência.</span></h2><p className="mt-5 text-base leading-7 text-white/46">O objetivo final é analisar o website como sistema: o que ele diz, mostra, mede, carrega, conecta, prova e pede para o visitante fazer.</p></div>
       <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {analysisLayers.map(([Icon,title,desc],i)=><div key={title} className="feature-card group rounded-[26px] border border-white/7 p-5 transition hover:-translate-y-1 hover:border-emerald-300/16">
-          <div className="flex items-center justify-between"><div className="grid size-10 place-items-center rounded-2xl bg-white/[.045] text-emerald-200/75"><Icon size={19}/></div><span className="text-[10px] font-semibold tracking-[.2em] text-white/18">{String(i+1).padStart(2,'0')}</span></div>
+          <div className="flex items-center justify-between"><div className="grid size-10 place-items-center rounded-2xl bg-white/[.045] text-emerald-200/75"><Icon size={19}/></div><span className="text-[11px] font-semibold tracking-[.2em] text-white/18">{String(i+1).padStart(2,'0')}</span></div>
           <h3 className="mt-5 font-semibold text-white/82">{title}</h3><p className="mt-2 text-sm leading-6 text-white/38">{desc}</p>
         </div>)}
       </div>
@@ -304,7 +304,7 @@ function Home({ snapshot, url, setUrl, onStart, error }) {
             {storeMetaphors.map(([Icon,title,tech,simple],i)=><div key={title} className="store-card rounded-[26px] border border-white/8 p-5">
               <div className="flex items-center gap-3"><div className={`grid size-10 place-items-center rounded-2xl ${i%3===0?'bg-emerald-300/9 text-emerald-200':i%3===1?'bg-amber-300/8 text-amber-200':'bg-sky-300/8 text-sky-200'}`}><Icon size={19}/></div><div><div className="font-semibold text-white/80">{title}</div><div className="mt-0.5 text-[11px] text-white/28">{tech}</div></div></div>
               <p className="mt-4 text-sm leading-6 text-white/42">{simple}</p>
-              <div className="mt-4 flex items-center gap-2 text-[10px] uppercase tracking-[.16em] text-white/26"><span className="size-1.5 rounded-full bg-emerald-300/65"/>estado calculado por evidência</div>
+              <div className="mt-4 flex items-center gap-2 text-[11px] uppercase tracking-[.16em] text-white/26"><span className="size-1.5 rounded-full bg-emerald-300/65"/>estado calculado por evidência</div>
             </div>)}
           </div>
         </div>
@@ -335,14 +335,14 @@ function Home({ snapshot, url, setUrl, onStart, error }) {
         <div className="max-w-3xl"><div className="eyebrow">O modelo de negócio completo</div><h2 className="section-title mt-4">A auditoria é o começo.<br/><span className="text-white/38">O produto é a evolução.</span></h2></div>
         <div className="mt-10 grid gap-3 lg:grid-cols-5">
           {flowSteps.map(([n,title,desc,label])=><div key={n} className="relative rounded-[26px] border border-white/7 bg-white/[.024] p-5">
-            <div className="flex items-center justify-between"><span className="text-3xl font-semibold tracking-[-.05em] text-white/16">{n}</span><span className="rounded-full border border-white/7 px-2.5 py-1 text-[9px] uppercase tracking-[.16em] text-white/30">{label}</span></div>
+            <div className="flex items-center justify-between"><span className="text-3xl font-semibold tracking-[-.05em] text-white/16">{n}</span><span className="rounded-full border border-white/7 px-2.5 py-1 text-[11px] uppercase tracking-[.16em] text-white/30">{label}</span></div>
             <h3 className="mt-7 font-semibold text-white/82">{title}</h3><p className="mt-2 text-sm leading-6 text-white/38">{desc}</p>
           </div>)}
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <div className="product-card rounded-[30px] border border-white/8 p-6"><FileDown className="text-emerald-300"/><div className="mt-5 text-[10px] uppercase tracking-[.2em] text-white/30">Produto 1</div><h3 className="mt-2 text-xl font-semibold">Full Scan + PDF</h3><p className="mt-3 text-sm leading-6 text-white/40">Pagamento único para auditoria completa, evidências, SAC Score quando validado, roadmap e posição simulada.</p></div>
-          <div className="product-card rounded-[30px] border border-emerald-300/14 bg-emerald-300/[.025] p-6"><Trophy className="text-lime-300"/><div className="mt-5 text-[10px] uppercase tracking-[.2em] text-emerald-200/46">Produto 2</div><h3 className="mt-2 text-xl font-semibold">Ranking + Comunidade</h3><p className="mt-3 text-sm leading-6 text-white/40">Assinatura para posição oficial, perfil público, histórico, alerts, awards, desafios e networking.</p></div>
-          <div className="product-card rounded-[30px] border border-white/8 p-6"><WandSparkles className="text-violet-300"/><div className="mt-5 text-[10px] uppercase tracking-[.2em] text-white/30">Expansão</div><h3 className="mt-2 text-xl font-semibold">Implementação opcional</h3><p className="mt-3 text-sm leading-6 text-white/40">A plataforma mostra o problema primeiro. Depois você decide se aprende, corrige sozinho ou contrata a execução.</p></div>
+          <div className="product-card rounded-[30px] border border-white/8 p-6"><FileDown className="text-emerald-300"/><div className="mt-5 text-[11px] uppercase tracking-[.2em] text-white/30">Produto 1</div><h3 className="mt-2 text-xl font-semibold">Full Scan + PDF</h3><p className="mt-3 text-sm leading-6 text-white/40">Pagamento único para auditoria completa, evidências, SAC Score quando validado, roadmap e posição simulada.</p></div>
+          <div className="product-card rounded-[30px] border border-emerald-300/14 bg-emerald-300/[.025] p-6"><Trophy className="text-lime-300"/><div className="mt-5 text-[11px] uppercase tracking-[.2em] text-emerald-200/46">Produto 2</div><h3 className="mt-2 text-xl font-semibold">Ranking + Comunidade</h3><p className="mt-3 text-sm leading-6 text-white/40">Assinatura para posição oficial, perfil público, histórico, alerts, awards, desafios e networking.</p></div>
+          <div className="product-card rounded-[30px] border border-white/8 p-6"><WandSparkles className="text-violet-300"/><div className="mt-5 text-[11px] uppercase tracking-[.2em] text-white/30">Expansão</div><h3 className="mt-2 text-xl font-semibold">Implementação opcional</h3><p className="mt-3 text-sm leading-6 text-white/40">A plataforma mostra o problema primeiro. Depois você decide se aprende, corrige sozinho ou contrata a execução.</p></div>
         </div>
       </div>
     </section>
@@ -416,7 +416,7 @@ function Scanner({ url, status, elapsed }) {
         <ScanStage label="Normalização das evidências" detail="cada finding é ligado a um critério SAC" state="waiting"/>
         <ScanStage label="Resultado visual" detail="sem inventar score oficial" state="waiting"/>
       </div>
-      <div className="mt-6 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[.18em] text-white/26"><Clock3 size={13}/>{queued ? 'aguardando worker' : 'análise assíncrona · você pode manter esta aba aberta'}</div>
+      <div className="mt-6 flex items-center justify-center gap-2 text-[11px] uppercase tracking-[.18em] text-white/26"><Clock3 size={13}/>{queued ? 'aguardando worker' : 'análise assíncrona · você pode manter esta aba aberta'}</div>
     </div>
   </section>;
 }
@@ -427,7 +427,7 @@ function FindingCard({ finding }) {
   return <div className={`rounded-[22px] border p-4.5 transition ${warning ? 'border-amber-300/14 bg-amber-300/[.03]' : 'border-emerald-300/12 bg-emerald-300/[.028]'}`}>
     <button className="flex w-full items-start gap-3 text-left" onClick={()=>setOpen(v=>!v)}>
       <div className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl ${warning?'bg-amber-300/9 text-amber-200':'bg-emerald-300/9 text-emerald-300'}`}>{warning?<CircleAlert size={17}/>:<Check size={17}/>}</div>
-      <div className="min-w-0 flex-1"><div className="font-medium text-white/82">{finding.explanation || finding.criterion_code}</div><div className="mt-1 flex flex-wrap gap-2"><span className="text-xs text-white/30">{warning?'oportunidade detectada':'sinal atendido'}</span><span className="text-[10px] uppercase tracking-wider text-white/22">{finding.criterion_code}</span></div></div>
+      <div className="min-w-0 flex-1"><div className="font-medium text-white/82">{finding.explanation || finding.criterion_code}</div><div className="mt-1 flex flex-wrap gap-2"><span className="text-xs text-white/30">{warning?'oportunidade detectada':'sinal atendido'}</span><span className="text-[11px] uppercase tracking-wider text-white/22">{finding.criterion_code}</span></div></div>
       <ChevronDown size={16} className={`mt-2 text-white/28 transition-transform ${open?'rotate-180':''}`}/>
     </button>
     {open && <div className="mt-4 border-t border-white/7 pt-4 text-sm leading-6 text-white/45"><div><span className="text-white/68">Por que isso importa: </span>este sinal participa da maturidade observável da experiência digital.</div>{finding.recommendation && <div className="mt-2"><span className="text-white/68">Próxima ação: </span>{finding.recommendation}</div>}</div>}
@@ -476,7 +476,7 @@ function Result({ result, token }) {
 
     <div className="grid gap-4 lg:grid-cols-[.76fr_1.24fr]">
       <div className="score-card rounded-[32px] border border-white/9 p-6 md:p-7">
-        <div className="flex items-center justify-between"><div className="text-[10px] uppercase tracking-[.2em] text-white/32">Índice técnico preliminar</div><Gauge size={19} className="text-emerald-300"/></div>
+        <div className="flex items-center justify-between"><div className="text-[11px] uppercase tracking-[.2em] text-white/32">Índice técnico preliminar</div><Gauge size={19} className="text-emerald-300"/></div>
         <div className="mt-6 flex items-end gap-3"><div className="text-7xl font-semibold tracking-[-.075em]">{health ?? '—'}</div>{health!=null&&<div className="pb-2 text-white/30">/100</div>}</div>
         <p className="mt-4 text-sm leading-6 text-white/42">É apenas um resumo dos checks disponíveis nesta prévia. <strong className="font-medium text-white/68">Não é SAC Score, award ou ranking.</strong></p>
         <div className="mt-6 grid grid-cols-3 gap-2"><Metric label="TTFB" value={timing.ttfb_ms} suffix="ms"/><Metric label="DOM" value={timing.dom_content_loaded_ms} suffix="ms"/><Metric label="Load" value={timing.load_ms} suffix="ms"/></div>
@@ -484,9 +484,9 @@ function Result({ result, token }) {
       </div>
 
       <div className="rounded-[32px] border border-white/9 bg-white/[.025] p-5 md:p-6">
-        <div className="flex items-center justify-between"><div><div className="text-[10px] uppercase tracking-[.2em] text-white/30">Sua loja digital</div><h2 className="mt-2 text-xl font-semibold">Mapa visual do diagnóstico</h2></div><Building2 className="text-white/30"/></div>
+        <div className="flex items-center justify-between"><div><div className="text-[11px] uppercase tracking-[.2em] text-white/30">Sua loja digital</div><h2 className="mt-2 text-xl font-semibold">Mapa visual do diagnóstico</h2></div><Building2 className="text-white/30"/></div>
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {modules.map(m=>{const Icon=m.icon;const tone=m.status==='healthy'?'emerald':m.status==='attention'?'amber':m.status==='connection'?'violet':'slate';return <div key={m.title} className={`store-module store-${tone} rounded-[22px] border p-4`}><div className="flex items-center justify-between"><div className="grid size-9 place-items-center rounded-xl bg-black/14"><Icon size={17}/></div><span className={`size-2 rounded-full ${m.status==='healthy'?'bg-emerald-300':m.status==='attention'?'bg-amber-300':m.status==='connection'?'bg-violet-300':'bg-white/20'}`}/></div><div className="mt-4 text-sm font-semibold text-white/76">{m.title}</div><div className="mt-1 text-[11px] leading-4 text-white/30">{m.tech}</div><div className="mt-3 text-[9px] uppercase tracking-[.15em] text-white/25">{m.status==='healthy'?'estrutura saudável':m.status==='attention'?'precisa de atenção':m.status==='connection'?'precisa de conexão':'não avaliado'}</div></div>})}
+          {modules.map(m=>{const Icon=m.icon;const tone=m.status==='healthy'?'emerald':m.status==='attention'?'amber':m.status==='connection'?'violet':'slate';return <div key={m.title} className={`store-module store-${tone} rounded-[22px] border p-4`}><div className="flex items-center justify-between"><div className="grid size-9 place-items-center rounded-xl bg-black/14"><Icon size={17}/></div><span className={`size-2 rounded-full ${m.status==='healthy'?'bg-emerald-300':m.status==='attention'?'bg-amber-300':m.status==='connection'?'bg-violet-300':'bg-white/20'}`}/></div><div className="mt-4 text-sm font-semibold text-white/76">{m.title}</div><div className="mt-1 text-[11px] leading-4 text-white/30">{m.tech}</div><div className="mt-3 text-[11px] uppercase tracking-[.15em] text-white/25">{m.status==='healthy'?'estrutura saudável':m.status==='attention'?'precisa de atenção':m.status==='connection'?'precisa de conexão':'não avaliado'}</div></div>})}
         </div>
       </div>
     </div>
@@ -496,13 +496,13 @@ function Result({ result, token }) {
 
       <aside className="space-y-4 lg:sticky lg:top-5 lg:self-start">
         <div className="rounded-[30px] border border-emerald-300/14 bg-emerald-300/[.028] p-6">
-          <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-emerald-300/10 text-emerald-300"><FileDown size={19}/></div><div><div className="text-[10px] uppercase tracking-[.18em] text-emerald-100/42">Próxima camada</div><h3 className="font-semibold">Full Scan + PDF</h3></div></div>
+          <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-emerald-300/10 text-emerald-300"><FileDown size={19}/></div><div><div className="text-[11px] uppercase tracking-[.18em] text-emerald-100/42">Próxima camada</div><h3 className="font-semibold">Full Scan + PDF</h3></div></div>
           <p className="mt-4 text-sm leading-6 text-white/42">O produto pago aprofunda páginas, performance/Lighthouse, conteúdo, conversão, mídia, estrutura e gera relatório persistente. Depois vem a posição simulada no ranking.</p>
           <div className="mt-5 space-y-2">{['auditoria profunda','PDF com evidências','roadmap priorizado','posição simulada'].map(x=><div key={x} className="flex items-center gap-2 text-xs text-white/48"><Check size={13} className="text-emerald-300"/>{x}</div>)}</div>
         </div>
 
         <div className="rounded-[30px] border border-white/8 bg-white/[.022] p-6">
-          <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-violet-300/8 text-violet-200"><WandSparkles size={19}/></div><div><div className="text-[10px] uppercase tracking-[.18em] text-white/30">Missões sugeridas</div><h3 className="font-semibold">Monte sua correção</h3></div></div>
+          <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-violet-300/8 text-violet-200"><WandSparkles size={19}/></div><div><div className="text-[11px] uppercase tracking-[.18em] text-white/30">Missões sugeridas</div><h3 className="font-semibold">Monte sua correção</h3></div></div>
           <p className="mt-3 text-xs leading-5 text-white/36">Selecionar um módulo não compra pontos. Uma futura reauditoria precisa confirmar a melhora.</p>
           <div className="mt-4 space-y-2">{recommendations.map(item=>{const Icon=item.icon;const on=selected.includes(item.key);return <button key={item.key} onClick={()=>setSelected(s=>on?s.filter(x=>x!==item.key):[...s,item.key])} className={`flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition ${on?'border-emerald-300/22 bg-emerald-300/[.055]':'border-white/7 bg-black/10'}`}><div className="grid size-8 place-items-center rounded-xl bg-white/[.04]"><Icon size={15}/></div><div className="flex-1"><div className="text-sm text-white/70">{item.title}</div><div className="text-[11px] text-white/28">{item.promise}</div></div>{on&&<Check size={14} className="text-emerald-300"/>}</button>})}</div>
           <button disabled={!selected.length} onClick={()=>setBriefOpen(true)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-300 px-5 py-4 font-semibold text-[#06100d] disabled:opacity-40">Quero meu plano <ArrowRight size={16}/></button>
