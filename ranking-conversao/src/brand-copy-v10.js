@@ -71,7 +71,7 @@ function patchHome(){
   setText('.s4-origin > div:first-child > h2','O padrão por trás dos sites que lideram a experiência digital.');
   setText('.s4-origin > div:first-child > p','Compare desempenho, experiência, clareza, confiança, descoberta e arquitetura comercial em uma visão única do seu site.');
   const community=document.querySelector('.s4-community > div:first-child p');if(community)community.textContent='Hot Seats, benchmarks, projetos, casos, missões e conexões com empresas e profissionais focados em elevar a performance de seus sites.';
-  const complete=document.querySelector('.s4-complete');if(complete){const small=complete.querySelector('small');if(small)small.textContent='Raio-X SAC + Awards 2026 + Ranking + Community em uma única experiência.';const btn=complete.querySelector('button');if(btn){btn.disabled=false;btn.dataset.gclPlan='sac_complete_bundle_2026';btn.textContent='Escolher Complete Pass';btn.onclick=()=>location.href='/ranking-site/account/?plan=sac_complete_bundle_2026';}}
+  const complete=document.querySelector('.s4-complete');if(complete){const small=complete.querySelector('small');if(small)small.textContent='GCL Conversion Audit + Awards 2026 + Ranking + Community em uma única experiência.';const btn=complete.querySelector('button');if(btn){btn.disabled=false;btn.dataset.gclPlan='sac_complete_entry_2026';btn.textContent='Escolher Complete Pass';btn.onclick=()=>location.href='/ranking-site/account/?plan=sac_complete_entry_2026';}}
   const pricingNote=document.querySelector('.s4-pricing-note');if(pricingNote)pricingNote.textContent='Escolha a modalidade ideal para o seu site e acompanhe tudo pela sua área GCL.';
   document.querySelectorAll('.s4-point-rule,.gcl-score-rule').forEach(e=>e.textContent='Recomendado para os pontos de melhoria identificados neste diagnóstico.');
 }
@@ -99,7 +99,7 @@ function patchRoute(){
   }
   if(path.match(/\/ranking-site\/(account|dashboard)\/?$/)){
     const plan=new URLSearchParams(location.search).get('plan');
-    if(plan==='sac_complete_bundle_2026'){
+    if(plan==='sac_complete_entry_2026'){
       const h=document.querySelector('.gcl-prod-plan h3');if(h)h.textContent='Complete Pass 2026';
       const msg=document.querySelector('#gcl-plan-msg');if(msg&&!(msg.textContent||'').includes('Verifique'))msg.textContent='Selecione um domínio verificado para continuar com o Complete Pass.';
     }
@@ -113,14 +113,13 @@ async function member(body){const s=session();if(!s?.access_token)throw new Erro
 
 document.addEventListener('click',async e=>{
   const btn=e.target.closest?.('#gcl-plan-action');if(!btn)return;
-  const plan=new URLSearchParams(location.search).get('plan');if(plan!=='sac_complete_bundle_2026')return;
+  const plan=new URLSearchParams(location.search).get('plan');if(plan!=='sac_complete_entry_2026')return;
   e.preventDefault();e.stopImmediatePropagation();
   const msg=document.querySelector('#gcl-plan-msg');btn.disabled=true;
   try{
     const dash=await member({action:'dashboard'});const domain=(dash?.domains||[]).find(d=>d.verified);
     if(!domain){if(msg)msg.textContent='Verifique um domínio para continuar.';document.querySelector('#gcl-begin-claim')?.click();return;}
     const co=await member({action:'checkout',product_code:plan,domain_id:domain.id});
-    if(co.provider_environment==='test'){if(msg)msg.textContent='Pagamento online temporariamente indisponível para novas inscrições. Sua conta e domínio já estão preparados.';return;}
     if(co.url){location.href=co.url;return;}
     if(msg)msg.textContent='Pagamento online indisponível no momento.';
   }catch(err){if(msg)msg.textContent=err.message==='checkout_unavailable'?'Pagamento online indisponível no momento.':`Não foi possível continuar: ${err.message}`;}
