@@ -6,7 +6,7 @@ const canonicalReplacements=[
   ['GCL Labs','GCL Intelligence'],
   ['GCL LABS','GCL INTELLIGENCE'],
   ['Community · Labs · Market','Community · Intelligence · Market'],
-  ['evidência do SAC','evidência GCL'],
+  ['evidência do SAC','evidência da GCL'],
   ['Raio-X SAC','GCL Conversion Audit'],
   ['SAC Score','GCL Score'],
   ['SAC Awards','Global Conversion Awards'],

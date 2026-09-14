@@ -94,7 +94,7 @@ function LogoMark() {
     <div className="relative grid size-10 place-items-center rounded-[14px] border border-emerald-300/20 bg-emerald-300/[.08] text-emerald-300">
       <Gauge size={19}/><span className="absolute -right-1 -top-1 size-2 rounded-full bg-lime-300 shadow-[0_0_12px_rgba(190,242,100,.8)]" />
     </div>
-    <div><div className="text-xs font-semibold tracking-[.2em] text-white">SITES DE ALTA CONVERSÃO</div><div className="mt-0.5 text-[11px] uppercase tracking-[.22em] text-white/30">by Plutyx · índice em calibração</div></div>
+    <div><div className="text-xs font-semibold tracking-[.2em] text-white">GLOBAL CONVERSION LEAGUE</div><div className="mt-0.5 text-[11px] uppercase tracking-[.22em] text-white/30">Founding Season 2026 · Conversion Intelligence</div></div>
   </div>;
 }
 
@@ -171,7 +171,7 @@ function DashboardPreview({ snapshot }) {
     </div>
     <div className="grid gap-4 p-5 md:p-6 lg:grid-cols-[.9fr_1.1fr]">
       <div className="rounded-[28px] border border-white/8 bg-black/18 p-5">
-        <div className="text-[11px] uppercase tracking-[.2em] text-white/34">SAC Score</div>
+        <div className="text-[11px] uppercase tracking-[.2em] text-white/34">GCL Score</div>
         <div className="mt-5 flex items-end gap-3"><div className="text-7xl font-semibold tracking-[-.07em]">—</div><div className="pb-2 text-sm text-white/32">/ 1.000</div></div>
         <div className="mt-4 flex items-center gap-2 text-xs text-amber-100/62"><LockKeyhole size={14}/>{official ? 'Score oficial ativo' : 'Score oficial em calibração'}</div>
         <div className="mt-7 grid grid-cols-2 gap-3"><Metric label="Ranking Brasil" value={ranking ? 'ativo' : '—'}/><Metric label="Liga" value="—"/></div>
@@ -255,7 +255,7 @@ function Hero({ snapshot, url, setUrl, onStart, error }) {
               {['DOM + JS','SEO','Performance','Copy','Design','Tracking','Acessibilidade','Funil'].map((label,i)=><div key={label} className="flex items-center gap-2 rounded-xl border border-white/6 bg-white/[.025] px-3 py-2.5 text-xs text-white/46"><span className={`size-1.5 rounded-full ${i<5?'bg-emerald-300':'bg-lime-200/55'}`}/>{label}</div>)}
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-3"><Metric label="SAC Score" value="—" hint="0–1.000"/><Metric label="Ranking" value="—" hint="geral + nicho"/><Metric label="Award" value="—" hint="conquistado"/></div>
+          <div className="mt-4 grid grid-cols-3 gap-3"><Metric label="GCL Score" value="—" hint="0–1.000"/><Metric label="Ranking" value="—" hint="geral + nicho"/><Metric label="Award" value="—" hint="conquistado"/></div>
         </div>
       </div>
     </section>
@@ -276,7 +276,7 @@ function Home({ snapshot, url, setUrl, onStart, error }) {
           <div className="mt-7 flex flex-wrap gap-2">
             {['Core Web Vitals','WCAG 2.2','OWASP','Schema.org','SEO técnico','UX/CRO research','casos de campo'].map(x=><Pill key={x}>{x}</Pill>)}
           </div>
-          <div className="mt-7 rounded-2xl border border-amber-300/12 bg-amber-300/[.035] p-4 text-xs leading-5 text-amber-50/55"><strong className="font-semibold text-amber-100/75">Importante:</strong> referência técnica não significa endosso, e correlação não vira promessa de vendas. O SAC mede maturidade e prontidão observável; conversão real exige dados do próprio negócio.</div>
+          <div className="mt-7 rounded-2xl border border-amber-300/12 bg-amber-300/[.035] p-4 text-xs leading-5 text-amber-50/55"><strong className="font-semibold text-amber-100/75">Importante:</strong> referência técnica não significa endosso, e correlação não vira promessa de vendas. A GCL mede maturidade e prontidão observável; conversão real exige dados do próprio negócio.</div>
         </div>
       </div>
     </section>
@@ -340,7 +340,7 @@ function Home({ snapshot, url, setUrl, onStart, error }) {
           </div>)}
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <div className="product-card rounded-[30px] border border-white/8 p-6"><FileDown className="text-emerald-300"/><div className="mt-5 text-[11px] uppercase tracking-[.2em] text-white/30">Produto 1</div><h3 className="mt-2 text-xl font-semibold">Full Scan + PDF</h3><p className="mt-3 text-sm leading-6 text-white/40">Pagamento único para auditoria completa, evidências, SAC Score quando validado, roadmap e posição simulada.</p></div>
+          <div className="product-card rounded-[30px] border border-white/8 p-6"><FileDown className="text-emerald-300"/><div className="mt-5 text-[11px] uppercase tracking-[.2em] text-white/30">Produto 1</div><h3 className="mt-2 text-xl font-semibold">Full Scan + PDF</h3><p className="mt-3 text-sm leading-6 text-white/40">Pagamento único para auditoria completa, evidências, GCL Score quando validado, roadmap e posição simulada.</p></div>
           <div className="product-card rounded-[30px] border border-emerald-300/14 bg-emerald-300/[.025] p-6"><Trophy className="text-lime-300"/><div className="mt-5 text-[11px] uppercase tracking-[.2em] text-emerald-200/46">Produto 2</div><h3 className="mt-2 text-xl font-semibold">Ranking + Comunidade</h3><p className="mt-3 text-sm leading-6 text-white/40">Assinatura para posição oficial, perfil público, histórico, alerts, awards, desafios e networking.</p></div>
           <div className="product-card rounded-[30px] border border-white/8 p-6"><WandSparkles className="text-violet-300"/><div className="mt-5 text-[11px] uppercase tracking-[.2em] text-white/30">Expansão</div><h3 className="mt-2 text-xl font-semibold">Implementação opcional</h3><p className="mt-3 text-sm leading-6 text-white/40">A plataforma mostra o problema primeiro. Depois você decide se aprende, corrige sozinho ou contrata a execução.</p></div>
         </div>
@@ -353,7 +353,7 @@ function Home({ snapshot, url, setUrl, onStart, error }) {
           <div className="eyebrow">Reputação conquistada</div>
           <h2 className="section-title mt-4">Pagar permite participar.<br/><span className="text-white/38">Não permite ganhar.</span></h2>
           <p className="mt-5 text-base leading-7 text-white/46">Awards e badges só são emitidos quando a auditoria confirma o threshold. O selo dinâmico aponta para uma página de verificação com domínio, score, posição, data e metodologia.</p>
-          <div className="mt-6 rounded-2xl border border-emerald-300/12 bg-emerald-300/[.035] p-4 text-sm leading-6 text-white/50"><strong className="text-white/74">Regra pública:</strong> nenhum plano, anúncio ou serviço comprado altera diretamente o SAC Score.</div>
+          <div className="mt-6 rounded-2xl border border-emerald-300/12 bg-emerald-300/[.035] p-4 text-sm leading-6 text-white/50"><strong className="text-white/74">Regra pública:</strong> nenhum plano, anúncio ou serviço comprado altera diretamente o GCL Score.</div>
         </div>
         <AwardPreview/>
       </div>
@@ -365,7 +365,7 @@ function Home({ snapshot, url, setUrl, onStart, error }) {
           <div>
             <div className="eyebrow">Ranking vira rede</div>
             <h2 className="section-title mt-4">Empresas não entram só para aparecer.<br/><span className="text-white/38">Elas entram para evoluir juntas.</span></h2>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-white/46">A membership conecta quem está no ranking: conquistas, feedback de site, growth, SEO, parcerias, fornecedores, oportunidades e desafios. Community Reputation e XP são separados do SAC Score.</p>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-white/46">A membership conecta quem está no ranking: conquistas, feedback de site, growth, SEO, parcerias, fornecedores, oportunidades e desafios. Community Reputation e XP são separados do GCL Score.</p>
           </div>
           <div className="community-card rounded-[32px] border border-white/8 p-5 md:p-6">
             <div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-violet-300/9 text-violet-200"><Users size={19}/></div><div><div className="font-semibold">High Conversion Network</div><div className="text-xs text-white/30">acesso com membership ativa</div></div></div><Pill tone="violet">community</Pill></div>
@@ -413,7 +413,7 @@ function Scanner({ url, status, elapsed }) {
         <ScanStage label="HTML público + robots" detail="coleta determinística antes da renderização" state={processing ? 'done' : 'waiting'}/>
         <ScanStage label="DOM em Chromium" detail="mobile renderizado com budget controlado" state={processing ? 'active' : 'waiting'}/>
         <ScanStage label="Acessibilidade automatizada" detail="axe-core quando o budget permite" state={processing ? 'active' : 'waiting'}/>
-        <ScanStage label="Normalização das evidências" detail="cada finding é ligado a um critério SAC" state="waiting"/>
+        <ScanStage label="Normalização das evidências" detail="cada finding é ligado a um critério GCL" state="waiting"/>
         <ScanStage label="Resultado visual" detail="sem inventar score oficial" state="waiting"/>
       </div>
       <div className="mt-6 flex items-center justify-center gap-2 text-[11px] uppercase tracking-[.18em] text-white/26"><Clock3 size={13}/>{queued ? 'aguardando worker' : 'análise assíncrona · você pode manter esta aba aberta'}</div>
@@ -478,7 +478,7 @@ function Result({ result, token }) {
       <div className="score-card rounded-[32px] border border-white/9 p-6 md:p-7">
         <div className="flex items-center justify-between"><div className="text-[11px] uppercase tracking-[.2em] text-white/32">Índice técnico preliminar</div><Gauge size={19} className="text-emerald-300"/></div>
         <div className="mt-6 flex items-end gap-3"><div className="text-7xl font-semibold tracking-[-.075em]">{health ?? '—'}</div>{health!=null&&<div className="pb-2 text-white/30">/100</div>}</div>
-        <p className="mt-4 text-sm leading-6 text-white/42">É apenas um resumo dos checks disponíveis nesta prévia. <strong className="font-medium text-white/68">Não é SAC Score, award ou ranking.</strong></p>
+        <p className="mt-4 text-sm leading-6 text-white/42">É apenas um resumo dos checks disponíveis nesta prévia. <strong className="font-medium text-white/68">Não é GCL Score, award ou ranking.</strong></p>
         <div className="mt-6 grid grid-cols-3 gap-2"><Metric label="TTFB" value={timing.ttfb_ms} suffix="ms"/><Metric label="DOM" value={timing.dom_content_loaded_ms} suffix="ms"/><Metric label="Load" value={timing.load_ms} suffix="ms"/></div>
         <div className="mt-5 flex flex-wrap gap-2"><Pill><StatusDot ok={result.coverage?.javascript_rendering}/>Chromium</Pill><Pill><StatusDot ok={result.axe?.available}/>axe {result.axe?.version||''}</Pill><Pill><StatusDot ok={!result.coverage?.degraded}/>scan completo</Pill></div>
       </div>
@@ -577,7 +577,7 @@ function App(){
     {phase==='scan'&&<Scanner url={url} status={status} elapsed={elapsed}/>} 
     {phase==='result'&&result&&<Result result={result} token={token}/>} 
 
-    <footer className="relative z-10 border-t border-white/6 px-5 py-8"><div className="mx-auto flex max-w-7xl flex-col gap-4 text-xs text-white/28 md:flex-row md:items-center md:justify-between"><div>Sites de Alta Conversão · by Plutyx</div><div className="max-w-2xl text-right">A prévia automatizada não representa taxa real de conversão, não substitui avaliação manual de acessibilidade e não publica SAC Score oficial enquanto a metodologia estiver em calibração.</div></div></footer>
+    <footer className="relative z-10 border-t border-white/6 px-5 py-8"><div className="mx-auto flex max-w-7xl flex-col gap-4 text-xs text-white/28 md:flex-row md:items-center md:justify-between"><div>GCL · Global Conversion League · Temporada 2026</div><div className="max-w-2xl text-right">A prévia automatizada não representa taxa real de conversão, não substitui avaliação manual de acessibilidade e não publica GCL Score oficial enquanto a metodologia estiver em calibração.</div></div></footer>
   </div>;
 }
 
