@@ -36,7 +36,7 @@
   <text x="80" y="458" font-family="system-ui,sans-serif" font-size="18" fill="#8ca69d">Dispute posições por evidência técnica real.</text>
   <!-- Stats bar -->
   <rect x="80" y="500" width="200" height="44" rx="10" fill="#fff" fill-opacity=".04" stroke="#fff" stroke-opacity=".06"/>
-  <text x="180" y="527" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="800" letter-spacing=".08em" fill="#b7ff6a">796 MÉTRICAS</text>
+  <text x="180" y="527" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="800" letter-spacing=".08em" fill="#b7ff6a">701 MÉTRICAS</text>
   <rect x="300" y="500" width="200" height="44" rx="10" fill="#fff" fill-opacity=".04" stroke="#fff" stroke-opacity=".06"/>
   <text x="400" y="527" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="800" letter-spacing=".08em" fill="#68eac8">685 CHECKS</text>
   <rect x="520" y="500" width="260" height="44" rx="10" fill="#fff" fill-opacity=".04" stroke="#fff" stroke-opacity=".06"/>
